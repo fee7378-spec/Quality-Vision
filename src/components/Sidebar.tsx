@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Database, Users, LineChart, ShieldCheck, Settings } from 'lucide-react';
+import { LayoutDashboard, Database, Users, LineChart, Settings } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 const menuItems = [
@@ -35,10 +35,8 @@ export const Sidebar = () => {
       className="bg-black border-r border-zinc-800 h-screen flex flex-col text-zinc-400 z-50 overflow-hidden flex-shrink-0 select-none"
     >
       {/* Brand Header */}
-      <div className="px-5 flex items-center h-16 border-b border-zinc-800 gap-3 overflow-hidden">
-        <div className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-[#ffff00] flex-shrink-0">
-          <ShieldCheck size={22} />
-        </div>
+      <div className="px-4 flex items-center h-16 border-b border-zinc-800 gap-3 overflow-hidden">
+        <img src="/favicon.svg" alt="Quality Vision" className="w-8 h-8 object-contain flex-shrink-0" />
         <AnimatePresence>
           {isExpanded && (
             <motion.span 
