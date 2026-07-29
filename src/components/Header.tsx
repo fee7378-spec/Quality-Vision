@@ -17,6 +17,8 @@ export const Header = () => {
     setSelectedMacro,
     selectedEsteira,
     setSelectedEsteira,
+    selectedForma,
+    setSelectedForma,
     resetToCurrentMonth 
   } = useStore();
 
@@ -64,6 +66,22 @@ export const Header = () => {
             </div>
 
             <div className="h-4 w-px bg-zinc-800 hidden sm:block mx-1" />
+
+            {/* Forma Filter */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-zinc-400 font-semibold text-[11px] uppercase">Forma:</span>
+              <select
+                value={selectedForma}
+                onChange={(e) => setSelectedForma(e.target.value)}
+                className="bg-black border border-zinc-800 rounded px-2 py-1 text-xs text-white outline-none focus:border-[#ffff00]"
+              >
+                <option value="TODAS">TODAS</option>
+                <option value="Qualidade Interfile">Qualidade Interfile</option>
+                <option value="Estudo">Estudo</option>
+              </select>
+            </div>
+
+            <div className="h-4 w-px bg-zinc-800 hidden md:block mx-1" />
 
             {/* Esteira Filter */}
             <div className="flex items-center gap-1.5">

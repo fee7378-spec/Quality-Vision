@@ -6,7 +6,7 @@ import {
 import { AlertCircle, CheckCircle2, TrendingUp, BarChart3, Award, Grid } from 'lucide-react';
 import { useStore } from '../store/useStore';
 
-const YELLOW_PALETTE = ['#ffff00', '#eab308', '#ca8a04', '#a16207', '#854d0e', '#713f12'];
+const DONUT_PALETTE = ['#ffff00', '#f59e0b', '#3b82f6', '#10b981', '#a855f7', '#06b6d4', '#f97316', '#ec4899'];
 
 const CustomXAxisTick = (props: any) => {
   const { x, y, payload } = props;
@@ -46,7 +46,8 @@ export const DashboardPage = () => {
     endDate, 
     selectedTag, 
     selectedMacro, 
-    selectedEsteira
+    selectedEsteira,
+    selectedForma
   } = useStore();
 
   // Filter dataset
@@ -61,9 +62,16 @@ export const DashboardPage = () => {
     });
   }, [data, startDate, endDate, selectedTag, selectedMacro, selectedEsteira]);
 
+  // Helper to test if item is an error considering selectedForma
+  const isErrorItem = (item: typeof data[0]) => {
+    if (item.Erro !== '0') return false;
+    if (selectedForma !== 'TODAS' && item.FormaMonitoria !== selectedForma) return false;
+    return true;
+  };
+
   // Executive KPIs
   const totalMonitorias = filteredData.length;
-  const totalErros = filteredData.filter(d => d.Erro === '0').length;
+  const totalErros = filteredData.filter(d => isErrorItem(d)).length;
   const qualidade = totalMonitorias > 0 
     ? (((totalMonitorias - totalErros) / totalMonitorias) * 100).toFixed(1) + '%' 
     : '100%';
@@ -74,7 +82,7 @@ export const DashboardPage = () => {
     const analystTagErrorCount: Record<string, number> = {};
     let repeatErrors = 0;
 
-    filteredData.filter(d => d.Erro === '0').forEach(item => {
+    filteredData.filter(d => isErrorItem(d)).forEach(item => {
       const key = `${item.CodigoAnalista}_${item.Tag}`;
       analystTagErrorCount[key] = (analystTagErrorCount[key] || 0) + 1;
       if (analystTagErrorCount[key] > 1) {
@@ -84,14 +92,14 @@ export const DashboardPage = () => {
 
     const rate = (repeatErrors / totalErros) * 100;
     return rate.toFixed(1) + '%';
-  }, [filteredData, totalErros]);
+  }, [filteredData, totalErros, selectedForma]);
 
   // Ranking de Reincidentes (Analistas com mais erros repetidos - Top 10)
   const rankingReincidentes = useMemo(() => {
     const map: Record<string, { nome: string; codigo: string; tagMaisErros: string; totalErros: number; reincidencias: number }> = {};
     const analystTagMap: Record<string, Record<string, number>> = {};
 
-    filteredData.filter(d => d.Erro === '0').forEach(item => {
+    filteredData.filter(d => isErrorItem(d)).forEach(item => {
       const name = item.NomeAnalista || 'ANALISTA';
       const code = item.CodigoAnalista || name;
       const tag = item.Tag || 'Geral';
@@ -125,7 +133,7 @@ export const DashboardPage = () => {
       .filter(a => a.totalErros > 0)
       .sort((a, b) => b.reincidencias - a.reincidencias || b.totalErros - a.totalErros)
       .slice(0, 10);
-  }, [filteredData]);
+  }, [filteredData, selectedForma]);
 
   // Timeline chart: > 31 days = Month, <= 31 days = Day
   const timelineData = useMemo(() => {
@@ -169,19 +177,19 @@ export const DashboardPage = () => {
         map[key] = { fullKey: key, label, erros: 0, total: 0 };
       }
       map[key].total += 1;
-      if (item.Erro === '0') map[key].erros += 1;
+      if (isErrorItem(item)) map[key].erros += 1;
     });
 
     const list = Object.values(map)
       .filter(item => item.erros > 0)
       .sort((a, b) => a.fullKey.localeCompare(b.fullKey));
     return { list, isDaily };
-  }, [filteredData]);
+  }, [filteredData, selectedForma]);
 
   // Erros por TAG
   const errorsByTagData = useMemo(() => {
     const map: Record<string, number> = {};
-    filteredData.filter(d => d.Erro === '0').forEach(item => {
+    filteredData.filter(d => isErrorItem(d)).forEach(item => {
       const tag = item.Tag || 'Geral';
       map[tag] = (map[tag] || 0) + 1;
     });
@@ -189,12 +197,12 @@ export const DashboardPage = () => {
     return Object.entries(map)
       .map(([tag, count]) => ({ tag, count }))
       .sort((a, b) => b.count - a.count);
-  }, [filteredData]);
+  }, [filteredData, selectedForma]);
 
   // Erros por Motivo Macro
   const errorsByMacroData = useMemo(() => {
     const map: Record<string, number> = {};
-    filteredData.filter(d => d.Erro === '0').forEach(item => {
+    filteredData.filter(d => isErrorItem(d)).forEach(item => {
       const macro = item.MotivoMacro || 'Geral';
       map[macro] = (map[macro] || 0) + 1;
     });
@@ -202,7 +210,7 @@ export const DashboardPage = () => {
     return Object.entries(map)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
-  }, [filteredData]);
+  }, [filteredData, selectedForma]);
 
   // Heatmap de Esteiras x Mês
   const heatmapEsteiraMes = useMemo(() => {
@@ -215,7 +223,7 @@ export const DashboardPage = () => {
       meses.forEach(m => matrix[e][m] = 0);
     });
 
-    filteredData.filter(d => d.Erro === '0').forEach(item => {
+    filteredData.filter(d => isErrorItem(d)).forEach(item => {
       const e = item.Esteira;
       const m = item.DataMonitoria ? item.DataMonitoria.slice(0, 7) : '2026-07';
       if (matrix[e] && matrix[e][m] !== undefined) {
@@ -224,7 +232,7 @@ export const DashboardPage = () => {
     });
 
     return { esteiras, meses, matrix };
-  }, [filteredData]);
+  }, [filteredData, selectedForma]);
 
   return (
     <div className="flex-1 overflow-y-auto bg-black p-8 space-y-8 text-zinc-100">
@@ -381,7 +389,7 @@ export const DashboardPage = () => {
                 labelLine={false}
               >
                 {errorsByMacroData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={YELLOW_PALETTE[index % YELLOW_PALETTE.length]} />
+                  <Cell key={`cell-${index}`} fill={DONUT_PALETTE[index % DONUT_PALETTE.length]} />
                 ))}
               </Pie>
               <Tooltip contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '12px', color: '#fff' }} />
@@ -389,7 +397,8 @@ export const DashboardPage = () => {
                 layout="vertical" 
                 align="right" 
                 verticalAlign="middle" 
-                wrapperStyle={{ fontSize: '11px', color: '#fff', paddingLeft: '10px' }} 
+                wrapperStyle={{ fontSize: '11px', color: '#ffffff', paddingLeft: '10px' }} 
+                formatter={(value) => <span style={{ color: '#ffffff', fontWeight: 500 }}>{value}</span>}
               />
             </PieChart>
           </ResponsiveContainer>
