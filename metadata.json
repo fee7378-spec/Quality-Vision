@@ -1,0 +1,6 @@
+{
+  "name": "Quality Vision",
+  "description": "Professional quality vision system for monitoring analyst performance.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
