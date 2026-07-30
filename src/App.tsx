@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { ImportPage } from './pages/ImportPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -16,9 +16,11 @@ export default function App() {
       <DashboardLayout>
         <Routes>
           <Route path="/" element={<DashboardPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/analise" element={<AnaliseEvolucaoPage />} />
           <Route path="/analistas" element={<AnalistasPage />} />
           <Route path="/import" element={<ImportPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </DashboardLayout>
     </Router>
