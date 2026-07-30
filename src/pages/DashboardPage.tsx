@@ -7,7 +7,7 @@ import { AlertCircle, CheckCircle2, TrendingUp, BarChart3, Award, Grid, Briefcas
 import { useStore } from '../store/useStore';
 
 
-const DONUT_PALETTE = ['#ffff00', '#f59e0b', '#3b82f6', '#10b981', '#a855f7', '#06b6d4', '#f97316', '#ec4899'];
+const DONUT_PALETTE = ['#facc15', '#f59e0b', '#3b82f6', '#10b981', '#a855f7', '#06b6d4', '#f97316', '#ec4899'];
 
 const CustomXAxisTick = (props: any) => {
   const { x, y, payload } = props;
@@ -87,9 +87,17 @@ export const DashboardPage = () => {
   // Executive KPIs
   const totalMonitorias = filteredData.length;
   const totalErros = filteredData.filter(d => isErrorItem(d)).length;
-  const qualidade = totalMonitorias > 0 
-    ? (((totalMonitorias - totalErros) / totalMonitorias) * 100).toFixed(1) + '%' 
-    : '100%';
+  const qualidadeNum = totalMonitorias > 0 
+    ? Number((((totalMonitorias - totalErros) / totalMonitorias) * 100).toFixed(1))
+    : 100;
+  const qualidade = qualidadeNum.toFixed(1) + '%';
+
+  const getQualityColor = (pct: number) => {
+    if (pct >= 97) return 'text-emerald-400';
+    if (pct >= 95) return 'text-amber-400';
+    if (pct >= 92) return 'text-orange-400';
+    return 'text-red-400';
+  };
 
   // Reincidência calculation
   const reincidenciaRate = useMemo(() => {
@@ -253,37 +261,37 @@ export const DashboardPage = () => {
     <div className="flex-1 overflow-y-auto bg-black p-8 space-y-8 text-zinc-100">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl hover:border-[#ffff00]/50 transition-colors">
+        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-md hover:border-amber-400/50 transition-colors">
           <div className="flex items-center justify-between mb-2">
             <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Produtividade</p>
-            <Briefcase size={18} className="text-[#ffff00]" />
+            <Briefcase size={18} className="text-amber-400" />
           </div>
           <h3 className="text-3xl font-bold text-white">{totalProdutividade.toLocaleString('pt-BR')}</h3>
-          <p className="text-xs text-zinc-500 mt-2">Total de itens produzidos no período</p>
+          <p className="text-xs text-zinc-500 mt-2">Produção de atividades</p>
         </div>
 
 
-        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl hover:border-[#ffff00]/50 transition-colors">
+        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-md hover:border-amber-400/50 transition-colors">
           <div className="flex items-center justify-between mb-2">
             <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Monitorias</p>
-            <BarChart3 size={18} className="text-[#ffff00]" />
+            <BarChart3 size={18} className="text-amber-400" />
           </div>
           <h3 className="text-3xl font-bold text-white">{totalMonitorias}</h3>
-          <p className="text-xs text-zinc-500 mt-2">Total de avaliações efetuadas</p>
+          <p className="text-xs text-zinc-500 mt-2">Total de monitorias realizadas</p>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl hover:border-[#ffff00]/50 transition-colors">
+        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-md hover:border-amber-400/50 transition-colors">
           <div className="flex items-center justify-between mb-2">
             <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Qualidade</p>
-            <CheckCircle2 size={18} className="text-[#ffff00]" />
+            <CheckCircle2 size={18} className={getQualityColor(qualidadeNum)} />
           </div>
-          <h3 className="text-3xl font-bold text-white">{qualidade}</h3>
-          <p className="text-xs text-zinc-500 mt-2">Conformidade operacional geral</p>
+          <h3 className={`text-3xl font-bold ${getQualityColor(qualidadeNum)}`}>{qualidade}</h3>
+          <p className="text-xs text-zinc-500 mt-2">Qualidade operacional</p>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl hover:border-[#ffff00]/50 transition-colors">
+        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-md hover:border-amber-400/50 transition-colors">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Erros Apontados</p>
+            <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Erros apontados</p>
             <AlertCircle size={18} className="text-red-400" />
           </div>
           <h3 className="text-3xl font-bold text-white">{totalErros}</h3>
@@ -294,21 +302,21 @@ export const DashboardPage = () => {
       {/* Grid: Ranking de Reincidentes & Evolução de Erros */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
         {/* Ranking de Reincidentes (Top 10 com barra de rolagem) */}
-        <div className="lg:col-span-5 bg-zinc-900 border border-zinc-800 p-6 rounded-2xl flex flex-col h-[340px]">
+        <div className="lg:col-span-5 bg-zinc-900 border border-zinc-800 p-6 rounded-md flex flex-col h-[340px]">
           <div className="flex-shrink-0 mb-4">
             <h3 className="text-white font-bold text-base flex items-center gap-2">
-              <Award size={18} className="text-[#ffff00]" />
-              Ranking de Reincidentes
+              <Award size={18} className="text-amber-400" />
+              Ranking Reincidentes
             </h3>
-            <p className="text-xs text-zinc-400">Top 10 analistas com maior volume de reincidência por TAG</p>
+            <p className="text-xs text-zinc-400">Analistas com maior reincidência por tag</p>
           </div>
 
           <div className="flex-1 overflow-y-auto space-y-2.5 pr-1.5 custom-scrollbar">
             {rankingReincidentes.length > 0 ? (
               rankingReincidentes.map((item, idx) => (
-                <div key={item.codigo + idx} className="bg-black border border-zinc-800 p-3 rounded-xl flex items-center justify-between gap-3">
+                <div key={item.codigo + idx} className="bg-black border border-zinc-800 p-3 rounded-md flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center font-bold text-xs text-[#ffff00]">
+                    <div className="w-7 h-7 rounded-md bg-zinc-800 border border-zinc-700 flex items-center justify-center font-bold text-xs text-amber-400">
                       #{idx + 1}
                     </div>
                     <div>
@@ -317,7 +325,7 @@ export const DashboardPage = () => {
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="bg-red-950/60 border border-red-800/80 text-red-400 px-2 py-0.5 rounded-full text-[11px] font-bold">
+                    <span className="bg-red-950/60 border border-red-800/80 text-red-400 px-2 py-0.5 rounded-md text-[11px] font-bold">
                       {item.reincidencias} reincidência(s)
                     </span>
                     <p className="text-[10px] text-zinc-500 mt-0.5">{item.totalErros} erros totais</p>
@@ -331,26 +339,23 @@ export const DashboardPage = () => {
         </div>
 
         {/* Evolução de Erros no Tempo */}
-        <div className="lg:col-span-7 bg-zinc-900 border border-zinc-800 p-6 rounded-2xl flex flex-col h-[340px]">
+        <div className="lg:col-span-7 bg-zinc-900 border border-zinc-800 p-6 rounded-md flex flex-col h-[340px]">
           <div className="flex items-center justify-between flex-shrink-0 mb-3">
             <h3 className="text-white font-bold text-base flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#ffff00]"></span>
-              Evolução de Erros no Tempo
+              <span className="w-2.5 h-2.5 rounded-sm bg-amber-400"></span>
+              Evolução de erros
             </h3>
-            <span className="text-[11px] text-zinc-400 font-medium bg-black px-2.5 py-1 rounded-lg border border-zinc-800">
-              Visão: {timelineData.isDaily ? 'Por Dia (Dia/Mês)' : 'Por Mês (Mês/Ano)'}
-            </span>
           </div>
 
           <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={timelineData.list} margin={{ top: 15, right: 15, left: -15, bottom: 5 }}>
+              <LineChart data={timelineData.list} margin={{ top: 25, right: 25, left: -10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                <XAxis dataKey="label" stroke="#71717a" tick={{ fontSize: 11 }} />
+                <XAxis dataKey="label" stroke="#71717a" tick={{ fontSize: 11 }} padding={{ left: 30, right: 30 }} />
                 <YAxis stroke="#71717a" tick={{ fontSize: 11 }} />
-                <Tooltip contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '12px', color: '#fff' }} />
-                <Line type="monotone" dataKey="erros" name="Erros" stroke="#ffff00" strokeWidth={3} dot={{ fill: '#ffff00', r: 4 }}>
-                  <LabelList dataKey="erros" position="top" fill="#ffff00" fontSize={10} fontWeight="bold" />
+                <Tooltip contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '6px', color: '#fff' }} />
+                <Line type="monotone" dataKey="erros" name="Erros" stroke="#f59e0b" strokeWidth={3} dot={{ fill: '#f59e0b', r: 4 }}>
+                  <LabelList dataKey="erros" position="top" offset={10} fill="#f59e0b" fontSize={11} fontWeight="bold" />
                 </Line>
                 <Line type="monotone" dataKey="total" name="Total Monitorias" stroke="#71717a" strokeWidth={1.5} strokeDasharray="4 4" />
               </LineChart>
@@ -362,9 +367,9 @@ export const DashboardPage = () => {
       {/* Grid: Erros por TAG & Motivo Macro */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Erros por TAG com rolagem horizontal e rótulos de dados */}
-        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl">
+        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-md">
           <h3 className="text-white font-bold text-base mb-4 flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#ffff00]"></span>
+            <span className="w-2.5 h-2.5 rounded-sm bg-amber-400"></span>
             Erros por TAG
           </h3>
           <div className="overflow-x-auto pb-2 custom-scrollbar">
@@ -374,8 +379,8 @@ export const DashboardPage = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                   <XAxis dataKey="tag" stroke="#71717a" interval={0} tick={<CustomXAxisTick />} height={65} />
                   <YAxis stroke="#71717a" tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '12px', color: '#fff' }} />
-                  <Bar dataKey="count" name="Quantidade de Erros" fill="#ffff00" radius={[6, 6, 0, 0]} barSize={36}>
+                  <Tooltip contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '6px', color: '#fff' }} />
+                  <Bar dataKey="count" name="Quantidade de Erros" fill="#facc15" radius={[4, 4, 0, 0]} barSize={36}>
                     <LabelList dataKey="count" position="top" fill="#ffffff" fontSize={11} fontWeight="bold" />
                   </Bar>
                 </BarChart>
@@ -385,10 +390,10 @@ export const DashboardPage = () => {
         </div>
 
         {/* Gráfico de Rosca com legenda vertical à direita e rótulo de dados */}
-        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl">
+        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-md">
           <h3 className="text-white font-bold text-base mb-4 flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#ffff00]"></span>
-            Distribuição por Motivo Macro
+            <span className="w-2.5 h-2.5 rounded-sm bg-amber-400"></span>
+            Erros por motivo Macro
           </h3>
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
@@ -408,7 +413,7 @@ export const DashboardPage = () => {
                   <Cell key={`cell-${index}`} fill={DONUT_PALETTE[index % DONUT_PALETTE.length]} />
                 ))}
               </Pie>
-              <Tooltip contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '12px', color: '#fff' }} />
+              <Tooltip contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '6px', color: '#fff' }} />
               <Legend 
                 layout="vertical" 
                 align="right" 
@@ -418,53 +423,6 @@ export const DashboardPage = () => {
               />
             </PieChart>
           </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Heatmap de Esteira x Mês */}
-      <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-white font-bold text-base flex items-center gap-2">
-              <Grid size={18} className="text-[#ffff00]" />
-              Heatmap de Reincidência de Erros por Esteira
-            </h3>
-            <p className="text-xs text-zinc-400 mt-1">Concentração mensal de erros dividida por esteira operacional</p>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto my-2 custom-scrollbar">
-          <table className="w-full text-xs text-center border-collapse">
-            <thead>
-              <tr className="border-b border-zinc-800 text-zinc-400 font-semibold">
-                <th className="p-3 text-left">Esteira Operacional</th>
-                {heatmapEsteiraMes.meses.map(m => (
-                  <th key={m} className="p-3">{m}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {heatmapEsteiraMes.esteiras.map(e => (
-                <tr key={e} className="border-b border-zinc-800/40">
-                  <td className="p-3 text-left font-semibold text-white">{e}</td>
-                  {heatmapEsteiraMes.meses.map(m => {
-                    const count = heatmapEsteiraMes.matrix[e]?.[m] || 0;
-                    return (
-                      <td key={m} className="p-2">
-                        <div className={`py-2 px-3 rounded-lg border font-bold text-xs ${
-                          count === 0 ? 'bg-black text-zinc-600 border-zinc-800' :
-                          count === 1 ? 'bg-yellow-950/40 text-yellow-300 border-yellow-800' :
-                          'bg-[#ffff00] text-black border-[#ffff00]'
-                        }`}>
-                          {count} erro(s)
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </div>
     </div>

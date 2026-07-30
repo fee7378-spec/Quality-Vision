@@ -34,10 +34,15 @@ export interface ColumnMapping {
 
 export interface ProductivityItem {
   id?: string;
-  Esteira: string;        // Coluna B por padrão
-  NomeAnalista: string;   // Coluna C por padrão
+  Esteira: string;          // Coluna B por padrão
+  NomeAnalista: string;     // Coluna C por padrão
   DataProdutividade: string; // Coluna D por padrão (YYYY-MM-DD)
-  Quantidade: number;     // Valor numérico ou 1 por ocorrência
+  Quantidade: number;       // Valor numérico ou 1 por ocorrência
+  Prioridade?: string;      // Coluna E por padrão ('Sim' | 'Não')
+  PendenciaReprova?: string;// Coluna F por padrão ('Aprovado' | 'Pendência' | 'Reprovado')
+  MotivoPendencia?: string; // Coluna G por padrão (Ex: 'Documento Ilegível', 'Aguardando Assinatura')
+  TipoDemanda?: string;     // Coluna H por padrão (Ex: 'Abertura de Conta', 'Alteração Cadastral')
+  TmoMinutos?: number;      // Coluna I por padrão (Tempo Médio de Operação em Minutos)
   [key: string]: any;
 }
 
@@ -45,6 +50,11 @@ export interface ProductivityColumnMapping {
   B: string; // Esteira (padrão B)
   C: string; // Nome do Analista / Produtividade (padrão C)
   D: string; // Data da Produtividade (padrão D)
+  E: string; // Prioridade (padrão E - Sim/Não)
+  F: string; // Status Pendência/Reprova (padrão F)
+  G: string; // Motivo Pendência/Reprova (padrão G)
+  H: string; // Tipo de Demanda / Atividade (padrão H)
+  I: string; // TMO em Minutos (padrão I)
 }
 
 export const getCurrentMonthRange = () => {
@@ -131,6 +141,45 @@ export const normalizeDateStr = (raw: any): string => {
   return str.slice(0, 10);
 };
 
+export interface EsteiraMapping {
+  monitora: string;
+  tabulador: string;
+}
+
+export const defaultEsteiraMappings: EsteiraMapping[] = [
+  { monitora: 'BTG ABONO PJ', tabulador: 'ABONO' },
+  { monitora: 'BTG BKO ABERTURA PJ', tabulador: 'BKO ABERTURA' },
+  { monitora: 'BTG BKO MANUTENÇÃOPJ', tabulador: 'BKO MANUTENÇÃO' },
+  { monitora: 'BTG CORPORATE', tabulador: 'CORPORATE' },
+  { monitora: 'BTG EXTRANET PJ', tabulador: 'EXTRANET' },
+  { monitora: 'BTG FATCA PJ', tabulador: 'FATCA' },
+  { monitora: 'BTG MANUTENÇÃO PJ', tabulador: 'MANUTENÇÃO PME' },
+  { monitora: 'BTG ONBOARDING PJ', tabulador: 'ABERTURA PJ' },
+  { monitora: 'BTG PREMIUM PJ', tabulador: 'PREMIUM' },
+  { monitora: 'BTG VINTAGE PJ', tabulador: 'VINTAGE PJ' },
+  { monitora: 'MANUTENÇÃO PF', tabulador: 'MANUTENÇÃO PF' },
+  { monitora: 'PARAMETRIZAÇÃO', tabulador: 'PARAMETRIZAÇÃO' },
+  { monitora: 'SH-PME', tabulador: 'SH - PME' },
+  { monitora: 'WM', tabulador: 'WM' }
+];
+
+export const KNOWN_ESTEIRAS = [
+  'BTG ABONO PJ', 'ABONO',
+  'BTG BKO ABERTURA PJ', 'BKO ABERTURA',
+  'BTG BKO MANUTENÇÃOPJ', 'BTG BKO MANUTENCAO PJ', 'BKO MANUTENÇÃO', 'BKO MANUTENCAO',
+  'BTG CORPORATE', 'CORPORATE',
+  'BTG EXTRANET PJ', 'EXTRANET',
+  'BTG FATCA PJ', 'FATCA',
+  'BTG MANUTENÇÃO PJ', 'BTG MANUTENCAO PJ', 'MANUTENÇÃO PME', 'MANUTENCAO PME',
+  'BTG ONBOARDING PJ', 'ABERTURA PJ', 'ONBOARDING', 'BTG ONBOARDING',
+  'BTG PREMIUM PJ', 'PREMIUM',
+  'BTG VINTAGE PJ', 'VINTAGE PJ', 'VINTAGE',
+  'MANUTENÇÃO PF', 'MANUTENCAO PF',
+  'PARAMETRIZAÇÃO', 'PARAMETRIZACAO',
+  'SH-PME', 'SH - PME', 'SH PME',
+  'WM', 'GERAL', 'TODAS', 'ESTEIRA', 'ESTEIRA MONITORA', 'TABULADOR'
+];
+
 export const normalizeName = (name: any): string => {
   if (!name) return '';
   return String(name)
@@ -139,6 +188,47 @@ export const normalizeName = (name: any): string => {
     .trim()
     .toUpperCase()
     .replace(/\s+/g, ' ');
+};
+
+export const getCanonicalEsteiraName = (rawEsteira: string, mappings: EsteiraMapping[]): string => {
+  if (!rawEsteira) return 'Geral';
+  const normRaw = normalizeName(rawEsteira);
+  for (const m of mappings) {
+    if (normalizeName(m.tabulador) === normRaw) {
+      return m.monitora;
+    }
+    if (normalizeName(m.monitora) === normRaw) {
+      return m.monitora;
+    }
+  }
+  return rawEsteira.trim().toUpperCase();
+};
+
+export const isValidAnalystName = (name: any): boolean => {
+  if (!name) return false;
+  const str = String(name).trim();
+  if (str.length < 2) return false;
+  // Must contain at least one letter
+  if (!/[a-zA-ZáéíóúÁÉÍÓÚãõÃÕâêîôûÂÊÎÔÛçÇ]/.test(str)) return false;
+  // Cannot be a date pattern like DD/MM/YYYY or YYYY-MM-DD
+  if (/^\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4}$/.test(str)) return false;
+  if (/^\d{4}[\/\.-]\d{1,2}[\/\.-]\d{1,2}$/.test(str)) return false;
+  
+  const norm = normalizeName(str);
+  
+  // Cannot be a known Esteira name
+  const isKnownEsteira = KNOWN_ESTEIRAS.some(e => normalizeName(e) === norm);
+  if (isKnownEsteira) return false;
+
+  // Cannot be generic header words
+  const invalidKeywords = [
+    'NOME', 'ANALISTA', 'NOME DO ANALISTA', 'NOME ANALISTA', 'TOTAL', 
+    'GERAL', 'DATA', 'DATA PRODUTIVIDADE', 'SUPERVISOR', 'ESTEIRA', 
+    'TOTAL GERAL', 'PRODUTIVIDADE', 'QUANTIDADE', 'CONTAGEM', 'MES', 'SOMA',
+    'MONITORA', 'TABULADOR', 'MONITOR'
+  ];
+  if (invalidKeywords.includes(norm)) return false;
+  return true;
 };
 
 export const sanitizeItems = (items: MonitoringItem[]): MonitoringItem[] => {
@@ -172,6 +262,7 @@ interface AppState {
   selectedForma: string;
   columnMapping: ColumnMapping;
   productivityMapping: ProductivityColumnMapping;
+  esteiraMappings: EsteiraMapping[];
   isFirebaseConnected: boolean;
   
   setData: (data: MonitoringItem[], timestamp?: string) => void;
@@ -184,6 +275,11 @@ interface AppState {
   setSelectedForma: (forma: string) => void;
   setColumnMapping: (mapping: ColumnMapping) => void;
   setProductivityMapping: (mapping: ProductivityColumnMapping) => void;
+  setEsteiraMappings: (mappings: EsteiraMapping[]) => void;
+  updateEsteiraMapping: (index: number, field: 'monitora' | 'tabulador', value: string) => void;
+  addEsteiraMapping: (mapping?: EsteiraMapping) => void;
+  removeEsteiraMapping: (index: number) => void;
+  resetEsteiraMappings: () => void;
   clearData: () => void;
   clearProductivityData: () => void;
   resetToCurrentMonth: () => void;
@@ -193,6 +289,7 @@ const STORAGE_KEY = 'quality_vision_base_data_v1';
 const TIMESTAMP_KEY = 'quality_vision_last_processed_v1';
 const STORAGE_PROD_KEY = 'quality_vision_productivity_data_v1';
 const TIMESTAMP_PROD_KEY = 'quality_vision_productivity_ts_v1';
+const STORAGE_ESTEIRA_MAP_KEY = 'quality_vision_esteira_mappings_v1';
 
 // Initial rich mock data so the app displays instantly with meaningful metrics
 const initialSampleData: MonitoringItem[] = [
@@ -229,31 +326,36 @@ const initialSampleData: MonitoringItem[] = [
 ];
 
 export const initialSampleProductivityData: ProductivityItem[] = [
-  { Esteira: 'Abertura PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-06-02', Quantidade: 45 },
-  { Esteira: 'Abertura PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-06-12', Quantidade: 50 },
-  { Esteira: 'Abertura PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-06-25', Quantidade: 52 },
-  { Esteira: 'Abertura PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-02', Quantidade: 48 },
-  { Esteira: 'Abertura PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-10', Quantidade: 55 },
-  { Esteira: 'Abertura PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-22', Quantidade: 60 },
+  // CARLOS SILVA (Abertura PJ)
+  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-06-02', Quantidade: 45, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Abertura de Conta PJ', TmoMinutos: 18 },
+  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-06-12', Quantidade: 50, Prioridade: 'Não', PendenciaReprova: 'Pendência', MotivoPendencia: 'Documento Ilegível', TipoDemanda: 'Alteração de Contrato Social', TmoMinutos: 22 },
+  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-06-25', Quantidade: 52, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Abertura de Conta PJ', TmoMinutos: 16 },
+  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-02', Quantidade: 48, Prioridade: 'Sim', PendenciaReprova: 'Reprovado', MotivoPendencia: 'Divergência de Assinatura', TipoDemanda: 'Abertura de Conta PJ', TmoMinutos: 25 },
+  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-10', Quantidade: 55, Prioridade: 'Não', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Inclusão de Sócio', TmoMinutos: 19 },
+  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-22', Quantidade: 60, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Abertura de Conta PJ', TmoMinutos: 15 },
 
-  { Esteira: 'Abertura PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-06-05', Quantidade: 38 },
-  { Esteira: 'Abertura PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-06-18', Quantidade: 42 },
-  { Esteira: 'Abertura PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-05', Quantidade: 40 },
-  { Esteira: 'Abertura PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-15', Quantidade: 46 },
-  { Esteira: 'Abertura PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-25', Quantidade: 51 },
+  // ANA BEATRIZ (MANUTENÇÃO PF)
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-06-05', Quantidade: 38, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Abertura de Conta PF', TmoMinutos: 12 },
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-06-18', Quantidade: 42, Prioridade: 'Não', PendenciaReprova: 'Pendência', MotivoPendencia: 'Comprovante Ilegível', TipoDemanda: 'Atualização Cadastral', TmoMinutos: 14 },
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-05', Quantidade: 40, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Abertura de Conta PF', TmoMinutos: 11 },
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-15', Quantidade: 46, Prioridade: 'Sim', PendenciaReprova: 'Reprovado', MotivoPendencia: 'Selfie com Baixa Qualidade', TipoDemanda: 'Abertura de Conta PF', TmoMinutos: 15 },
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-25', Quantidade: 51, Prioridade: 'Não', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Emissão de Cartão', TmoMinutos: 10 },
 
-  { Esteira: 'Crédito PJ', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-06-10', Quantidade: 30 },
-  { Esteira: 'Crédito PJ', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-06-20', Quantidade: 35 },
-  { Esteira: 'Crédito PJ', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-07-08', Quantidade: 32 },
-  { Esteira: 'Crédito PJ', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-07-18', Quantidade: 36 },
+  // FERNANDO ALVES (BTG CORPORATE)
+  { Esteira: 'BTG CORPORATE', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-06-10', Quantidade: 30, Prioridade: 'Sim', PendenciaReprova: 'Pendência', MotivoPendencia: 'Aguardando Parecer de Risco', TipoDemanda: 'Análise de Limite de Crédito', TmoMinutos: 35 },
+  { Esteira: 'BTG CORPORATE', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-06-20', Quantidade: 35, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Análise de Limite de Crédito', TmoMinutos: 28 },
+  { Esteira: 'BTG CORPORATE', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-07-08', Quantidade: 32, Prioridade: 'Não', PendenciaReprova: 'Reprovado', MotivoPendencia: 'Score Insuficiente', TipoDemanda: 'Renovação de Linha de Crédito', TmoMinutos: 32 },
+  { Esteira: 'BTG CORPORATE', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-07-18', Quantidade: 36, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Análise de Limite de Crédito', TmoMinutos: 26 },
 
-  { Esteira: 'Crédito PJ', NomeAnalista: 'MARIANA COSTA', DataProdutividade: '2026-06-15', Quantidade: 28 },
-  { Esteira: 'Crédito PJ', NomeAnalista: 'MARIANA COSTA', DataProdutividade: '2026-07-01', Quantidade: 34 },
-  { Esteira: 'Crédito PJ', NomeAnalista: 'MARIANA COSTA', DataProdutividade: '2026-07-20', Quantidade: 39 },
+  // MARIANA COSTA (BTG CORPORATE)
+  { Esteira: 'BTG CORPORATE', NomeAnalista: 'MARIANA COSTA', DataProdutividade: '2026-06-15', Quantidade: 28, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Análise de Limite de Crédito', TmoMinutos: 30 },
+  { Esteira: 'BTG CORPORATE', NomeAnalista: 'MARIANA COSTA', DataProdutividade: '2026-07-01', Quantidade: 34, Prioridade: 'Não', PendenciaReprova: 'Pendência', MotivoPendencia: 'Balanço Desatualizado', TipoDemanda: 'Revisão Anual de Crédito', TmoMinutos: 34 },
+  { Esteira: 'BTG CORPORATE', NomeAnalista: 'MARIANA COSTA', DataProdutividade: '2026-07-20', Quantidade: 39, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Análise de Limite de Crédito', TmoMinutos: 27 },
 
-  { Esteira: 'Abertura PF', NomeAnalista: 'LUCAS MENDES', DataProdutividade: '2026-06-28', Quantidade: 41 },
-  { Esteira: 'Abertura PF', NomeAnalista: 'LUCAS MENDES', DataProdutividade: '2026-07-12', Quantidade: 44 },
-  { Esteira: 'Abertura PF', NomeAnalista: 'LUCAS MENDES', DataProdutividade: '2026-07-24', Quantidade: 47 },
+  // LUCAS MENDES (MANUTENÇÃO PF)
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'LUCAS MENDES', DataProdutividade: '2026-06-28', Quantidade: 41, Prioridade: 'Não', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Atualização Cadastral', TmoMinutos: 13 },
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'LUCAS MENDES', DataProdutividade: '2026-07-12', Quantidade: 44, Prioridade: 'Sim', PendenciaReprova: 'Pendência', MotivoPendencia: 'Comprovante Ausente', TipoDemanda: 'Abertura de Conta PF', TmoMinutos: 16 },
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'LUCAS MENDES', DataProdutividade: '2026-07-24', Quantidade: 47, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Abertura de Conta PF', TmoMinutos: 12 },
 ];
 
 const loadInitialData = (): { 
@@ -261,11 +363,13 @@ const loadInitialData = (): {
   lastProcessed: string | null;
   prodData: ProductivityItem[];
   prodLastProcessed: string | null;
+  esteiraMappings: EsteiraMapping[];
 } => {
   let data = sanitizeItems(initialSampleData);
   let lastProcessed: string | null = '28/07/2026, 09:31';
   let prodData = initialSampleProductivityData;
   let prodLastProcessed: string | null = '28/07/2026, 09:31';
+  let esteiraMappings = defaultEsteiraMappings;
 
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -287,10 +391,18 @@ const loadInitialData = (): {
         prodLastProcessed = savedProdTs || 'Gravação em cache';
       }
     }
+
+    const savedMap = localStorage.getItem(STORAGE_ESTEIRA_MAP_KEY);
+    if (savedMap) {
+      const parsedMap = JSON.parse(savedMap);
+      if (Array.isArray(parsedMap) && parsedMap.length > 0) {
+        esteiraMappings = parsedMap;
+      }
+    }
   } catch (e) {
     console.error("Error loading stored data:", e);
   }
-  return { data, lastProcessed, prodData, prodLastProcessed };
+  return { data, lastProcessed, prodData, prodLastProcessed, esteiraMappings };
 };
 
 const initialStored = loadInitialData();
@@ -300,6 +412,7 @@ export const useStore = create<AppState>((set, get) => ({
   lastProcessed: initialStored.lastProcessed,
   productivityData: initialStored.prodData,
   productivityLastProcessed: initialStored.prodLastProcessed,
+  esteiraMappings: initialStored.esteiraMappings,
   startDate: initialMonthRange.start,
   endDate: initialMonthRange.end,
   selectedTag: 'TODAS',
@@ -323,7 +436,12 @@ export const useStore = create<AppState>((set, get) => ({
   productivityMapping: {
     B: 'B',
     C: 'C',
-    D: 'D'
+    D: 'D',
+    E: 'E',
+    F: 'F',
+    G: 'G',
+    H: 'H',
+    I: 'I'
   },
   
   setData: (newData, timestamp) => {
@@ -412,6 +530,50 @@ export const useStore = create<AppState>((set, get) => ({
   setSelectedForma: (forma) => set({ selectedForma: forma }),
   setColumnMapping: (mapping) => set({ columnMapping: mapping }),
   setProductivityMapping: (mapping) => set({ productivityMapping: mapping }),
+  
+  setEsteiraMappings: (mappings) => {
+    try {
+      localStorage.setItem(STORAGE_ESTEIRA_MAP_KEY, JSON.stringify(mappings));
+    } catch {}
+    set({ esteiraMappings: mappings });
+  },
+  
+  updateEsteiraMapping: (index, field, value) => {
+    const { esteiraMappings } = get();
+    const next = [...esteiraMappings];
+    if (next[index]) {
+      next[index] = { ...next[index], [field]: value };
+      try {
+        localStorage.setItem(STORAGE_ESTEIRA_MAP_KEY, JSON.stringify(next));
+      } catch {}
+      set({ esteiraMappings: next });
+    }
+  },
+
+  addEsteiraMapping: (mapping) => {
+    const { esteiraMappings } = get();
+    const next = [...esteiraMappings, mapping || { monitora: '', tabulador: '' }];
+    try {
+      localStorage.setItem(STORAGE_ESTEIRA_MAP_KEY, JSON.stringify(next));
+    } catch {}
+    set({ esteiraMappings: next });
+  },
+
+  removeEsteiraMapping: (index) => {
+    const { esteiraMappings } = get();
+    const next = esteiraMappings.filter((_, i) => i !== index);
+    try {
+      localStorage.setItem(STORAGE_ESTEIRA_MAP_KEY, JSON.stringify(next));
+    } catch {}
+    set({ esteiraMappings: next });
+  },
+
+  resetEsteiraMappings: () => {
+    try {
+      localStorage.setItem(STORAGE_ESTEIRA_MAP_KEY, JSON.stringify(defaultEsteiraMappings));
+    } catch {}
+    set({ esteiraMappings: defaultEsteiraMappings });
+  },
   
   clearData: () => {
     const { productivityData, productivityLastProcessed } = get();

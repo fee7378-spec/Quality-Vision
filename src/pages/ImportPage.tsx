@@ -1,5 +1,8 @@
 import { useState, useCallback } from 'react';
-import { Upload, Trash2, X, RefreshCw, FileText, AlertTriangle, CheckCircle, Sliders, Briefcase } from 'lucide-react';
+import { 
+  Upload, Trash2, X, RefreshCw, FileText, AlertTriangle, CheckCircle, 
+  Sliders, Briefcase, Plus, RotateCcw, ArrowRightLeft 
+} from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import * as XLSX from 'xlsx';
 import { 
@@ -8,7 +11,10 @@ import {
   ProductivityColumnMapping, 
   MonitoringItem, 
   ProductivityItem, 
-  normalizeDateStr 
+  normalizeDateStr,
+  normalizeName,
+  isValidAnalystName,
+  getCanonicalEsteiraName
 } from '../store/useStore';
 import { CustomModal } from '../components/CustomModal';
 
@@ -25,7 +31,12 @@ export const ImportPage = () => {
     setProductivityData,
     clearProductivityData,
     productivityMapping,
-    setProductivityMapping
+    setProductivityMapping,
+    esteiraMappings,
+    updateEsteiraMapping,
+    addEsteiraMapping,
+    removeEsteiraMapping,
+    resetEsteiraMappings
   } = useStore();
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -226,6 +237,7 @@ export const ImportPage = () => {
             const codeVal = idxCode >= 0 && row[idxCode] ? String(row[idxCode]).trim() : '';
             
             if (!nameVal && !codeVal) continue;
+            if (!isValidAnalystName(nameVal)) continue;
 
             const monitorVal = idxMonitor >= 0 && row[idxMonitor] ? String(row[idxMonitor]).trim() : 'MONITOR';
             const supervisorVal = idxSupervisor >= 0 && row[idxSupervisor] ? String(row[idxSupervisor]).trim() : 'SUPERVISOR';
@@ -234,13 +246,14 @@ export const ImportPage = () => {
             const tagVal = idxTag >= 0 && row[idxTag] ? String(row[idxTag]).trim() : 'Geral';
             const macroVal = idxMacro >= 0 && row[idxMacro] ? String(row[idxMacro]).trim() : 'Geral';
             const erroVal = idxErro >= 0 ? parseErroValue(row[idxErro]) : '100';
-            const esteiraVal = idxEsteira >= 0 && row[idxEsteira] ? String(row[idxEsteira]).trim() : defaultEsteira;
+            const rawEsteira = idxEsteira >= 0 && row[idxEsteira] ? String(row[idxEsteira]).trim() : defaultEsteira;
+            const esteiraVal = getCanonicalEsteiraName(rawEsteira, esteiraMappings);
             const feedbackVal = idxFeedback >= 0 && row[idxFeedback] ? parseDateValue(row[idxFeedback]) : '';
 
             items.push({
               id: `${i}-${Date.now()}`,
               CodigoAnalista: codeVal || `MAT-${i}`,
-              NomeAnalista: nameVal || `ANALISTA ${i}`,
+              NomeAnalista: nameVal.toUpperCase(),
               NomeMonitor: monitorVal,
               NomeSupervisor: supervisorVal,
               FormaMonitoria: formaVal,
@@ -279,40 +292,97 @@ export const ImportPage = () => {
             return;
           }
 
-          const idxEsteira = colLetterToIndex(localProdMapping.B);
-          const idxAnalista = colLetterToIndex(localProdMapping.C);
-          const idxData = colLetterToIndex(localProdMapping.D);
+          const idxEsteira = colLetterToIndex(localProdMapping.B || 'B');
+          const idxAnalista = colLetterToIndex(localProdMapping.C || 'C');
+          const idxData = colLetterToIndex(localProdMapping.D || 'D');
+          const idxPrio = colLetterToIndex(localProdMapping.E || 'E');
+          const idxStatus = colLetterToIndex(localProdMapping.F || 'F');
+          const idxMotivo = colLetterToIndex(localProdMapping.G || 'G');
+          const idxDemanda = colLetterToIndex(localProdMapping.H || 'H');
+          const idxTmo = colLetterToIndex(localProdMapping.I || 'I');
 
           const prodItems: ProductivityItem[] = [];
 
-          let startRow = 0;
-          if (rawRows[0]) {
-            const row0Analista = idxAnalista >= 0 && rawRows[0][idxAnalista] ? String(rawRows[0][idxAnalista]).toLowerCase() : '';
-            const row0Esteira = idxEsteira >= 0 && rawRows[0][idxEsteira] ? String(rawRows[0][idxEsteira]).toLowerCase() : '';
-            if (row0Analista.includes('analista') || row0Analista.includes('nome') || row0Esteira.includes('esteira')) {
-              startRow = 1;
+          // Get registered analysts from monitorias to prioritize exact matches
+          const registeredAnalystsMap = new Map<string, string>();
+          data.forEach(item => {
+            if (item.NomeAnalista && isValidAnalystName(item.NomeAnalista)) {
+              registeredAnalystsMap.set(normalizeName(item.NomeAnalista), item.NomeAnalista.trim().toUpperCase());
             }
-          }
+          });
 
-          for (let i = startRow; i < rawRows.length; i++) {
+          for (let i = 0; i < rawRows.length; i++) {
             const row = rawRows[i];
             if (!row || row.length === 0) continue;
 
-            const esteiraVal = idxEsteira >= 0 && row[idxEsteira] ? String(row[idxEsteira]).trim() : 'Geral';
-            const rawAnalistaOrQty = idxAnalista >= 0 && row[idxAnalista] ? String(row[idxAnalista]).trim() : '';
-            const dataVal = idxData >= 0 ? parseDateValue(row[idxData]) : new Date().toISOString().split('T')[0];
+            const rawEsteira = idxEsteira >= 0 && row[idxEsteira] ? String(row[idxEsteira]).trim() : 'Geral';
+            const esteiraVal = getCanonicalEsteiraName(rawEsteira, esteiraMappings);
+            const cellC = idxAnalista >= 0 && row[idxAnalista] ? String(row[idxAnalista]).trim() : '';
 
-            if (!rawAnalistaOrQty && !esteiraVal) continue;
+            let matchedName = '';
 
-            let nomeAnalista = rawAnalistaOrQty ? rawAnalistaOrQty.trim().toUpperCase() : `ANALISTA ${i}`;
-            let qty = 1;
+            if (isValidAnalystName(cellC)) {
+              const normC = normalizeName(cellC);
+              matchedName = registeredAnalystsMap.get(normC) || cellC.trim().toUpperCase();
+            } else {
+              for (const cell of row) {
+                if (!cell) continue;
+                const strCell = String(cell).trim();
+                const normCell = normalizeName(strCell);
+                if (registeredAnalystsMap.has(normCell)) {
+                  matchedName = registeredAnalystsMap.get(normCell)!;
+                  break;
+                } else if (!matchedName && isValidAnalystName(strCell)) {
+                  matchedName = strCell.toUpperCase();
+                }
+              }
+            }
+
+            if (!matchedName) continue;
+
+            let dataVal = new Date().toISOString().split('T')[0];
+            if (idxData >= 0 && row[idxData]) {
+              dataVal = parseDateValue(row[idxData]);
+            } else {
+              for (const cell of row) {
+                if (cell && !isValidAnalystName(cell)) {
+                  const parsed = parseDateValue(cell);
+                  if (parsed && /^\d{4}-\d{2}-\d{2}$/.test(parsed)) {
+                    dataVal = parsed;
+                    break;
+                  }
+                }
+              }
+            }
+
+            const prioRaw = idxPrio >= 0 && row[idxPrio] ? String(row[idxPrio]).trim() : '';
+            const prioVal = /sim|s|yes|true|1|priorit/i.test(prioRaw) ? 'Sim' : 'Não';
+
+            const statusRaw = idxStatus >= 0 && row[idxStatus] ? String(row[idxStatus]).trim() : '';
+            let statusVal = 'Aprovado';
+            if (/reprov|rejeit|nc|nok/i.test(statusRaw)) statusVal = 'Reprovado';
+            else if (/pend|aguard|atraso/i.test(statusRaw)) statusVal = 'Pendência';
+
+            const motivoVal = idxMotivo >= 0 && row[idxMotivo] ? String(row[idxMotivo]).trim() : 'Nenhum';
+            const demandaVal = idxDemanda >= 0 && row[idxDemanda] ? String(row[idxDemanda]).trim() : 'Demanda Padrão';
+            
+            let tmoVal = 15;
+            if (idxTmo >= 0 && row[idxTmo]) {
+              const numTmo = parseFloat(String(row[idxTmo]).replace(',', '.'));
+              if (!isNaN(numTmo) && numTmo > 0) tmoVal = Math.round(numTmo);
+            }
 
             prodItems.push({
               id: `prod-${i}-${Date.now()}`,
               Esteira: esteiraVal || 'Geral',
-              NomeAnalista: nomeAnalista,
+              NomeAnalista: matchedName,
               DataProdutividade: dataVal,
-              Quantidade: qty
+              Quantidade: 1,
+              Prioridade: prioVal,
+              PendenciaReprova: statusVal,
+              MotivoPendencia: motivoVal,
+              TipoDemanda: demandaVal,
+              TmoMinutos: tmoVal
             });
           }
 
@@ -446,6 +516,18 @@ export const ImportPage = () => {
     { label: 'Data do Feedback', defaultLetter: 'BT', key: 'BT' as keyof ColumnMapping },
   ];
 
+  const uniqueProdAnalystsCount = new Set(
+    productivityData
+      .map(p => p.NomeAnalista)
+      .filter(isValidAnalystName)
+  ).size;
+
+  const uniqueMonAnalystsCount = new Set(
+    data
+      .map(d => d.NomeAnalista)
+      .filter(isValidAnalystName)
+  ).size;
+
   return (
     <div className="p-6 md:p-8 bg-black text-zinc-100 min-h-screen overflow-y-auto space-y-8">
       <CustomModal
@@ -462,12 +544,14 @@ export const ImportPage = () => {
       {/* Top Header Row */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Importação de Bases</h1>
-          <p className="text-zinc-400 text-sm mt-1">Carregue e processe planilhas de Monitoria de Qualidade e Produtividade dos Analistas</p>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Importação e Mapeamento de Bases</h1>
+          <p className="text-zinc-400 text-sm mt-1">
+            Gerencie o De-Para de Esteiras (MonitorA ↔ Tabulador) e importe as bases de Produtividade e Monitoria
+          </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-4 py-2 rounded-xl text-xs font-medium text-zinc-300">
-            <RefreshCw size={14} className="text-[#ffff00]" />
+          <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-4 py-2 rounded-md text-xs font-medium text-zinc-300">
+            <RefreshCw size={14} className="text-amber-400" />
             <span>ÚLTIMA MONITORIA</span>
             <span className="font-bold text-white ml-1">{lastProcessed || 'Nenhum'}</span>
           </div>
@@ -475,9 +559,9 @@ export const ImportPage = () => {
       </div>
 
       {statusMessage && (
-        <div className={`p-4 rounded-2xl border flex items-center gap-3 text-sm font-medium ${
+        <div className={`p-4 rounded-md border flex items-center gap-3 text-sm font-medium ${
           statusMessage.type === 'success' 
-            ? 'bg-zinc-900 border-[#ffff00]/60 text-[#ffff00]' 
+            ? 'bg-zinc-900 border-amber-400/60 text-amber-400' 
             : 'bg-red-950/50 border-red-800 text-red-400'
         }`}>
           {statusMessage.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
@@ -485,11 +569,97 @@ export const ImportPage = () => {
         </div>
       )}
 
-      {/* SECTION 1: SEÇÃO DE PRODUTIVIDADE DOS ANALISTAS */}
-      <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl space-y-6">
+      {/* SECTION 1: MAPEAMENTO DE ESTEIRAS (MONITORA ↔ TABULADOR) */}
+      <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-lg space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-4 border-b border-zinc-800 pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-black border border-zinc-800 text-[#ffff00]">
+            <div className="p-2.5 rounded-md bg-black border border-zinc-800 text-amber-400">
+              <ArrowRightLeft size={22} />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white">Relacionamento de Esteiras (MonitorA ↔ Tabulador)</h2>
+              <p className="text-xs text-zinc-400">
+                A Produtividade vem da base do Tabulador e o Mapeamento Fixo de Monitorias vem do MonitorA. Associe quais representam quais.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => addEsteiraMapping()}
+              className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-white px-3.5 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer border border-zinc-700"
+            >
+              <Plus size={15} className="text-amber-400" />
+              <span>Adicionar Relação</span>
+            </button>
+            <button
+              onClick={() => resetEsteiraMappings()}
+              className="flex items-center gap-1.5 bg-black hover:bg-zinc-800 text-zinc-400 hover:text-white px-3.5 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer border border-zinc-800"
+              title="Restaurar lista padrão fixada"
+            >
+              <RotateCcw size={14} />
+              <span>Restaurar Padrão</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Esteira Mapping Grid */}
+        <div className="bg-black border border-zinc-800/90 rounded-md p-4 overflow-x-auto space-y-3">
+          <div className="grid grid-cols-12 gap-4 text-xs font-bold text-zinc-400 uppercase px-2 pb-1 border-b border-zinc-800/80">
+            <div className="col-span-5 flex items-center gap-1.5">
+              <span className="text-amber-400">1.</span> Esteira MonitorA (Monitoria)
+            </div>
+            <div className="col-span-6 flex items-center gap-1.5">
+              <span className="text-amber-400">2.</span> Tabulador (Produtividade)
+            </div>
+            <div className="col-span-1 text-center">Ações</div>
+          </div>
+
+          <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1 custom-scrollbar">
+            {esteiraMappings.map((mapItem, idx) => (
+              <div key={idx} className="grid grid-cols-12 gap-3 items-center bg-zinc-900/80 border border-zinc-800/60 p-2.5 rounded-md hover:border-zinc-700 transition-colors">
+                <div className="col-span-5">
+                  <input
+                    type="text"
+                    value={mapItem.monitora}
+                    onChange={(e) => updateEsteiraMapping(idx, 'monitora', e.target.value.toUpperCase())}
+                    className="w-full bg-black border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                    placeholder="Ex: BTG ONBOARDING PJ"
+                  />
+                </div>
+                <div className="col-span-6">
+                  <input
+                    type="text"
+                    value={mapItem.tabulador}
+                    onChange={(e) => updateEsteiraMapping(idx, 'tabulador', e.target.value.toUpperCase())}
+                    className="w-full bg-black border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                    placeholder="Ex: ABERTURA PJ"
+                  />
+                </div>
+                <div className="col-span-1 text-center">
+                  <button
+                    onClick={() => removeEsteiraMapping(idx)}
+                    className="text-zinc-500 hover:text-red-400 p-1 rounded transition-colors cursor-pointer"
+                    title="Remover linha"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-[11px] text-zinc-500 pt-1 px-1">
+            * Ao importar a base de produtividade do Tabulador, o sistema traduzirá automaticamente os nomes da coluna de esteira para a esteira correspondente do MonitorA.
+          </p>
+        </div>
+      </div>
+
+      {/* SECTION 2: IMPORTAR PRODUTIVIDADE DOS ANALISTAS */}
+      <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-lg space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-4 border-b border-zinc-800 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-md bg-black border border-zinc-800 text-amber-400">
               <Briefcase size={22} />
             </div>
             <div>
@@ -500,7 +670,7 @@ export const ImportPage = () => {
           
           <div className="flex items-center gap-4 text-xs font-semibold">
             <span className="text-zinc-400">Total de Produtividade Carregada:</span>
-            <span className="text-lg font-bold text-[#ffff00]">
+            <span className="text-lg font-bold text-amber-400">
               {productivityData.reduce((acc, curr) => acc + (curr.Quantidade || 1), 0).toLocaleString('pt-BR')} itens
             </span>
           </div>
@@ -508,9 +678,9 @@ export const ImportPage = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Mapeamento de Colunas de Produtividade */}
-          <div className="lg:col-span-5 bg-black border border-zinc-800/80 p-5 rounded-2xl space-y-4">
+          <div className="lg:col-span-5 bg-black border border-zinc-800/80 p-5 rounded-md space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
-              <Sliders size={16} className="text-[#ffff00]" />
+              <Sliders size={16} className="text-amber-400" />
               Configuração de Colunas de Produtividade
             </h3>
 
@@ -523,7 +693,7 @@ export const ImportPage = () => {
                   type="text"
                   value={localProdMapping.B}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, B: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-white font-mono uppercase focus:border-[#ffff00] outline-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2 text-sm text-white font-mono uppercase focus:border-amber-400 outline-none"
                   placeholder="B"
                 />
                 <p className="text-[10px] text-zinc-500 mt-1">Fixo/Padrão: Coluna B</p>
@@ -537,7 +707,7 @@ export const ImportPage = () => {
                   type="text"
                   value={localProdMapping.C}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, C: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-white font-mono uppercase focus:border-[#ffff00] outline-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2 text-sm text-white font-mono uppercase focus:border-amber-400 outline-none"
                   placeholder="C"
                 />
                 <p className="text-[10px] text-zinc-500 mt-1">Fixo/Padrão: Coluna C (Nome ou Quantidade)</p>
@@ -551,7 +721,7 @@ export const ImportPage = () => {
                   type="text"
                   value={localProdMapping.D}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, D: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-white font-mono uppercase focus:border-[#ffff00] outline-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2 text-sm text-white font-mono uppercase focus:border-amber-400 outline-none"
                   placeholder="D"
                 />
                 <p className="text-[10px] text-zinc-500 mt-1">Fixo/Padrão: Coluna D</p>
@@ -561,7 +731,7 @@ export const ImportPage = () => {
             <button
               onClick={handleConsolidateProductivity}
               disabled={isProdProcessing || selectedProdFiles.length === 0}
-              className="w-full bg-[#ffff00] text-black font-bold py-3 rounded-xl hover:bg-[#e6e600] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-xs cursor-pointer shadow-lg"
+              className="w-full bg-amber-400 text-zinc-950 font-bold py-3 rounded-md hover:bg-amber-300 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-xs cursor-pointer shadow-md uppercase tracking-wider"
             >
               {isProdProcessing ? (
                 <>
@@ -577,22 +747,22 @@ export const ImportPage = () => {
             </button>
           </div>
 
-          {/* Drag and Drop Produtividade */}
+          {/* Drag and Drop Produtividade + Base Info */}
           <div className="lg:col-span-7 space-y-4">
             <div
               {...getProdRootProps()}
-              className={`border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-6 text-center cursor-pointer transition-colors min-h-[180px] ${
+              className={`border-2 border-dashed rounded-md flex flex-col items-center justify-center p-6 text-center cursor-pointer transition-colors min-h-[180px] ${
                 isProdDragActive
-                  ? 'border-[#ffff00] bg-black'
+                  ? 'border-amber-400 bg-black'
                   : selectedProdFiles.length > 0
-                  ? 'border-[#ffff00]/50 bg-black/60'
+                  ? 'border-amber-400/50 bg-black/60'
                   : 'border-zinc-800 hover:border-zinc-700 bg-black/30'
               }`}
             >
               <input {...getProdInputProps()} />
-              <Upload size={36} className={`mb-2 ${selectedProdFiles.length > 0 ? 'text-[#ffff00]' : 'text-zinc-600'}`} />
+              <Upload size={36} className={`mb-2 ${selectedProdFiles.length > 0 ? 'text-amber-400' : 'text-zinc-600'}`} />
               <p className="text-xs font-bold text-white">
-                Clique ou arraste a <span className="text-[#ffff00]">planilha de Produtividade</span> aqui
+                Clique ou arraste a <span className="text-amber-400">planilha de Produtividade</span> aqui
               </p>
               <p className="text-[11px] text-zinc-500 mt-1">
                 Formatos aceitos: .xlsx, .xls e .csv
@@ -600,12 +770,12 @@ export const ImportPage = () => {
             </div>
 
             {selectedProdFiles.length > 0 && (
-              <div className="space-y-2 bg-black border border-zinc-800 p-3 rounded-xl">
+              <div className="space-y-2 bg-black border border-zinc-800 p-3 rounded-md">
                 <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Arquivos de Produtividade Selecionados:</p>
                 {selectedProdFiles.map((file, idx) => (
                   <div key={idx} className="flex items-center justify-between text-xs text-white">
                     <span className="truncate">{file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
-                    <button onClick={() => removeProdFile(idx)} className="text-zinc-500 hover:text-red-400">
+                    <button onClick={() => removeProdFile(idx)} className="text-zinc-500 hover:text-red-400 cursor-pointer">
                       <X size={16} />
                     </button>
                   </div>
@@ -613,167 +783,163 @@ export const ImportPage = () => {
               </div>
             )}
 
-            {productivityData.length > 0 && (
-              <div className="flex items-center justify-between bg-black border border-zinc-800 p-4 rounded-xl">
-                <div>
-                  <p className="text-xs font-bold text-white">{productivityData.length} registros de produtividade</p>
-                  <p className="text-[10px] text-zinc-500">Última atualização: {productivityLastProcessed || 'N/D'}</p>
-                </div>
-                <button
-                  onClick={handleClearProdData}
-                  className="flex items-center gap-1.5 border border-red-900/60 bg-red-950/20 text-red-400 hover:bg-red-950 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
-                >
-                  <Trash2 size={14} />
-                  <span>Excluir Produtividade</span>
-                </button>
+            {/* Base Carregada Summary Box */}
+            <div className="bg-black border border-zinc-800 p-5 rounded-md flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">Base Carregada (Produtividade)</p>
+                <h4 className="text-xl font-bold text-white mt-0.5">{productivityData.length} Produções Registradas</h4>
+                <p className="text-[11px] text-zinc-500 mt-0.5">Última atualização: {productivityLastProcessed || 'N/D'}</p>
               </div>
-            )}
+
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <p className="text-[10px] text-zinc-500 font-semibold uppercase">Analistas Cadastrados</p>
+                  <p className="text-lg font-bold text-amber-400">{uniqueProdAnalystsCount} Analistas</p>
+                </div>
+
+                {productivityData.length > 0 && (
+                  <button
+                    onClick={handleClearProdData}
+                    className="flex items-center gap-1.5 border border-red-900/60 bg-red-950/30 text-red-400 hover:bg-red-950 px-3 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer"
+                  >
+                    <Trash2 size={14} />
+                    <span>Excluir Base</span>
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* SECTION 2: BASE DE MONITORIAS DE QUALIDADE */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Column: Configuração de Colunas */}
-        <div className="lg:col-span-5 bg-zinc-900 border border-zinc-800 p-6 rounded-3xl space-y-6">
+      {/* SECTION 3: MAPEAMENTO FIXO DE MONITORIAS */}
+      <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-lg space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-4 border-b border-zinc-800 pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-black border border-zinc-800 rounded-xl text-[#ffff00]">
-              <Sliders size={20} />
+            <div className="p-2.5 rounded-md bg-black border border-zinc-800 text-amber-400">
+              <FileText size={22} />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">Mapeamento Fixo de Monitorias</h2>
-              <p className="text-xs text-zinc-400">S, T, V, Y, AA, AB, AE, AF, AH, R, BT</p>
+              <h2 className="text-lg font-bold text-white">Mapeamento Fixo de Monitorias</h2>
+              <p className="text-xs text-zinc-400">Configure o mapeamento das colunas S, T, V, Y, AA, AB, AE, AF, AH, R, BT</p>
             </div>
           </div>
 
-          <div className="space-y-3.5 max-h-[420px] overflow-y-auto pr-1 custom-scrollbar">
-            {fieldsList.map((field) => (
-              <div key={field.key} className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs text-zinc-300 font-medium">
-                    {field.label}
-                  </label>
-                  <span className="text-[11px] text-[#ffff00] font-mono">Padrão: {field.defaultLetter}</span>
-                </div>
-                <input
-                  type="text"
-                  value={localMapping[field.key] || field.defaultLetter}
-                  onChange={(e) => setLocalMapping({ ...localMapping, [field.key]: e.target.value.toUpperCase() })}
-                  className="w-full bg-black border border-zinc-800 rounded-xl px-3 py-2 text-sm text-white font-mono uppercase focus:border-[#ffff00] outline-none transition-colors"
-                />
-              </div>
-            ))}
+          <div className="flex items-center gap-4 text-xs font-semibold">
+            <span className="text-zinc-400">Total de Monitorias Carregadas:</span>
+            <span className="text-lg font-bold text-amber-400">
+              {data.length.toLocaleString('pt-BR')} itens
+            </span>
           </div>
-
-          <button
-            onClick={handleConsolidate}
-            disabled={isProcessing || selectedFiles.length === 0}
-            className="w-full bg-[#ffff00] text-black font-bold py-3.5 rounded-xl hover:bg-[#e6e600] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 text-sm cursor-pointer"
-          >
-            {isProcessing ? (
-              <>
-                <RefreshCw size={18} className="animate-spin" />
-                <span>Processando Planilha...</span>
-              </>
-            ) : (
-              <>
-                <CheckCircle size={18} />
-                <span>Importar Base de Monitorias</span>
-              </>
-            )}
-          </button>
         </div>
 
-        {/* Right Section: Drag and Drop Base File Uploader */}
-        <div className="lg:col-span-7 space-y-8">
-          {/* Base File Upload Card */}
-          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl flex flex-col justify-between space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-[#ffff00]">
-                <FileText size={20} />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-white">Base de Monitorias de Qualidade</h3>
-                <p className="text-xs text-zinc-400">Selecione o arquivo Excel ou CSV com os dados das monitorias</p>
-              </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Mapeamento de Colunas de Monitorias */}
+          <div className="lg:col-span-5 bg-black border border-zinc-800/80 p-5 rounded-md space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
+              <Sliders size={16} className="text-amber-400" />
+              Configuração de Colunas de Monitoria
+            </h3>
+
+            <div className="space-y-3.5 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
+              {fieldsList.map((field) => (
+                <div key={field.key} className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs text-zinc-300 font-medium">
+                      {field.label}
+                    </label>
+                    <span className="text-[11px] text-amber-400 font-mono">Padrão: {field.defaultLetter}</span>
+                  </div>
+                  <input
+                    type="text"
+                    value={localMapping[field.key] || field.defaultLetter}
+                    onChange={(e) => setLocalMapping({ ...localMapping, [field.key]: e.target.value.toUpperCase() })}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none transition-colors"
+                  />
+                </div>
+              ))}
             </div>
 
+            <button
+              onClick={handleConsolidate}
+              disabled={isProcessing || selectedFiles.length === 0}
+              className="w-full bg-amber-400 text-zinc-950 font-bold py-3 rounded-md hover:bg-amber-300 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-50 text-xs cursor-pointer uppercase tracking-wider"
+            >
+              {isProcessing ? (
+                <>
+                  <RefreshCw size={16} className="animate-spin" />
+                  <span>Processando Monitorias...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle size={16} />
+                  <span>Importar Base de Monitorias</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Drag and Drop Monitorias + Base Info */}
+          <div className="lg:col-span-7 space-y-4">
             <div
               {...getRootProps()}
-              className={`border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-8 text-center cursor-pointer transition-colors min-h-[200px] ${
+              className={`border-2 border-dashed rounded-md flex flex-col items-center justify-center p-6 text-center cursor-pointer transition-colors min-h-[180px] ${
                 isDragActive
-                  ? 'border-[#ffff00] bg-black'
+                  ? 'border-amber-400 bg-black'
                   : selectedFiles.length > 0
-                  ? 'border-[#ffff00]/50 bg-black/40'
-                  : 'border-zinc-800 hover:border-zinc-700 bg-black/20'
+                  ? 'border-amber-400/50 bg-black/60'
+                  : 'border-zinc-800 hover:border-zinc-700 bg-black/30'
               }`}
             >
               <input {...getInputProps()} />
-              <Upload size={40} className={`mb-3 ${selectedFiles.length > 0 ? 'text-[#ffff00]' : 'text-zinc-600'}`} />
-              <p className="text-sm font-semibold text-white">
-                Clique ou arraste o <span className="text-[#ffff00]">arquivo de monitorias</span> aqui
+              <Upload size={36} className={`mb-2 ${selectedFiles.length > 0 ? 'text-amber-400' : 'text-zinc-600'}`} />
+              <p className="text-xs font-bold text-white">
+                Clique ou arraste o <span className="text-amber-400">arquivo de monitorias</span> aqui
               </p>
-              <p className="text-xs text-zinc-500 mt-1">
+              <p className="text-[11px] text-zinc-500 mt-1">
                 Suporta formatos .xlsx, .xls e .csv
               </p>
             </div>
 
-            {/* List of Selected Files */}
             {selectedFiles.length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-zinc-800">
-                <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Arquivos Selecionados:</p>
-                <div className="space-y-2">
-                  {selectedFiles.map((file, idx) => (
-                    <div key={idx} className="flex items-center justify-between bg-black border border-zinc-800 p-3 rounded-xl text-xs">
-                      <div className="flex items-center gap-2 overflow-hidden">
-                        <FileText size={16} className="text-[#ffff00] flex-shrink-0" />
-                        <span className="font-semibold text-white truncate">{file.name}</span>
-                        <span className="text-zinc-500 flex-shrink-0">({(file.size / 1024).toFixed(1)} KB)</span>
-                      </div>
-                      <button
-                        onClick={() => removeFile(idx)}
-                        className="text-zinc-500 hover:text-red-400 transition-colors p-1"
-                        title="Remover arquivo"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
+              <div className="space-y-2 bg-black border border-zinc-800 p-3 rounded-md">
+                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Arquivos Selecionados:</p>
+                {selectedFiles.map((file, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-xs text-white">
+                    <span className="truncate">{file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
+                    <button onClick={() => removeFile(idx)} className="text-zinc-500 hover:text-red-400 cursor-pointer">
+                      <X size={16} />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
-          </div>
 
-          {/* Current Base Info */}
-          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl flex items-center justify-between">
-            <div>
-              <p className="text-xs text-zinc-400 uppercase font-semibold tracking-wider">Base Carregada</p>
-              <h4 className="text-2xl font-bold text-white mt-1">{data.length} Monitorias Registradas</h4>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-zinc-500">Analistas Cadastrados</p>
-              <p className="text-xl font-bold text-[#ffff00]">
-                {new Set(data.map((d) => d.NomeAnalista)).size} Analistas
-              </p>
-            </div>
-          </div>
+            {/* Base Carregada Summary Box */}
+            <div className="bg-black border border-zinc-800 p-5 rounded-md flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">Base Carregada (Monitoria)</p>
+                <h4 className="text-xl font-bold text-white mt-0.5">{data.length} Monitorias Registradas</h4>
+                <p className="text-[11px] text-zinc-500 mt-0.5">Última atualização: {lastProcessed || 'N/D'}</p>
+              </div>
 
-          {/* Danger Zone: Excluir Base Consolidada */}
-          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl space-y-4">
-            <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
-              <AlertTriangle size={18} />
-              <span>Atenção !</span>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <p className="text-[10px] text-zinc-500 font-semibold uppercase">Analistas Cadastrados</p>
+                  <p className="text-lg font-bold text-amber-400">{uniqueMonAnalystsCount} Analistas</p>
+                </div>
+
+                {data.length > 0 && (
+                  <button
+                    onClick={handleClearData}
+                    className="flex items-center gap-1.5 border border-red-900/60 bg-red-950/30 text-red-400 hover:bg-red-950 px-3 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer"
+                  >
+                    <Trash2 size={14} />
+                    <span>Excluir Base</span>
+                  </button>
+                )}
+              </div>
             </div>
-            <p className="text-xs text-zinc-400">
-              Caso deseje reiniciar o sistema e remover todas as monitorias e analistas gravados na memória local.
-            </p>
-            <button
-              onClick={handleClearData}
-              className="flex items-center gap-2 border border-red-900/80 bg-red-950/30 text-red-400 hover:bg-red-950 hover:border-red-700 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer"
-            >
-              <Trash2 size={15} />
-              <span>Excluir Base Registrada</span>
-            </button>
           </div>
         </div>
       </div>

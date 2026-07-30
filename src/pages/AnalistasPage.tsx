@@ -7,7 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LabelList, Legend, PieChart, Pie, Cell 
 } from 'recharts';
-import { useStore, MonitoringItem, ProductivityItem, normalizeName } from '../store/useStore';
+import { useStore, MonitoringItem, ProductivityItem, normalizeName, isValidAnalystName } from '../store/useStore';
 
 export interface QuadranteInfo {
   nivel: number;
@@ -22,7 +22,7 @@ export const getQuadranteForCount = (count: number): QuadranteInfo => {
       nivel: 0,
       titulo: 'Conforme',
       descricao: 'Conforme - Sem erros na mesma TAG',
-      colorClass: 'bg-emerald-950/80 text-emerald-400 border-emerald-800'
+      colorClass: 'bg-emerald-950/60 text-emerald-400 border-emerald-800/80'
     };
   }
   if (count === 1) {
@@ -30,7 +30,7 @@ export const getQuadranteForCount = (count: number): QuadranteInfo => {
       nivel: 1,
       titulo: '1º Feedback',
       descricao: '1º Feedback',
-      colorClass: 'bg-blue-950/90 text-blue-400 border-blue-800'
+      colorClass: 'bg-blue-950/60 text-blue-400 border-blue-800/80'
     };
   }
   if (count === 2) {
@@ -38,7 +38,7 @@ export const getQuadranteForCount = (count: number): QuadranteInfo => {
       nivel: 2,
       titulo: '2º Quadrante',
       descricao: '2º Análise de reincidência + lado a lado',
-      colorClass: 'bg-amber-950/90 text-amber-400 border-amber-800'
+      colorClass: 'bg-amber-950/60 text-amber-400 border-amber-800/80'
     };
   }
   if (count === 3) {
@@ -46,7 +46,7 @@ export const getQuadranteForCount = (count: number): QuadranteInfo => {
       nivel: 3,
       titulo: '3º Quadrante',
       descricao: '3º Feedback formal + Medida disciplinar',
-      colorClass: 'bg-orange-950/90 text-orange-400 border-orange-800'
+      colorClass: 'bg-orange-950/60 text-orange-400 border-orange-800/80'
     };
   }
   if (count === 4) {
@@ -54,15 +54,29 @@ export const getQuadranteForCount = (count: number): QuadranteInfo => {
       nivel: 4,
       titulo: '4º Quadrante',
       descricao: '4º Avaliação de gestão + Medidas administrativas',
-      colorClass: 'bg-red-950/90 text-red-400 border-red-800'
+      colorClass: 'bg-red-950/60 text-red-400 border-red-800/80'
     };
   }
   return {
     nivel: 5,
     titulo: 'Persistência',
     descricao: '+ de 4 erros Persistência',
-    colorClass: 'bg-rose-950/90 text-rose-300 border-rose-700 font-extrabold'
+    colorClass: 'bg-rose-950/60 text-rose-300 border-rose-800/80 font-extrabold'
   };
+};
+
+export const getQualityColorClass = (pct: number) => {
+  if (pct >= 97) return 'text-emerald-400';
+  if (pct >= 95) return 'text-amber-400';
+  if (pct >= 92) return 'text-orange-400';
+  return 'text-red-400';
+};
+
+export const getQualityBadgeClass = (pct: number) => {
+  if (pct >= 97) return 'bg-emerald-950/70 text-emerald-400 border-emerald-800/80';
+  if (pct >= 95) return 'bg-amber-950/70 text-amber-400 border-amber-800/80';
+  if (pct >= 92) return 'bg-orange-950/70 text-orange-400 border-orange-800/80';
+  return 'bg-red-950/70 text-red-400 border-red-800/80';
 };
 
 export interface TagErrorDetail {
@@ -98,7 +112,7 @@ export interface AnalystSummary {
 }
 
 
-const DONUT_PALETTE = ['#ffff00', '#f59e0b', '#3b82f6', '#10b981', '#a855f7', '#06b6d4', '#f97316', '#ec4899'];
+const DONUT_PALETTE = ['#f59e0b', '#3b82f6', '#10b981', '#a855f7', '#06b6d4', '#f97316', '#ec4899', '#64748b'];
 
 const CustomXAxisTick = (props: any) => {
   const { x, y, payload } = props;
@@ -193,7 +207,8 @@ export const AnalistasPage = () => {
     const displayNameMap: Record<string, string> = {};
 
     filteredRawData.forEach(item => {
-      const rawName = item.NomeAnalista ? item.NomeAnalista.trim() : 'ANALISTA DESCONHECIDO';
+      const rawName = item.NomeAnalista ? item.NomeAnalista.trim() : '';
+      if (!isValidAnalystName(rawName)) return;
       const key = normalizeName(rawName);
       if (!key) return;
       if (!monitoriasMap[key]) monitoriasMap[key] = [];
@@ -202,7 +217,8 @@ export const AnalistasPage = () => {
     });
 
     filteredProdData.forEach(p => {
-      const rawName = p.NomeAnalista ? p.NomeAnalista.trim() : 'ANALISTA DESCONHECIDO';
+      const rawName = p.NomeAnalista ? p.NomeAnalista.trim() : '';
+      if (!isValidAnalystName(rawName)) return;
       const key = normalizeName(rawName);
       if (!key) return;
       if (!prodMap[key]) prodMap[key] = [];
@@ -210,7 +226,9 @@ export const AnalistasPage = () => {
       if (!displayNameMap[key]) displayNameMap[key] = rawName.toUpperCase();
     });
 
-    const allAnalystKeys = Array.from(new Set([...Object.keys(monitoriasMap), ...Object.keys(prodMap)]));
+    // Only include valid analyst keys
+    const allAnalystKeys = Array.from(new Set([...Object.keys(monitoriasMap), ...Object.keys(prodMap)]))
+      .filter(key => isValidAnalystName(displayNameMap[key] || key));
 
     return allAnalystKeys.map((key): AnalystSummary => {
       const items = monitoriasMap[key] || [];
@@ -295,9 +313,9 @@ export const AnalistasPage = () => {
       // SCORE do analista (0 a 100)
       const score = Math.round(qualidadePct);
       let categoria = 'Crítico';
-      if (score >= 95) categoria = 'Excelente';
-      else if (score >= 90) categoria = 'Bom';
-      else if (score >= 80) categoria = 'Precisa melhorar';
+      if (qualidadePct >= 97) categoria = 'Excelente';
+      else if (qualidadePct >= 95) categoria = 'Bom';
+      else if (qualidadePct >= 92) categoria = 'Regular';
       else categoria = 'Crítico';
 
       const scoreFormatted = `${categoria} - ${score}pts`;
@@ -364,10 +382,10 @@ export const AnalistasPage = () => {
   }, [analystsList, searchTerm]);
 
   const getScoreBadgeColor = (scoreFormatted: string) => {
-    if (scoreFormatted.startsWith('Excelente')) return 'bg-emerald-950/80 text-emerald-400 border-emerald-800';
-    if (scoreFormatted.startsWith('Bom')) return 'bg-blue-950/80 text-blue-400 border-blue-800';
-    if (scoreFormatted.startsWith('Precisa melhorar')) return 'bg-yellow-950/80 text-[#ffff00] border-[#ffff00]/60';
-    return 'bg-red-950/80 text-red-400 border-red-800';
+    if (scoreFormatted.startsWith('Excelente')) return 'bg-emerald-950/70 text-emerald-400 border-emerald-800/80';
+    if (scoreFormatted.startsWith('Bom')) return 'bg-amber-950/70 text-amber-400 border-amber-800/80';
+    if (scoreFormatted.startsWith('Regular')) return 'bg-orange-950/70 text-orange-400 border-orange-800/80';
+    return 'bg-red-950/70 text-red-400 border-red-800/80';
   };
 
   return (
@@ -388,7 +406,7 @@ export const AnalistasPage = () => {
             placeholder="Buscar por analista, esteira, matrícula..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-zinc-500 focus:border-[#ffff00] outline-none"
+            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-zinc-500 focus:border-amber-400 outline-none"
           />
         </div>
       </div>
@@ -396,20 +414,20 @@ export const AnalistasPage = () => {
       {/* Matriz Centralizada de Regras de Acompanhamento & Feedbacks */}
       <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-2xl space-y-4">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-black border border-zinc-800 rounded-xl text-[#ffff00]">
+          <div className="p-2 bg-black border border-zinc-800 rounded-xl text-amber-400">
             <Layers size={18} />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white">Matriz Centralizada de Acompanhamento e Feedbacks (Quadrantes)</h3>
-            <p className="text-xs text-zinc-400">Diretrizes de acompanhamento e medidas operacionais conforme acúmulo de erros na mesma TAG:</p>
+            <h3 className="text-sm font-bold text-white">Matriz de quadrantes</h3>
+            <p className="text-xs text-zinc-400">Diretrizes de acompanhamento e medidas operacionais:</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
           {/* 0 Conforme */}
-          <div className="bg-black border border-emerald-800/80 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
+          <div className="bg-black border border-emerald-900/60 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
             <div className="flex flex-col items-center justify-center space-y-1 w-full flex-1">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-950 text-emerald-400 font-extrabold text-[10px] border border-emerald-800 mb-0.5">0</span>
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-950 text-emerald-400 font-extrabold text-[10px] border border-emerald-800/80 mb-0.5">0</span>
               <h4 className="text-xs font-bold text-emerald-400">Conforme</h4>
               <p className="text-[11px] text-zinc-400 leading-tight">Monitorias sem erros</p>
             </div>
@@ -420,9 +438,9 @@ export const AnalistasPage = () => {
           </div>
 
           {/* 1º Quadrante */}
-          <div className="bg-black border border-blue-800/80 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
+          <div className="bg-black border border-blue-900/60 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
             <div className="flex flex-col items-center justify-center space-y-1 w-full flex-1">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-950 text-blue-400 font-extrabold text-[10px] border border-blue-800 mb-0.5">1</span>
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-950 text-blue-400 font-extrabold text-[10px] border border-blue-800/80 mb-0.5">1</span>
               <h4 className="text-xs font-bold text-blue-400">1º Quadrante</h4>
               <p className="text-[11px] text-zinc-400 leading-tight">Feedback</p>
             </div>
@@ -433,9 +451,9 @@ export const AnalistasPage = () => {
           </div>
 
           {/* 2º Quadrante */}
-          <div className="bg-black border border-amber-800/80 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
+          <div className="bg-black border border-amber-900/60 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
             <div className="flex flex-col items-center justify-center space-y-1 w-full flex-1">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-950 text-amber-400 font-extrabold text-[10px] border border-amber-800 mb-0.5">2</span>
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-950 text-amber-400 font-extrabold text-[10px] border border-amber-800/80 mb-0.5">2</span>
               <h4 className="text-xs font-bold text-amber-400">2º Quadrante</h4>
               <p className="text-[11px] text-zinc-400 leading-tight">Análise de reincidência + lado a lado</p>
             </div>
@@ -446,9 +464,9 @@ export const AnalistasPage = () => {
           </div>
 
           {/* 3º Quadrante */}
-          <div className="bg-black border border-orange-800/80 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
+          <div className="bg-black border border-orange-900/60 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
             <div className="flex flex-col items-center justify-center space-y-1 w-full flex-1">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-950 text-orange-400 font-extrabold text-[10px] border border-orange-800 mb-0.5">3</span>
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-950 text-orange-400 font-extrabold text-[10px] border border-orange-800/80 mb-0.5">3</span>
               <h4 className="text-xs font-bold text-orange-400">3º Quadrante</h4>
               <p className="text-[11px] text-zinc-400 leading-tight">Feedback formal + Medida disciplinar</p>
             </div>
@@ -459,9 +477,9 @@ export const AnalistasPage = () => {
           </div>
 
           {/* 4º Quadrante */}
-          <div className="bg-black border border-red-800/80 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
+          <div className="bg-black border border-red-900/60 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
             <div className="flex flex-col items-center justify-center space-y-1 w-full flex-1">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-950 text-red-400 font-extrabold text-[10px] border border-red-800 mb-0.5">4</span>
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-950 text-red-400 font-extrabold text-[10px] border border-red-800/80 mb-0.5">4</span>
               <h4 className="text-xs font-bold text-red-400">4º Quadrante</h4>
               <p className="text-[11px] text-zinc-400 leading-tight">Avaliação de gestão + Medidas adm.</p>
             </div>
@@ -472,9 +490,9 @@ export const AnalistasPage = () => {
           </div>
 
           {/* >4 Persistência */}
-          <div className="bg-black border border-rose-700 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
+          <div className="bg-black border border-rose-800/80 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
             <div className="flex flex-col items-center justify-center space-y-1 w-full flex-1">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-rose-950 text-rose-300 font-extrabold text-[10px] border border-rose-700 mb-0.5">&gt;4</span>
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-rose-950 text-rose-300 font-extrabold text-[10px] border border-rose-800/80 mb-0.5">&gt;4</span>
               <h4 className="text-xs font-extrabold text-rose-300">Persistência</h4>
               <p className="text-[11px] text-zinc-400 leading-tight">+ de 4 erros na mesma TAG</p>
             </div>
@@ -493,18 +511,18 @@ export const AnalistasPage = () => {
             <div
               key={analyst.codigo + analyst.nome}
               onClick={() => setSelectedAnalyst(analyst)}
-              className="w-full bg-zinc-900 border border-zinc-800 hover:border-[#ffff00] p-4 sm:p-5 rounded-2xl cursor-pointer transition-all duration-200 hover:shadow-xl hover:shadow-[#ffff00]/5 flex flex-col xl:flex-row items-center justify-between gap-4 xl:gap-6 group"
+              className="w-full bg-zinc-900 border border-zinc-800 hover:border-amber-400/50 p-4 sm:p-5 rounded-2xl cursor-pointer transition-all duration-200 hover:shadow-xl flex flex-col xl:flex-row items-center justify-between gap-4 xl:gap-6 group"
             >
               {/* Left: Avatar, Name, Code, Supervisor & Individual Esteira Boxes */}
-              <div className="flex items-center gap-3.5 w-full xl:w-[340px] shrink-0 overflow-hidden">
-                <div className="w-11 h-11 rounded-xl bg-black border border-zinc-800 flex items-center justify-center font-bold text-sm text-[#ffff00] group-hover:border-[#ffff00] transition-colors flex-shrink-0">
+              <div className="flex items-center gap-3.5 w-full xl:w-[350px] shrink-0 overflow-hidden">
+                <div className="w-11 h-11 rounded-xl bg-black border border-zinc-800 flex items-center justify-center font-bold text-sm text-amber-400 group-hover:border-amber-400 transition-colors flex-shrink-0">
                   {analyst.nome.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="overflow-hidden min-w-0">
-                  <h3 className="text-sm font-bold text-white group-hover:text-[#ffff00] transition-colors truncate" title={analyst.nome}>
+                  <h3 className="text-sm font-bold text-white group-hover:text-amber-400 transition-colors truncate" title={analyst.nome}>
                     {analyst.nome}
                   </h3>
-                  <div className="flex items-center gap-2 text-[11px] text-zinc-400 font-mono mt-0.5">
+                  <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 font-mono mt-0.5 flex-wrap">
                     <span className="shrink-0">{analyst.codigo}</span>
                     <span>•</span>
                     <span className="truncate" title={`Sup: ${analyst.supervisor}`}>Sup: {analyst.supervisor}</span>
@@ -539,7 +557,7 @@ export const AnalistasPage = () => {
                 </div>
                 <div>
                   <p className="text-[10px] text-zinc-500 uppercase font-semibold">Qualidade</p>
-                  <p className="text-sm font-bold text-[#ffff00] mt-0.5">{analyst.qualidadePct}%</p>
+                  <p className={`text-sm font-bold mt-0.5 ${getQualityColorClass(analyst.qualidadePct)}`}>{analyst.qualidadePct}%</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-zinc-500 uppercase font-semibold">Erros</p>
@@ -576,7 +594,7 @@ export const AnalistasPage = () => {
                 <span className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border ${getScoreBadgeColor(analyst.scoreFormatted)}`}>
                   {analyst.scoreFormatted}
                 </span>
-                <span className="flex items-center gap-1 text-[#ffff00] font-semibold text-xs group-hover:translate-x-1 transition-transform bg-black border border-zinc-800 px-3 py-1.5 rounded-xl">
+                <span className="flex items-center gap-1 text-amber-400 font-semibold text-xs group-hover:translate-x-1 transition-transform bg-black border border-zinc-800 px-3 py-1.5 rounded-xl">
                   Detalhes <ChevronRight size={14} />
                 </span>
               </div>
@@ -595,285 +613,229 @@ export const AnalistasPage = () => {
 
       {/* DETAILED ANALYST FULL POPUP MODAL */}
       {selectedAnalyst && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 overflow-y-auto animate-in fade-in duration-200">
-          <div className="w-full max-w-5xl bg-zinc-950 border border-zinc-800 rounded-3xl p-6 sm:p-8 my-auto space-y-8 max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200 text-zinc-100 custom-scrollbar relative">
-            {/* Modal Header */}
-            <div className="flex items-start justify-between border-b border-zinc-800 pb-6">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-black border border-zinc-800 flex items-center justify-center font-bold text-xl text-[#ffff00] shrink-0">
-                  {selectedAnalyst.nome.slice(0, 2).toUpperCase()}
-                </div>
-                <div>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <h2 className="text-xl font-bold text-white">{selectedAnalyst.nome}</h2>
-                    {/* Score ao lado direito do nome, sutil mas visível */}
-                    <span className={`px-3 py-1 rounded-xl text-xs font-bold border ${getScoreBadgeColor(selectedAnalyst.scoreFormatted)}`}>
-                      {selectedAnalyst.scoreFormatted}
-                    </span>
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 animate-in fade-in duration-200">
+          <div className="w-full max-w-5xl bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 text-zinc-100 flex flex-col max-h-[90vh] overflow-hidden relative">
+            <div className="p-6 sm:p-8 overflow-y-auto custom-scrollbar space-y-8 flex-1">
+              {/* Modal Header */}
+              <div className="flex items-start justify-between border-b border-zinc-800 pb-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-black border border-zinc-800 flex items-center justify-center font-bold text-xl text-amber-400 shrink-0">
+                    {selectedAnalyst.nome.slice(0, 2).toUpperCase()}
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-zinc-400 mt-1 font-mono">
-                    <span>{selectedAnalyst.codigo}</span>
-                    <span>•</span>
-                    <span>Supervisor: {selectedAnalyst.supervisor}</span>
-                  </div>
-                  <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[11px] text-zinc-400 font-semibold mr-1">Esteiras:</span>
-                    {selectedAnalyst.esteiras.map((e, idx) => (
-                      <span key={idx} className="text-[10px] font-semibold text-[#ffff00] bg-black border border-zinc-800 px-2.5 py-0.5 rounded-md">
-                        {e}
+                  <div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <h2 className="text-xl font-bold text-white">{selectedAnalyst.nome}</h2>
+                      {/* Score ao lado direito do nome */}
+                      <span className={`px-3 py-1 rounded-xl text-xs font-bold border ${getQualityBadgeClass(selectedAnalyst.qualidadePct)}`}>
+                        {selectedAnalyst.scoreFormatted}
                       </span>
+                      {/* Média de dias para erro simplificada no canto superior */}
+                      <span className="px-2.5 py-1 rounded-md text-xs font-semibold text-zinc-300 bg-black border border-zinc-800 flex items-center gap-1.5">
+                        <Clock size={13} className="text-amber-400" />
+                        Média entre erros: <strong className="text-amber-400">{selectedAnalyst.mediaDiasEntreErros} dias</strong>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-zinc-400 mt-1 font-mono">
+                      <span>{selectedAnalyst.codigo}</span>
+                      <span>•</span>
+                      <span>Supervisor: {selectedAnalyst.supervisor}</span>
+                    </div>
+                    <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[11px] text-zinc-400 font-semibold mr-1">Esteiras:</span>
+                      {selectedAnalyst.esteiras.map((e, idx) => (
+                        <span key={idx} className="text-[10px] font-semibold text-zinc-300 bg-black border border-zinc-800 px-2.5 py-0.5 rounded-md">
+                          {e}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setSelectedAnalyst(null)}
+                  className="p-2 text-zinc-400 hover:text-white bg-black border border-zinc-800 rounded-xl hover:border-zinc-700 transition-colors"
+                  title="Fechar Dashboard"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* TOP KPI CARDS */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4">
+                <div className="bg-black border border-zinc-800 p-4 rounded-2xl text-center space-y-1">
+                  <p className="text-[10px] sm:text-[11px] text-zinc-500 uppercase font-bold tracking-wider">Produtividade</p>
+                  <p className="text-xl sm:text-2xl font-extrabold text-blue-400">{selectedAnalyst.totalProdutividade}</p>
+                </div>
+
+                <div className="bg-black border border-zinc-800 p-4 rounded-2xl text-center space-y-1">
+                  <p className="text-[10px] sm:text-[11px] text-zinc-500 uppercase font-bold tracking-wider">Monitorias</p>
+                  <p className="text-xl sm:text-2xl font-extrabold text-white">{selectedAnalyst.totalMonitorias}</p>
+                </div>
+
+                <div className="bg-black border border-zinc-800 p-4 rounded-2xl text-center space-y-1">
+                  <p className="text-[10px] sm:text-[11px] text-zinc-500 uppercase font-bold tracking-wider">Qualidade</p>
+                  <p className={`text-xl sm:text-2xl font-extrabold ${getQualityColorClass(selectedAnalyst.qualidadePct)}`}>{selectedAnalyst.qualidadePct}%</p>
+                </div>
+
+                <div className="bg-black border border-zinc-800 p-4 rounded-2xl text-center space-y-1">
+                  <p className="text-[10px] sm:text-[11px] text-zinc-500 uppercase font-bold tracking-wider">Erros</p>
+                  <p className="text-xl sm:text-2xl font-extrabold text-red-400">{selectedAnalyst.totalErros}</p>
+                </div>
+
+                <div className="bg-black border border-zinc-800 p-4 rounded-2xl text-center space-y-1">
+                  <p className="text-[10px] sm:text-[11px] text-zinc-500 uppercase font-bold tracking-wider">Reincidências</p>
+                  <p className="text-xl sm:text-2xl font-extrabold text-amber-400">{selectedAnalyst.reincidencias}</p>
+                </div>
+              </div>
+
+
+              {/* Visualização de Reincidências por TAG & Medida de Acompanhamento */}
+              <div className="bg-black border border-zinc-800 p-6 rounded-2xl space-y-4">
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Layers size={18} className="text-amber-400" />
+                  Reincidências por TAG & Medida de Acompanhamento
+                </h4>
+
+                {selectedAnalyst.tagsDetalhadas.length > 0 ? (
+                  <div className="space-y-3">
+                    {selectedAnalyst.tagsDetalhadas.map((item, idx) => (
+                      <div key={idx} className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-bold text-white">{item.tag}</p>
+                          <p className="text-xs text-zinc-400 mt-0.5">
+                            Erros acumulados nesta tag: <strong className="text-amber-400">{item.count} erro(s)</strong>
+                          </p>
+                        </div>
+
+                        <span className={`px-3 py-1.5 rounded-xl text-xs font-bold border ${item.quadrante.colorClass}`}>
+                          {item.quadrante.descricao}
+                        </span>
+                      </div>
                     ))}
                   </div>
+                ) : (
+                  <div className="p-4 bg-zinc-900 rounded-xl text-xs text-emerald-400 border border-emerald-900/60 flex items-center gap-2">
+                    <CheckCircle2 size={16} />
+                    <span>Analista não possui reincidência de erros por TAG no período selecionado.</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Dash Individual do Analista (Gráficos) */}
+              <div className="space-y-6">
+                <h3 className="text-base font-bold text-white flex items-center gap-2 border-b border-zinc-800 pb-3">
+                  <BarChart2 size={20} className="text-amber-400" />
+                  Dash Individual do Analista
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Visual Erros por TAG */}
+                  <div className="bg-black border border-zinc-800 p-5 rounded-2xl space-y-3">
+                    <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                      Erros por TAG
+                    </h4>
+
+                    {selectedAnalyst.tagsDetalhadas.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={260}>
+                        <BarChart data={selectedAnalyst.tagsDetalhadas} margin={{ top: 20, right: 15, left: -15, bottom: 40 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                          <XAxis dataKey="tag" stroke="#71717a" interval={0} tick={<CustomXAxisTick />} padding={{ left: 20, right: 20 }} />
+                          <YAxis stroke="#71717a" tick={{ fontSize: 10 }} allowDecimals={false} />
+                          <Tooltip 
+                            contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '12px', color: '#fff' }} 
+                            itemStyle={{ color: '#f59e0b' }}
+                            cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                          />
+                          <Bar dataKey="count" name="Quantidade" fill="#f59e0b" radius={[6, 6, 0, 0]}>
+                            <LabelList dataKey="count" position="top" fill="#ffffff" fontSize={11} fontWeight="bold" />
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <p className="text-xs text-zinc-500 py-10 text-center">Nenhum erro de TAG registrado.</p>
+                    )}
+                  </div>
+
+                  {/* Visual Erros por Motivo Macro */}
+                  <div className="bg-black border border-zinc-800 p-5 rounded-2xl space-y-3">
+                    <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <PieChartIcon size={14} className="text-amber-400" />
+                      Erros por Motivo Macro
+                    </h4>
+
+                    {selectedAnalyst.macrosDetalhados.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={260}>
+                        <PieChart>
+                          <Pie
+                            data={selectedAnalyst.macrosDetalhados}
+                            dataKey="count"
+                            nameKey="macro"
+                            cx="50%"
+                            cy="45%"
+                            outerRadius={70}
+                            innerRadius={35}
+                            paddingAngle={4}
+                            label={({ count }) => `${count}`}
+                          >
+                            {selectedAnalyst.macrosDetalhados.map((_, index) => (
+                              <Cell key={`cell-${index}`} fill={DONUT_PALETTE[index % DONUT_PALETTE.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip 
+                            contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '12px', color: '#fff' }} 
+                            itemStyle={{ color: '#f59e0b' }}
+                          />
+                          <Legend 
+                            wrapperStyle={{ fontSize: '11px', color: '#ffffff' }} 
+                            formatter={(value) => <span style={{ color: '#ffffff', fontWeight: 500 }}>{value}</span>}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <p className="text-xs text-zinc-500 py-10 text-center">Nenhum erro macro registrado.</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <button
-                onClick={() => setSelectedAnalyst(null)}
-                className="p-2 text-zinc-400 hover:text-white bg-black border border-zinc-800 rounded-xl hover:border-zinc-700 transition-colors"
-                title="Fechar Dashboard"
-              >
-                <X size={20} />
-              </button>
-            </div>
+              {/* Histórico Completo de Monitorias */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Activity size={18} className="text-amber-400" />
+                  Histórico de Monitorias ({selectedAnalyst.items.length})
+                </h4>
 
-            {/* TOP KPI CARDS: Produtividade (Ao lado esquerdo de Monitorias), Monitorias, Qualidade, Erros, Reincidências */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4">
-              <div className="bg-black border border-zinc-800 p-4 rounded-2xl text-center space-y-1">
-                <p className="text-[10px] sm:text-[11px] text-zinc-500 uppercase font-bold tracking-wider">Produtividade</p>
-                <p className="text-xl sm:text-2xl font-extrabold text-blue-400">{selectedAnalyst.totalProdutividade}</p>
-              </div>
-
-              <div className="bg-black border border-zinc-800 p-4 rounded-2xl text-center space-y-1">
-                <p className="text-[10px] sm:text-[11px] text-zinc-500 uppercase font-bold tracking-wider">Monitorias</p>
-                <p className="text-xl sm:text-2xl font-extrabold text-white">{selectedAnalyst.totalMonitorias}</p>
-              </div>
-
-              <div className="bg-black border border-zinc-800 p-4 rounded-2xl text-center space-y-1">
-                <p className="text-[10px] sm:text-[11px] text-zinc-500 uppercase font-bold tracking-wider">Qualidade</p>
-                <p className="text-xl sm:text-2xl font-extrabold text-[#ffff00]">{selectedAnalyst.qualidadePct}%</p>
-              </div>
-
-              <div className="bg-black border border-zinc-800 p-4 rounded-2xl text-center space-y-1">
-                <p className="text-[10px] sm:text-[11px] text-zinc-500 uppercase font-bold tracking-wider">Erros</p>
-                <p className="text-xl sm:text-2xl font-extrabold text-red-400">{selectedAnalyst.totalErros}</p>
-              </div>
-
-              <div className="bg-black border border-zinc-800 p-4 rounded-2xl text-center space-y-1">
-                <p className="text-[10px] sm:text-[11px] text-zinc-500 uppercase font-bold tracking-wider">Reincidências</p>
-                <p className="text-xl sm:text-2xl font-extrabold text-amber-400">{selectedAnalyst.reincidencias}</p>
-              </div>
-            </div>
-
-
-            {/* Visualização de Reincidências por TAG & Medida de Acompanhamento */}
-            <div className="bg-black border border-zinc-800 p-6 rounded-2xl space-y-4">
-              <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                <Layers size={18} className="text-[#ffff00]" />
-                Reincidências por TAG & Medida de Acompanhamento
-              </h4>
-
-              {selectedAnalyst.tagsDetalhadas.length > 0 ? (
-                <div className="space-y-3">
-                  {selectedAnalyst.tagsDetalhadas.map((item, idx) => (
-                    <div key={idx} className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-bold text-white">{item.tag}</p>
-                        <p className="text-xs text-zinc-400 mt-0.5">
-                          Erros acumulados nesta tag: <strong className="text-[#ffff00]">{item.count} erro(s)</strong>
-                        </p>
+                <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1 custom-scrollbar">
+                  {selectedAnalyst.items.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className={`p-4 rounded-xl border text-xs space-y-2 ${
+                        item.Erro === '0' 
+                          ? 'bg-red-950/20 border-red-900/60' 
+                          : 'bg-black border-zinc-800'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-zinc-400">{item.DataMonitoria}</span>
+                        <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
+                          item.Erro === '0' 
+                            ? 'bg-red-950 border border-red-800 text-red-400' 
+                            : 'bg-emerald-950 border border-emerald-800 text-emerald-400'
+                        }`}>
+                          {item.Erro === '0' ? 'NÃO CONFORME' : 'CONFORME'}
+                        </span>
                       </div>
 
-                      <span className={`px-3 py-1.5 rounded-xl text-xs font-bold border ${item.quadrante.colorClass}`}>
-                        {item.quadrante.descricao}
-                      </span>
+                      <div className="grid grid-cols-2 gap-2 text-zinc-300">
+                        <p><strong className="text-zinc-500">Esteira:</strong> {item.Esteira}</p>
+                        <p><strong className="text-zinc-500">TAG:</strong> {item.Tag}</p>
+                        <p><strong className="text-zinc-500">Motivo Macro:</strong> {item.MotivoMacro}</p>
+                        <p><strong className="text-zinc-500">Forma:</strong> {item.FormaMonitoria}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <div className="p-4 bg-zinc-900 rounded-xl text-xs text-emerald-400 border border-emerald-900/60 flex items-center gap-2">
-                  <CheckCircle2 size={16} />
-                  <span>Analista não possui reincidência de erros por TAG no período selecionado.</span>
-                </div>
-              )}
-            </div>
-
-            {/* Dash Individual do Analista (Gráficos) */}
-            <div className="space-y-6">
-              <h3 className="text-base font-bold text-white flex items-center gap-2 border-b border-zinc-800 pb-3">
-                <BarChart2 size={20} className="text-[#ffff00]" />
-                Dash Individual do Analista
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Visual Erros por TAG */}
-                <div className="bg-black border border-zinc-800 p-5 rounded-2xl space-y-3">
-                  <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#ffff00]"></span>
-                    Erros por TAG
-                  </h4>
-
-                  {selectedAnalyst.tagsDetalhadas.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={260}>
-                      <BarChart data={selectedAnalyst.tagsDetalhadas} margin={{ top: 20, right: 10, left: -20, bottom: 40 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                        <XAxis dataKey="tag" stroke="#71717a" interval={0} tick={<CustomXAxisTick />} />
-                        <YAxis stroke="#71717a" tick={{ fontSize: 10 }} allowDecimals={false} />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '12px', color: '#fff' }} 
-                          itemStyle={{ color: '#ffff00' }}
-                          cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
-                        />
-                        <Bar dataKey="count" name="Quantidade" fill="#ffff00" radius={[6, 6, 0, 0]}>
-                          <LabelList dataKey="count" position="top" fill="#ffffff" fontSize={11} fontWeight="bold" />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <p className="text-xs text-zinc-500 py-10 text-center">Nenhum erro de TAG registrado.</p>
-                  )}
-                </div>
-
-                {/* Visual Erros por Motivo Macro */}
-                <div className="bg-black border border-zinc-800 p-5 rounded-2xl space-y-3">
-                  <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-                    <PieChartIcon size={14} className="text-[#ffff00]" />
-                    Erros por Motivo Macro
-                  </h4>
-
-                  {selectedAnalyst.macrosDetalhados.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={260}>
-                      <PieChart>
-                        <Pie
-                          data={selectedAnalyst.macrosDetalhados}
-                          dataKey="count"
-                          nameKey="macro"
-                          cx="50%"
-                          cy="45%"
-                          outerRadius={70}
-                          innerRadius={35}
-                          paddingAngle={4}
-                          label={({ count }) => `${count}`}
-                        >
-                          {selectedAnalyst.macrosDetalhados.map((_, index) => (
-                            <Cell key={`cell-${index}`} fill={DONUT_PALETTE[index % DONUT_PALETTE.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '12px', color: '#fff' }} 
-                          itemStyle={{ color: '#ffff00' }}
-                        />
-                        <Legend 
-                          wrapperStyle={{ fontSize: '11px', color: '#ffffff' }} 
-                          formatter={(value) => <span style={{ color: '#ffffff', fontWeight: 500 }}>{value}</span>}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <p className="text-xs text-zinc-500 py-10 text-center">Nenhum erro macro registrado.</p>
-                  )}
-                </div>
-
-                {/* Visual Produtividade do Analista por Data */}
-                <div className="bg-black border border-zinc-800 p-5 rounded-2xl space-y-3 md:col-span-2">
-                  <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-                    <Briefcase size={14} className="text-[#ffff00]" />
-                    Evolução da Produtividade no Período (Total: {selectedAnalyst.totalProdutividade} itens)
-                  </h4>
-
-                  {selectedAnalyst.prodItems && selectedAnalyst.prodItems.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={220}>
-                      <BarChart 
-                        data={Object.entries(
-                          selectedAnalyst.prodItems.reduce((acc, p) => {
-                            const d = p.DataProdutividade || 'Outra';
-                            acc[d] = (acc[d] || 0) + (Number(p.Quantidade) || 1);
-                            return acc;
-                          }, {} as Record<string, number>)
-                        )
-                          .map(([data, qtd]) => {
-                            let label = data;
-                            if (/^\d{4}-\d{2}-\d{2}$/.test(data)) {
-                              const parts = data.split('-');
-                              label = `${parts[2]}/${parts[1]}`;
-                            }
-                            return { data, label, qtd };
-                          })
-                          .sort((a, b) => a.data.localeCompare(b.data))
-                        }
-                        margin={{ top: 20, right: 10, left: -20, bottom: 20 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                        <XAxis dataKey="label" stroke="#71717a" tick={{ fontSize: 10 }} />
-                        <YAxis stroke="#71717a" tick={{ fontSize: 10 }} allowDecimals={false} />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '12px', color: '#fff' }} 
-                          itemStyle={{ color: '#ffff00' }}
-                          cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
-                        />
-                        <Bar dataKey="qtd" name="Produtividade" fill="#3b82f6" radius={[6, 6, 0, 0]}>
-                          <LabelList dataKey="qtd" position="top" fill="#ffffff" fontSize={11} fontWeight="bold" />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <p className="text-xs text-zinc-500 py-10 text-center">Nenhum registro de produtividade encontrado para este analista no período e esteira selecionados.</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Medidor de Intervalo de Erros */}
-            <div className="bg-black border border-zinc-800 p-6 rounded-2xl space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Clock size={18} className="text-[#ffff00]" />
-                  Medidor de Sustentação Operacional
-                </h4>
-                <span className="text-xs text-zinc-400 font-mono">
-                  Média: <strong className="text-[#ffff00]">{selectedAnalyst.mediaDiasEntreErros} dias</strong> sem erros
-                </span>
-              </div>
-              <p className="text-xs text-zinc-400">
-                O analista mantém em média <strong className="text-white">{selectedAnalyst.mediaDiasEntreErros} dias</strong> de operação sem intercorrências operacionais ou não conformidades.
-              </p>
-            </div>
-
-            {/* Histórico Completo de Monitorias */}
-            <div className="space-y-4">
-              <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                <Activity size={18} className="text-[#ffff00]" />
-                Histórico de Monitorias ({selectedAnalyst.items.length})
-              </h4>
-
-              <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1 custom-scrollbar">
-                {selectedAnalyst.items.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className={`p-4 rounded-xl border text-xs space-y-2 ${
-                      item.Erro === '0' 
-                        ? 'bg-red-950/20 border-red-900/60' 
-                        : 'bg-black border-zinc-800'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-zinc-400">{item.DataMonitoria}</span>
-                      <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
-                        item.Erro === '0' 
-                          ? 'bg-red-950 border border-red-800 text-red-400' 
-                          : 'bg-emerald-950 border border-emerald-800 text-emerald-400'
-                      }`}>
-                        {item.Erro === '0' ? 'NÃO CONFORME' : 'CONFORME'}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-zinc-300">
-                      <p><strong className="text-zinc-500">Esteira:</strong> {item.Esteira}</p>
-                      <p><strong className="text-zinc-500">TAG:</strong> {item.Tag}</p>
-                      <p><strong className="text-zinc-500">Motivo Macro:</strong> {item.MotivoMacro}</p>
-                      <p><strong className="text-zinc-500">Forma:</strong> {item.FormaMonitoria}</p>
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
           </div>
@@ -883,12 +845,12 @@ export const AnalistasPage = () => {
       {/* POP-UP MODAL: Erros e Reincidências */}
       {popupAnalyst && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-all">
-          <div className="w-full max-w-2xl bg-zinc-900 border border-zinc-800 rounded-3xl p-6 sm:p-8 space-y-6 animate-in zoom-in-95 duration-200 text-zinc-100 max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
+          <div className="w-full max-w-2xl bg-zinc-900 border border-zinc-800 rounded-2xl p-6 sm:p-8 space-y-6 animate-in zoom-in-95 duration-200 text-zinc-100 max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
             {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-zinc-800 pb-4">
               <div>
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <AlertTriangle size={20} className="text-[#ffff00]" />
+                  <AlertTriangle size={20} className="text-amber-400" />
                   Erros e reincidências
                 </h2>
                 <p className="text-xs text-zinc-400 mt-1 font-mono">
@@ -907,7 +869,7 @@ export const AnalistasPage = () => {
             {/* Mini Gráfico de Erros por TAG */}
             <div className="bg-black border border-zinc-800 p-5 rounded-2xl space-y-3">
               <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
-                <BarChart2 size={16} className="text-[#ffff00]" />
+                <BarChart2 size={16} className="text-amber-400" />
                 Volume de Erros por TAG
               </h4>
 
@@ -915,18 +877,18 @@ export const AnalistasPage = () => {
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={popupAnalyst.tagsDetalhadas} margin={{ top: 20, right: 15, left: -15, bottom: 25 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                    <XAxis dataKey="tag" stroke="#71717a" tick={{ fontSize: 10 }} interval={0} />
+                    <XAxis dataKey="tag" stroke="#71717a" tick={{ fontSize: 10 }} interval={0} padding={{ left: 15, right: 15 }} />
                     <YAxis stroke="#71717a" tick={{ fontSize: 10 }} />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '12px', color: '#fff' }} 
-                      itemStyle={{ color: '#ffff00' }}
+                      itemStyle={{ color: '#f59e0b' }}
                       cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
                     />
                     <Legend 
                       wrapperStyle={{ fontSize: '11px', color: '#ffffff' }} 
                       formatter={(value) => <span style={{ color: '#ffffff', fontWeight: 500 }}>{value}</span>}
                     />
-                    <Bar dataKey="count" name="Erros na TAG" fill="#ffff00" radius={[6, 6, 0, 0]} barSize={32}>
+                    <Bar dataKey="count" name="Erros na TAG" fill="#f59e0b" radius={[6, 6, 0, 0]} barSize={32}>
                       <LabelList dataKey="count" position="top" fill="#ffffff" fontSize={11} fontWeight="bold" />
                     </Bar>
                   </BarChart>
@@ -942,7 +904,7 @@ export const AnalistasPage = () => {
             {/* Lista Detalhada de TAGs e Criticidade */}
             <div className="space-y-3">
               <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
-                <Layers size={15} className="text-[#ffff00]" />
+                <Layers size={15} className="text-amber-400" />
                 Acompanhamento e Medidas por TAG
               </h4>
 
@@ -953,7 +915,7 @@ export const AnalistasPage = () => {
                       <div>
                         <p className="font-bold text-white">{item.tag}</p>
                         <p className="text-[11px] text-zinc-400 mt-0.5">
-                          Quantidade: <strong className="text-[#ffff00]">{item.count} erro(s)</strong>
+                          Quantidade: <strong className="text-amber-400">{item.count} erro(s)</strong>
                         </p>
                       </div>
 

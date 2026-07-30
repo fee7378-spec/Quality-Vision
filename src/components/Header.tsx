@@ -39,14 +39,14 @@ export const Header = () => {
   const showFilters = location.pathname !== '/import';
 
   return (
-    <header className="bg-black border-b border-zinc-800 min-h-16 py-2 px-6 flex flex-wrap items-center justify-between gap-3 text-zinc-200 z-40">
+    <header className="bg-zinc-950 border-b border-zinc-800 min-h-16 py-2 px-6 flex flex-wrap items-center justify-between gap-3 text-zinc-200 z-40">
       <div className="flex items-center gap-3">
-        <h2 className="text-base font-extrabold text-white tracking-wide uppercase whitespace-nowrap">{getTitle()}</h2>
+        <h2 className="text-sm font-extrabold text-white tracking-wider uppercase whitespace-nowrap">{getTitle()}</h2>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         {showFilters && (
-          <div className="flex flex-wrap items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-200">
+          <div className="flex flex-wrap items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-zinc-200">
             {/* Period Filter */}
             <div className="flex items-center gap-1.5">
               <span className="text-zinc-400 font-semibold text-[11px] uppercase">Período:</span>
@@ -54,14 +54,14 @@ export const Header = () => {
                 type="date" 
                 value={startDate} 
                 onChange={(e) => setStartDate(e.target.value)}
-                className="bg-black border border-zinc-800 rounded px-2 py-1 text-xs text-white outline-none focus:border-[#ffff00]"
+                className="bg-black border border-zinc-800 rounded-md px-2 py-1 text-xs text-white outline-none focus:border-amber-400"
               />
               <span className="text-zinc-500 text-[11px]">até</span>
               <input 
                 type="date" 
                 value={endDate} 
                 onChange={(e) => setEndDate(e.target.value)}
-                className="bg-black border border-zinc-800 rounded px-2 py-1 text-xs text-white outline-none focus:border-[#ffff00]"
+                className="bg-black border border-zinc-800 rounded-md px-2 py-1 text-xs text-white outline-none focus:border-amber-400"
               />
             </div>
 
@@ -73,7 +73,7 @@ export const Header = () => {
               <select
                 value={selectedForma}
                 onChange={(e) => setSelectedForma(e.target.value)}
-                className="bg-black border border-zinc-800 rounded px-2 py-1 text-xs text-white outline-none focus:border-[#ffff00]"
+                className="bg-black border border-zinc-800 rounded-md px-2 py-1 text-xs text-white outline-none focus:border-amber-400 cursor-pointer"
               >
                 <option value="TODAS">TODAS</option>
                 <option value="Qualidade Interfile">Qualidade Interfile</option>
@@ -89,7 +89,7 @@ export const Header = () => {
               <select
                 value={selectedEsteira}
                 onChange={(e) => setSelectedEsteira(e.target.value)}
-                className="bg-black border border-zinc-800 rounded px-2 py-1 text-xs text-white outline-none focus:border-[#ffff00]"
+                className="bg-black border border-zinc-800 rounded-md px-2 py-1 text-xs text-white outline-none focus:border-amber-400 cursor-pointer"
               >
                 {availableEsteiras.map(e => <option key={e} value={e}>{e}</option>)}
               </select>
@@ -103,7 +103,7 @@ export const Header = () => {
               <select
                 value={selectedTag}
                 onChange={(e) => setSelectedTag(e.target.value)}
-                className="bg-black border border-zinc-800 rounded px-2 py-1 text-xs text-white outline-none focus:border-[#ffff00] max-w-[130px] truncate"
+                className="bg-black border border-zinc-800 rounded-md px-2 py-1 text-xs text-white outline-none focus:border-amber-400 max-w-[130px] truncate cursor-pointer"
               >
                 {availableTags.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
@@ -117,7 +117,7 @@ export const Header = () => {
               <select
                 value={selectedMacro}
                 onChange={(e) => setSelectedMacro(e.target.value)}
-                className="bg-black border border-zinc-800 rounded px-2 py-1 text-xs text-white outline-none focus:border-[#ffff00] max-w-[130px] truncate"
+                className="bg-black border border-zinc-800 rounded-md px-2 py-1 text-xs text-white outline-none focus:border-amber-400 max-w-[130px] truncate cursor-pointer"
               >
                 {availableMacros.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
@@ -128,13 +128,13 @@ export const Header = () => {
         {/* Refresh / Reset Button */}
         <button
           onClick={resetToCurrentMonth}
-          className="flex items-center justify-center bg-[#ffff00] text-black p-2 rounded-xl hover:bg-[#e6e600] active:scale-95 transition-all cursor-pointer shadow-sm shadow-[#ffff00]/20"
+          className="flex items-center justify-center bg-amber-400 text-zinc-950 p-2 rounded-md hover:bg-amber-300 active:scale-95 transition-all cursor-pointer shadow-sm shadow-amber-400/20 font-bold"
           title="Resetar filtros e voltar para o Mês Atual"
         >
           <RefreshCw size={15} className="stroke-[2.5]" />
         </button>
 
-        <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-bold text-xs text-[#ffff00] flex-shrink-0">
+        <div className="w-8 h-8 rounded-md bg-zinc-900 border border-zinc-800 flex items-center justify-center font-bold text-xs text-amber-400 flex-shrink-0">
           <User size={16} />
         </div>
       </div>

@@ -145,57 +145,56 @@ export const AnaliseEvolucaoPage = () => {
   }, [filteredData, heatmapViewMode, selectedForma]);
 
   const getHeatmapColor = (count: number) => {
-    if (count === 0) return 'bg-black text-zinc-600 border-zinc-800';
-    if (count === 1) return 'bg-yellow-950/40 text-yellow-300 border-yellow-800/80 font-bold';
-    if (count === 2) return 'bg-[#ffff00]/30 text-[#ffff00] border-[#ffff00]/60 font-bold';
-    return 'bg-[#ffff00] text-black font-extrabold border-[#ffff00] shadow-sm shadow-[#ffff00]/20';
+    if (count === 0) return 'bg-zinc-950 text-zinc-600 border-zinc-800';
+    if (count === 1) return 'bg-amber-950/50 text-amber-300 border-amber-800/80 font-bold';
+    if (count === 2) return 'bg-amber-900/60 text-amber-200 border-amber-600/80 font-bold';
+    return 'bg-amber-500/20 text-amber-300 font-extrabold border-amber-500 shadow-sm shadow-amber-500/10';
   };
 
   return (
     <div className="flex-1 overflow-y-auto bg-black p-8 space-y-8 text-zinc-100">
       {/* Section 1: Índice de Evolução e Tendência */}
-      <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl space-y-4 w-full">
+      <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-md space-y-4 w-full">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-white font-bold text-base flex items-center gap-2">
-              <TrendingUp size={20} className="text-[#ffff00]" />
-              Índice de evolução e tendência
+              <TrendingUp size={20} className="text-amber-400" />
+              Índice de evolução
             </h3>
             <p className="text-xs text-zinc-400 mt-1">Evolução do percentual de qualidade (%) ao longo do período</p>
           </div>
         </div>
 
         <ResponsiveContainer width="100%" height={280}>
-          <AreaChart data={tendenciaData} margin={{ top: 20, right: 15, left: -10, bottom: 5 }}>
+          <AreaChart data={tendenciaData} margin={{ top: 25, right: 30, left: 10, bottom: 5 }}>
             <defs>
               <linearGradient id="qualidadeGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#ffff00" stopOpacity={0.4}/>
-                <stop offset="95%" stopColor="#ffff00" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4}/>
+                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-            <XAxis dataKey="label" stroke="#71717a" tick={{ fontSize: 11 }} />
+            <XAxis dataKey="label" stroke="#71717a" tick={{ fontSize: 11 }} padding={{ left: 35, right: 35 }} />
             <YAxis stroke="#71717a" domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
             <Tooltip 
-              contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '12px', color: '#fff' }} 
-              itemStyle={{ color: '#ffff00' }}
+              contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '6px', color: '#fff' }} 
+              itemStyle={{ color: '#f59e0b' }}
               cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
             />
-            <Legend wrapperStyle={{ fontSize: '12px', color: '#fff', paddingTop: '10px' }} />
-            <Area type="monotone" dataKey="qualidade" name="Qualidade (%)" stroke="#ffff00" strokeWidth={3} fillOpacity={1} fill="url(#qualidadeGrad)">
-              <LabelList dataKey="qualidade" position="top" fill="#ffff00" fontSize={11} fontWeight="bold" formatter={(v: any) => `${v}%`} />
+            <Area type="monotone" dataKey="qualidade" name="Qualidade (%)" stroke="#f59e0b" strokeWidth={3} fillOpacity={1} fill="url(#qualidadeGrad)">
+              <LabelList dataKey="qualidade" position="top" offset={10} fill="#f59e0b" fontSize={11} fontWeight="bold" formatter={(v: any) => `${v}%`} />
             </Area>
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
       {/* Grid Section 2: Heatmap ocupando 100% da área horizontal com filtro por Esteira / Analista */}
-      <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl space-y-4 w-full">
+      <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-md space-y-4 w-full">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800 pb-4">
           <div>
             <h3 className="text-white font-bold text-base flex items-center gap-2">
-              <Grid size={20} className="text-[#ffff00]" />
-              Heatmap de Reincidência e Ocorrências
+              <Grid size={20} className="text-amber-400" />
+              Heatmap de ocorrências
             </h3>
             <p className="text-xs text-zinc-400 mt-1">
               Matriz de calor de volume de erros {heatmapData.isEsteiraMode ? 'dividida por Esteira Operacional' : 'dividida por Analista'} no tempo
@@ -203,12 +202,12 @@ export const AnaliseEvolucaoPage = () => {
           </div>
 
           {/* Filtro inline no próprio quadro */}
-          <div className="flex items-center gap-1 bg-black p-1 rounded-xl border border-zinc-800">
+          <div className="flex items-center gap-1 bg-black p-1 rounded-md border border-zinc-800">
             <button
               onClick={() => setHeatmapViewMode('esteira')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
                 heatmapViewMode === 'esteira'
-                  ? 'bg-[#ffff00] text-black shadow-sm shadow-[#ffff00]/20'
+                  ? 'bg-amber-400 text-zinc-950 shadow-sm'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
@@ -216,9 +215,9 @@ export const AnaliseEvolucaoPage = () => {
             </button>
             <button
               onClick={() => setHeatmapViewMode('analista')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
                 heatmapViewMode === 'analista'
-                  ? 'bg-[#ffff00] text-black shadow-sm shadow-[#ffff00]/20'
+                  ? 'bg-amber-400 text-zinc-950 shadow-sm'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
@@ -227,7 +226,7 @@ export const AnaliseEvolucaoPage = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto max-h-[520px] overflow-y-auto my-2 custom-scrollbar border border-zinc-800 rounded-xl">
+        <div className="overflow-x-auto max-h-[520px] overflow-y-auto my-2 custom-scrollbar border border-zinc-800 rounded-md">
           <table className="w-full text-xs text-center border-collapse">
             <thead className="sticky top-0 bg-zinc-900 z-10 shadow-sm shadow-black">
               <tr className="border-b border-zinc-800 text-zinc-400 font-semibold">
@@ -254,7 +253,7 @@ export const AnaliseEvolucaoPage = () => {
                       const count = heatmapData.matrix[cat]?.[col] || 0;
                       return (
                         <td key={col} className="p-2">
-                          <div className={`py-2 px-3 rounded-lg border text-xs font-bold transition-transform hover:scale-105 ${getHeatmapColor(count)}`}>
+                          <div className={`py-2 px-3 rounded-md border text-xs font-bold transition-transform hover:scale-105 ${getHeatmapColor(count)}`}>
                             {count} erro(s)
                           </div>
                         </td>
@@ -274,10 +273,10 @@ export const AnaliseEvolucaoPage = () => {
         </div>
 
         <div className="flex items-center justify-end gap-4 text-[11px] text-zinc-400 pt-3 border-t border-zinc-800">
-          <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded bg-black border border-zinc-800"></span> 0 Erros</span>
-          <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded bg-yellow-950/40 border border-yellow-800"></span> 1 Erro</span>
-          <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded bg-[#ffff00]/30 border border-[#ffff00]/60"></span> 2 Erros</span>
-          <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded bg-[#ffff00] border border-[#ffff00]"></span> 3+ Erros</span>
+          <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded-sm bg-zinc-950 border border-zinc-800"></span> 0 Erros</span>
+          <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded-sm bg-amber-950/50 border border-amber-800/80"></span> 1 Erro</span>
+          <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded-sm bg-amber-900/60 border border-amber-600/80"></span> 2 Erros</span>
+          <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded-sm bg-amber-500/20 border border-amber-500 text-amber-300"></span> 3+ Erros</span>
         </div>
       </div>
     </div>

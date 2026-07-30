@@ -59,21 +59,21 @@ export const Sidebar = () => {
             key={item.path}
             to={item.path}
             className={({ isActive }) => 
-              `flex items-center gap-3.5 px-3 py-3 rounded-xl transition-all ${
+              `flex items-center gap-3.5 px-3 py-2.5 rounded-md transition-all ${
                 isActive 
-                  ? 'bg-zinc-900 text-[#ffff00] font-bold border-l-2 border-[#ffff00]' 
-                  : 'hover:bg-zinc-900/60 hover:text-white'
+                  ? 'bg-zinc-900 text-amber-400 font-bold border-l-2 border-amber-400' 
+                  : 'hover:bg-zinc-900/80 hover:text-white'
               }`
             }
           >
-            <item.icon size={20} className="flex-shrink-0" />
+            <item.icon size={19} className="flex-shrink-0" />
             <AnimatePresence>
               {isExpanded && (
                 <motion.span 
                   initial={{ opacity: 0 }} 
                   animate={{ opacity: 1 }} 
                   exit={{ opacity: 0 }}
-                  className="text-xs font-semibold whitespace-nowrap overflow-hidden truncate"
+                  className="text-xs font-semibold uppercase tracking-wider whitespace-nowrap overflow-hidden truncate"
                 >
                   {item.label}
                 </motion.span>
@@ -87,17 +87,17 @@ export const Sidebar = () => {
       <div className="p-3 border-t border-zinc-800">
         <button
           onClick={() => {}}
-          className="w-full flex items-center gap-3.5 px-3 py-3 rounded-xl transition-all hover:bg-zinc-900 text-zinc-400 hover:text-white cursor-pointer"
+          className="w-full flex items-center gap-3.5 px-3 py-2.5 rounded-md transition-all hover:bg-zinc-900 text-zinc-400 hover:text-white cursor-pointer"
           title="Configurações"
         >
-          <Settings size={20} className="flex-shrink-0" />
+          <Settings size={19} className="flex-shrink-0" />
           <AnimatePresence>
             {isExpanded && (
               <motion.span 
                 initial={{ opacity: 0 }} 
                 animate={{ opacity: 1 }} 
                 exit={{ opacity: 0 }}
-                className="text-xs font-semibold whitespace-nowrap overflow-hidden truncate"
+                className="text-xs font-semibold uppercase tracking-wider whitespace-nowrap overflow-hidden truncate"
               >
                 Configurações
               </motion.span>
