@@ -1,13 +1,13 @@
 import { useState, useMemo } from 'react';
 import { 
   Users, Search, X, AlertTriangle, Layers, BarChart2, CheckCircle2, Info,
-  Activity, Award, PieChart as PieChartIcon, Clock, ChevronRight
+  Activity, Award, PieChart as PieChartIcon, Clock, ChevronRight, Briefcase
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LabelList, Legend, PieChart, Pie, Cell 
 } from 'recharts';
-import { useStore, MonitoringItem } from '../store/useStore';
+import { useStore, MonitoringItem, ProductivityItem, normalizeName } from '../store/useStore';
 
 export interface QuadranteInfo {
   nivel: number;
@@ -82,6 +82,7 @@ export interface AnalystSummary {
   supervisor: string;
   esteiras: string[];
   totalMonitorias: number;
+  totalProdutividade: number;
   totalErros: number;
   qualidadePct: number;
   reincidencias: number;
@@ -93,7 +94,9 @@ export interface AnalystSummary {
   maxQuadrante: QuadranteInfo;
   mediaDiasEntreErros: number;
   items: MonitoringItem[];
+  prodItems: ProductivityItem[];
 }
+
 
 const DONUT_PALETTE = ['#ffff00', '#f59e0b', '#3b82f6', '#10b981', '#a855f7', '#06b6d4', '#f97316', '#ec4899'];
 
@@ -131,6 +134,7 @@ const CustomXAxisTick = (props: any) => {
 export const AnalistasPage = () => {
   const { 
     data, 
+    productivityData,
     startDate, 
     endDate, 
     selectedEsteira, 
@@ -162,7 +166,7 @@ export const AnalistasPage = () => {
     return true;
   };
 
-  // Filter raw data ONLY by date and esteira
+  // Filter raw monitoria data by date and esteira
   const filteredRawData = useMemo(() => {
     return data.filter(item => {
       if (startDate && item.DataMonitoria && item.DataMonitoria < startDate) return false;
@@ -172,22 +176,57 @@ export const AnalistasPage = () => {
     });
   }, [data, startDate, endDate, selectedEsteira]);
 
+  // Filter raw productivity data by date and esteira
+  const filteredProdData = useMemo(() => {
+    return productivityData.filter(item => {
+      if (startDate && item.DataProdutividade && item.DataProdutividade < startDate) return false;
+      if (endDate && item.DataProdutividade && item.DataProdutividade > endDate) return false;
+      if (selectedEsteira !== 'TODAS' && item.Esteira !== selectedEsteira) return false;
+      return true;
+    });
+  }, [productivityData, startDate, endDate, selectedEsteira]);
+
   // Group all filtered data by Analyst name/code
   const analystsList = useMemo(() => {
-    const map: Record<string, MonitoringItem[]> = {};
+    const monitoriasMap: Record<string, MonitoringItem[]> = {};
+    const prodMap: Record<string, ProductivityItem[]> = {};
+    const displayNameMap: Record<string, string> = {};
 
     filteredRawData.forEach(item => {
-      const key = item.NomeAnalista || 'ANALISTA DESCONHECIDO';
-      if (!map[key]) map[key] = [];
-      map[key].push(item);
+      const rawName = item.NomeAnalista ? item.NomeAnalista.trim() : 'ANALISTA DESCONHECIDO';
+      const key = normalizeName(rawName);
+      if (!key) return;
+      if (!monitoriasMap[key]) monitoriasMap[key] = [];
+      monitoriasMap[key].push(item);
+      if (!displayNameMap[key]) displayNameMap[key] = rawName.toUpperCase();
     });
 
-    return Object.entries(map).map(([nome, items]): AnalystSummary => {
+    filteredProdData.forEach(p => {
+      const rawName = p.NomeAnalista ? p.NomeAnalista.trim() : 'ANALISTA DESCONHECIDO';
+      const key = normalizeName(rawName);
+      if (!key) return;
+      if (!prodMap[key]) prodMap[key] = [];
+      prodMap[key].push(p);
+      if (!displayNameMap[key]) displayNameMap[key] = rawName.toUpperCase();
+    });
+
+    const allAnalystKeys = Array.from(new Set([...Object.keys(monitoriasMap), ...Object.keys(prodMap)]));
+
+    return allAnalystKeys.map((key): AnalystSummary => {
+      const items = monitoriasMap[key] || [];
+      const prodItems = prodMap[key] || [];
+      const nome = displayNameMap[key] || key;
+
       const codigo = items[0]?.CodigoAnalista || 'MAT-000';
-      const supervisor = items[0]?.NomeSupervisor || 'SUPERVISOR GENERAL';
-      const esteiras = Array.from(new Set(items.map(i => i.Esteira))).filter(Boolean);
-      
+      const supervisor = items[0]?.NomeSupervisor || 'SUPERVISOR GERAL';
+
+      const esteirasFromMon = items.map(i => i.Esteira);
+      const esteirasFromProd = prodItems.map(p => p.Esteira);
+      const esteiras = Array.from(new Set([...esteirasFromMon, ...esteirasFromProd])).filter(Boolean);
+
       const totalMonitorias = items.length;
+      const totalProdutividade = prodItems.reduce((sum, p) => sum + (Number(p.Quantidade) || 1), 0);
+
       const erros = items.filter(i => isErrorItem(i));
       const totalErros = erros.length;
       const qualidadePct = totalMonitorias > 0 
@@ -269,6 +308,7 @@ export const AnalistasPage = () => {
         supervisor,
         esteiras,
         totalMonitorias,
+        totalProdutividade,
         totalErros,
         qualidadePct,
         reincidencias,
@@ -279,10 +319,12 @@ export const AnalistasPage = () => {
         scoreFormatted,
         maxQuadrante,
         mediaDiasEntreErros,
-        items: items.sort((a, b) => (b.DataMonitoria || '').localeCompare(a.DataMonitoria || ''))
+        items: items.sort((a, b) => (b.DataMonitoria || '').localeCompare(a.DataMonitoria || '')),
+        prodItems: prodItems.sort((a, b) => (b.DataProdutividade || '').localeCompare(a.DataProdutividade || ''))
       };
     }).sort((a, b) => a.nome.localeCompare(b.nome));
-  }, [filteredRawData, selectedForma]);
+  }, [filteredRawData, filteredProdData, selectedForma]);
+
 
   // Quadrant statistics calculation (counts and percentages)
   const quadrantStats = useMemo(() => {
@@ -486,7 +528,11 @@ export const AnalistasPage = () => {
               </div>
 
               {/* Middle: Metrics Bar */}
-              <div className="w-full xl:w-[340px] shrink-0 bg-black border border-zinc-800/80 px-4 py-2.5 rounded-xl grid grid-cols-4 gap-2 text-center">
+              <div className="w-full xl:w-[420px] shrink-0 bg-black border border-zinc-800/80 px-4 py-2.5 rounded-xl grid grid-cols-5 gap-2 text-center">
+                <div>
+                  <p className="text-[10px] text-zinc-500 uppercase font-semibold">Produtividade</p>
+                  <p className="text-sm font-bold text-blue-400 mt-0.5">{analyst.totalProdutividade}</p>
+                </div>
                 <div>
                   <p className="text-[10px] text-zinc-500 uppercase font-semibold">Monitorias</p>
                   <p className="text-sm font-bold text-white mt-0.5">{analyst.totalMonitorias}</p>
@@ -504,6 +550,7 @@ export const AnalistasPage = () => {
                   <p className="text-sm font-bold text-amber-400 mt-0.5">{analyst.reincidencias}</p>
                 </div>
               </div>
+
 
               {/* Botão de Reincidência e Nível de Criticidade */}
               <div className="w-full xl:w-[170px] shrink-0 flex items-center justify-center">
@@ -546,10 +593,10 @@ export const AnalistasPage = () => {
         )}
       </div>
 
-      {/* DETAILED ANALYST FULL DRAWER / MODAL */}
+      {/* DETAILED ANALYST FULL POPUP MODAL */}
       {selectedAnalyst && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex justify-end transition-opacity">
-          <div className="w-full max-w-3xl bg-zinc-900 border-l border-zinc-800 h-full overflow-y-auto p-6 sm:p-8 space-y-8 animate-in slide-in-from-right duration-300 text-zinc-100 custom-scrollbar">
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 overflow-y-auto animate-in fade-in duration-200">
+          <div className="w-full max-w-5xl bg-zinc-950 border border-zinc-800 rounded-3xl p-6 sm:p-8 my-auto space-y-8 max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200 text-zinc-100 custom-scrollbar relative">
             {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-zinc-800 pb-6">
               <div className="flex items-center gap-4">
@@ -583,28 +630,40 @@ export const AnalistasPage = () => {
               <button
                 onClick={() => setSelectedAnalyst(null)}
                 className="p-2 text-zinc-400 hover:text-white bg-black border border-zinc-800 rounded-xl hover:border-zinc-700 transition-colors"
+                title="Fechar Dashboard"
               >
                 <X size={20} />
               </button>
             </div>
 
-            {/* TOP KPI CARDS: Monitorias, Qualidade, Erros */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="bg-black border border-zinc-800 p-4 sm:p-5 rounded-2xl text-center space-y-1">
-                <p className="text-[11px] text-zinc-500 uppercase font-bold tracking-wider">Monitorias</p>
-                <p className="text-2xl sm:text-3xl font-extrabold text-white">{selectedAnalyst.totalMonitorias}</p>
+            {/* TOP KPI CARDS: Produtividade (Ao lado esquerdo de Monitorias), Monitorias, Qualidade, Erros, Reincidências */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4">
+              <div className="bg-black border border-zinc-800 p-4 rounded-2xl text-center space-y-1">
+                <p className="text-[10px] sm:text-[11px] text-zinc-500 uppercase font-bold tracking-wider">Produtividade</p>
+                <p className="text-xl sm:text-2xl font-extrabold text-blue-400">{selectedAnalyst.totalProdutividade}</p>
               </div>
 
-              <div className="bg-black border border-zinc-800 p-4 sm:p-5 rounded-2xl text-center space-y-1">
-                <p className="text-[11px] text-zinc-500 uppercase font-bold tracking-wider">Qualidade</p>
-                <p className="text-2xl sm:text-3xl font-extrabold text-[#ffff00]">{selectedAnalyst.qualidadePct}%</p>
+              <div className="bg-black border border-zinc-800 p-4 rounded-2xl text-center space-y-1">
+                <p className="text-[10px] sm:text-[11px] text-zinc-500 uppercase font-bold tracking-wider">Monitorias</p>
+                <p className="text-xl sm:text-2xl font-extrabold text-white">{selectedAnalyst.totalMonitorias}</p>
               </div>
 
-              <div className="bg-black border border-zinc-800 p-4 sm:p-5 rounded-2xl text-center space-y-1">
-                <p className="text-[11px] text-zinc-500 uppercase font-bold tracking-wider">Erros</p>
-                <p className="text-2xl sm:text-3xl font-extrabold text-red-400">{selectedAnalyst.totalErros}</p>
+              <div className="bg-black border border-zinc-800 p-4 rounded-2xl text-center space-y-1">
+                <p className="text-[10px] sm:text-[11px] text-zinc-500 uppercase font-bold tracking-wider">Qualidade</p>
+                <p className="text-xl sm:text-2xl font-extrabold text-[#ffff00]">{selectedAnalyst.qualidadePct}%</p>
+              </div>
+
+              <div className="bg-black border border-zinc-800 p-4 rounded-2xl text-center space-y-1">
+                <p className="text-[10px] sm:text-[11px] text-zinc-500 uppercase font-bold tracking-wider">Erros</p>
+                <p className="text-xl sm:text-2xl font-extrabold text-red-400">{selectedAnalyst.totalErros}</p>
+              </div>
+
+              <div className="bg-black border border-zinc-800 p-4 rounded-2xl text-center space-y-1">
+                <p className="text-[10px] sm:text-[11px] text-zinc-500 uppercase font-bold tracking-wider">Reincidências</p>
+                <p className="text-xl sm:text-2xl font-extrabold text-amber-400">{selectedAnalyst.reincidencias}</p>
               </div>
             </div>
+
 
             {/* Visualização de Reincidências por TAG & Medida de Acompanhamento */}
             <div className="bg-black border border-zinc-800 p-6 rounded-2xl space-y-4">
@@ -711,6 +770,53 @@ export const AnalistasPage = () => {
                     </ResponsiveContainer>
                   ) : (
                     <p className="text-xs text-zinc-500 py-10 text-center">Nenhum erro macro registrado.</p>
+                  )}
+                </div>
+
+                {/* Visual Produtividade do Analista por Data */}
+                <div className="bg-black border border-zinc-800 p-5 rounded-2xl space-y-3 md:col-span-2">
+                  <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Briefcase size={14} className="text-[#ffff00]" />
+                    Evolução da Produtividade no Período (Total: {selectedAnalyst.totalProdutividade} itens)
+                  </h4>
+
+                  {selectedAnalyst.prodItems && selectedAnalyst.prodItems.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart 
+                        data={Object.entries(
+                          selectedAnalyst.prodItems.reduce((acc, p) => {
+                            const d = p.DataProdutividade || 'Outra';
+                            acc[d] = (acc[d] || 0) + (Number(p.Quantidade) || 1);
+                            return acc;
+                          }, {} as Record<string, number>)
+                        )
+                          .map(([data, qtd]) => {
+                            let label = data;
+                            if (/^\d{4}-\d{2}-\d{2}$/.test(data)) {
+                              const parts = data.split('-');
+                              label = `${parts[2]}/${parts[1]}`;
+                            }
+                            return { data, label, qtd };
+                          })
+                          .sort((a, b) => a.data.localeCompare(b.data))
+                        }
+                        margin={{ top: 20, right: 10, left: -20, bottom: 20 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                        <XAxis dataKey="label" stroke="#71717a" tick={{ fontSize: 10 }} />
+                        <YAxis stroke="#71717a" tick={{ fontSize: 10 }} allowDecimals={false} />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '12px', color: '#fff' }} 
+                          itemStyle={{ color: '#ffff00' }}
+                          cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                        />
+                        <Bar dataKey="qtd" name="Produtividade" fill="#3b82f6" radius={[6, 6, 0, 0]}>
+                          <LabelList dataKey="qtd" position="top" fill="#ffffff" fontSize={11} fontWeight="bold" />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="text-xs text-zinc-500 py-10 text-center">Nenhum registro de produtividade encontrado para este analista no período e esteira selecionados.</p>
                   )}
                 </div>
               </div>

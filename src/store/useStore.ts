@@ -32,7 +32,23 @@ export interface ColumnMapping {
   BT: string; // Data do Feedback
 }
 
+export interface ProductivityItem {
+  id?: string;
+  Esteira: string;        // Coluna B por padrão
+  NomeAnalista: string;   // Coluna C por padrão
+  DataProdutividade: string; // Coluna D por padrão (YYYY-MM-DD)
+  Quantidade: number;     // Valor numérico ou 1 por ocorrência
+  [key: string]: any;
+}
+
+export interface ProductivityColumnMapping {
+  B: string; // Esteira (padrão B)
+  C: string; // Nome do Analista / Produtividade (padrão C)
+  D: string; // Data da Produtividade (padrão D)
+}
+
 export const getCurrentMonthRange = () => {
+
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -115,6 +131,16 @@ export const normalizeDateStr = (raw: any): string => {
   return str.slice(0, 10);
 };
 
+export const normalizeName = (name: any): string => {
+  if (!name) return '';
+  return String(name)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, ' ');
+};
+
 export const sanitizeItems = (items: MonitoringItem[]): MonitoringItem[] => {
   if (!Array.isArray(items)) return [];
   return items.map(item => {
@@ -136,6 +162,8 @@ const initialMonthRange = getCurrentMonthRange();
 interface AppState {
   data: MonitoringItem[];
   lastProcessed: string | null;
+  productivityData: ProductivityItem[];
+  productivityLastProcessed: string | null;
   startDate: string;
   endDate: string;
   selectedTag: string;
@@ -143,9 +171,11 @@ interface AppState {
   selectedEsteira: string;
   selectedForma: string;
   columnMapping: ColumnMapping;
+  productivityMapping: ProductivityColumnMapping;
   isFirebaseConnected: boolean;
   
   setData: (data: MonitoringItem[], timestamp?: string) => void;
+  setProductivityData: (data: ProductivityItem[], timestamp?: string) => void;
   setStartDate: (date: string) => void;
   setEndDate: (date: string) => void;
   setSelectedTag: (tag: string) => void;
@@ -153,12 +183,16 @@ interface AppState {
   setSelectedEsteira: (esteira: string) => void;
   setSelectedForma: (forma: string) => void;
   setColumnMapping: (mapping: ColumnMapping) => void;
+  setProductivityMapping: (mapping: ProductivityColumnMapping) => void;
   clearData: () => void;
+  clearProductivityData: () => void;
   resetToCurrentMonth: () => void;
 }
 
 const STORAGE_KEY = 'quality_vision_base_data_v1';
 const TIMESTAMP_KEY = 'quality_vision_last_processed_v1';
+const STORAGE_PROD_KEY = 'quality_vision_productivity_data_v1';
+const TIMESTAMP_PROD_KEY = 'quality_vision_productivity_ts_v1';
 
 // Initial rich mock data so the app displays instantly with meaningful metrics
 const initialSampleData: MonitoringItem[] = [
@@ -194,27 +228,78 @@ const initialSampleData: MonitoringItem[] = [
   { CodigoAnalista: 'MAT105', NomeAnalista: 'LUCAS MENDES', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-24', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
 ];
 
-const loadInitialData = (): { data: MonitoringItem[]; lastProcessed: string | null } => {
+export const initialSampleProductivityData: ProductivityItem[] = [
+  { Esteira: 'Abertura PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-06-02', Quantidade: 45 },
+  { Esteira: 'Abertura PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-06-12', Quantidade: 50 },
+  { Esteira: 'Abertura PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-06-25', Quantidade: 52 },
+  { Esteira: 'Abertura PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-02', Quantidade: 48 },
+  { Esteira: 'Abertura PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-10', Quantidade: 55 },
+  { Esteira: 'Abertura PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-22', Quantidade: 60 },
+
+  { Esteira: 'Abertura PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-06-05', Quantidade: 38 },
+  { Esteira: 'Abertura PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-06-18', Quantidade: 42 },
+  { Esteira: 'Abertura PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-05', Quantidade: 40 },
+  { Esteira: 'Abertura PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-15', Quantidade: 46 },
+  { Esteira: 'Abertura PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-25', Quantidade: 51 },
+
+  { Esteira: 'Crédito PJ', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-06-10', Quantidade: 30 },
+  { Esteira: 'Crédito PJ', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-06-20', Quantidade: 35 },
+  { Esteira: 'Crédito PJ', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-07-08', Quantidade: 32 },
+  { Esteira: 'Crédito PJ', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-07-18', Quantidade: 36 },
+
+  { Esteira: 'Crédito PJ', NomeAnalista: 'MARIANA COSTA', DataProdutividade: '2026-06-15', Quantidade: 28 },
+  { Esteira: 'Crédito PJ', NomeAnalista: 'MARIANA COSTA', DataProdutividade: '2026-07-01', Quantidade: 34 },
+  { Esteira: 'Crédito PJ', NomeAnalista: 'MARIANA COSTA', DataProdutividade: '2026-07-20', Quantidade: 39 },
+
+  { Esteira: 'Abertura PF', NomeAnalista: 'LUCAS MENDES', DataProdutividade: '2026-06-28', Quantidade: 41 },
+  { Esteira: 'Abertura PF', NomeAnalista: 'LUCAS MENDES', DataProdutividade: '2026-07-12', Quantidade: 44 },
+  { Esteira: 'Abertura PF', NomeAnalista: 'LUCAS MENDES', DataProdutividade: '2026-07-24', Quantidade: 47 },
+];
+
+const loadInitialData = (): { 
+  data: MonitoringItem[]; 
+  lastProcessed: string | null;
+  prodData: ProductivityItem[];
+  prodLastProcessed: string | null;
+} => {
+  let data = sanitizeItems(initialSampleData);
+  let lastProcessed: string | null = '28/07/2026, 09:31';
+  let prodData = initialSampleProductivityData;
+  let prodLastProcessed: string | null = '28/07/2026, 09:31';
+
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     const savedTs = localStorage.getItem(TIMESTAMP_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return { data: sanitizeItems(parsed), lastProcessed: savedTs || 'Gravação em cache' };
+        data = sanitizeItems(parsed);
+        lastProcessed = savedTs || 'Gravação em cache';
+      }
+    }
+
+    const savedProd = localStorage.getItem(STORAGE_PROD_KEY);
+    const savedProdTs = localStorage.getItem(TIMESTAMP_PROD_KEY);
+    if (savedProd) {
+      const parsedProd = JSON.parse(savedProd);
+      if (Array.isArray(parsedProd) && parsedProd.length > 0) {
+        prodData = parsedProd;
+        prodLastProcessed = savedProdTs || 'Gravação em cache';
       }
     }
   } catch (e) {
     console.error("Error loading stored data:", e);
   }
-  return { data: sanitizeItems(initialSampleData), lastProcessed: '28/07/2026, 09:31' };
+  return { data, lastProcessed, prodData, prodLastProcessed };
 };
 
 const initialStored = loadInitialData();
 
-export const useStore = create<AppState>((set) => ({
+export const useStore = create<AppState>((set, get) => ({
   data: initialStored.data,
   lastProcessed: initialStored.lastProcessed,
+  productivityData: initialStored.prodData,
+  productivityLastProcessed: initialStored.prodLastProcessed,
   startDate: initialMonthRange.start,
   endDate: initialMonthRange.end,
   selectedTag: 'TODAS',
@@ -234,6 +319,11 @@ export const useStore = create<AppState>((set) => ({
     AH: 'AH',
     R: 'R',
     BT: 'BT'
+  },
+  productivityMapping: {
+    B: 'B',
+    C: 'C',
+    D: 'D'
   },
   
   setData: (newData, timestamp) => {
@@ -258,12 +348,14 @@ export const useStore = create<AppState>((set) => ({
       }
     }
 
-    // Direct save to Firebase Realtime Database
-    saveToFirebase(cleanData, ts).catch((err) => {
+    const { productivityData, productivityLastProcessed } = get();
+
+    // Save to Firebase
+    saveToFirebase(cleanData, ts, productivityData, productivityLastProcessed).catch((err) => {
       console.error("Failed to save to Firebase Realtime Database:", err);
     });
 
-    // Async save to IndexedDB (local offline cache)
+    // Save locally
     idbSet(STORAGE_KEY, cleanData);
     idbSet(TIMESTAMP_KEY, ts);
 
@@ -271,7 +363,7 @@ export const useStore = create<AppState>((set) => ({
       localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanData));
       localStorage.setItem(TIMESTAMP_KEY, ts);
     } catch {
-      console.warn("localStorage quota exceeded, saved exclusively to IndexedDB.");
+      console.warn("localStorage quota exceeded.");
     }
 
     set({
@@ -285,6 +377,33 @@ export const useStore = create<AppState>((set) => ({
       selectedForma: 'TODAS'
     });
   },
+
+  setProductivityData: (prodItems, timestamp) => {
+    const ts = timestamp || new Date().toLocaleString('pt-BR');
+    const { data, lastProcessed } = get();
+
+    // Save to Firebase
+    saveToFirebase(data, lastProcessed || '', prodItems, ts).catch((err) => {
+      console.error("Failed to save productivity to Firebase:", err);
+    });
+
+    // Save locally
+    idbSet(STORAGE_PROD_KEY, prodItems);
+    idbSet(TIMESTAMP_PROD_KEY, ts);
+
+    try {
+      localStorage.setItem(STORAGE_PROD_KEY, JSON.stringify(prodItems));
+      localStorage.setItem(TIMESTAMP_PROD_KEY, ts);
+    } catch {
+      console.warn("localStorage quota exceeded.");
+    }
+
+    set({
+      productivityData: prodItems,
+      productivityLastProcessed: ts
+    });
+  },
+
   setStartDate: (date) => set({ startDate: date }),
   setEndDate: (date) => set({ endDate: date }),
   setSelectedTag: (tag) => set({ selectedTag: tag }),
@@ -292,9 +411,11 @@ export const useStore = create<AppState>((set) => ({
   setSelectedEsteira: (esteira) => set({ selectedEsteira: esteira }),
   setSelectedForma: (forma) => set({ selectedForma: forma }),
   setColumnMapping: (mapping) => set({ columnMapping: mapping }),
+  setProductivityMapping: (mapping) => set({ productivityMapping: mapping }),
+  
   clearData: () => {
-    // Clear in Firebase Realtime Database
-    clearFirebaseData().catch((err) => {
+    const { productivityData, productivityLastProcessed } = get();
+    saveToFirebase([], '', productivityData, productivityLastProcessed).catch((err) => {
       console.error("Failed to clear Firebase Realtime Database:", err);
     });
 
@@ -308,6 +429,24 @@ export const useStore = create<AppState>((set) => ({
     }
     set({ data: [], lastProcessed: null });
   },
+
+  clearProductivityData: () => {
+    const { data, lastProcessed } = get();
+    saveToFirebase(data, lastProcessed || '', [], null).catch((err) => {
+      console.error("Failed to clear productivity in Firebase:", err);
+    });
+
+    idbDel(STORAGE_PROD_KEY);
+    idbDel(TIMESTAMP_PROD_KEY);
+    try {
+      localStorage.removeItem(STORAGE_PROD_KEY);
+      localStorage.removeItem(TIMESTAMP_PROD_KEY);
+    } catch {
+      // Ignore
+    }
+    set({ productivityData: [], productivityLastProcessed: null });
+  },
+
   resetToCurrentMonth: () => {
     const range = getCurrentMonthRange();
     set({
@@ -324,25 +463,34 @@ export const useStore = create<AppState>((set) => ({
 // Real-time synchronization listener with Firebase Realtime Database
 if (typeof window !== 'undefined') {
   subscribeToFirebaseData(
-    (fbItems, fbTimestamp) => {
-      if (fbItems && fbItems.length > 0) {
+    (fbItems, fbTimestamp, fbProd, fbProdTs) => {
+      if ((fbItems && fbItems.length > 0) || (fbProd && fbProd.length > 0)) {
         useStore.setState((state) => ({
           ...state,
-          data: fbItems,
+          data: fbItems && fbItems.length > 0 ? fbItems : state.data,
           lastProcessed: fbTimestamp || state.lastProcessed,
+          productivityData: fbProd && fbProd.length > 0 ? fbProd : state.productivityData,
+          productivityLastProcessed: fbProdTs || state.productivityLastProcessed,
           isFirebaseConnected: true
         }));
-        // Update local cache
-        idbSet(STORAGE_KEY, fbItems);
-        if (fbTimestamp) idbSet(TIMESTAMP_KEY, fbTimestamp);
+        if (fbItems && fbItems.length > 0) {
+          idbSet(STORAGE_KEY, fbItems);
+          if (fbTimestamp) idbSet(TIMESTAMP_KEY, fbTimestamp);
+        }
+        if (fbProd && fbProd.length > 0) {
+          idbSet(STORAGE_PROD_KEY, fbProd);
+          if (fbProdTs) idbSet(TIMESTAMP_PROD_KEY, fbProdTs);
+        }
       } else {
         // Firebase is empty: seed with initial dataset so RTDB has data
         const initialTs = new Date().toLocaleString('pt-BR');
-        saveToFirebase(initialSampleData, initialTs).then(() => {
+        saveToFirebase(initialSampleData, initialTs, initialSampleProductivityData, initialTs).then(() => {
           useStore.setState((state) => ({
             ...state,
             data: sanitizeItems(initialSampleData),
             lastProcessed: initialTs,
+            productivityData: initialSampleProductivityData,
+            productivityLastProcessed: initialTs,
             isFirebaseConnected: true
           }));
         }).catch((err) => {
@@ -356,3 +504,4 @@ if (typeof window !== 'undefined') {
     }
   );
 }
+

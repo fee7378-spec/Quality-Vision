@@ -3,8 +3,9 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, PieChart, Pie, Cell, Legend, LabelList 
 } from 'recharts';
-import { AlertCircle, CheckCircle2, TrendingUp, BarChart3, Award, Grid } from 'lucide-react';
+import { AlertCircle, CheckCircle2, TrendingUp, BarChart3, Award, Grid, Briefcase } from 'lucide-react';
 import { useStore } from '../store/useStore';
+
 
 const DONUT_PALETTE = ['#ffff00', '#f59e0b', '#3b82f6', '#10b981', '#a855f7', '#06b6d4', '#f97316', '#ec4899'];
 
@@ -42,6 +43,7 @@ const CustomXAxisTick = (props: any) => {
 export const DashboardPage = () => {
   const { 
     data, 
+    productivityData,
     startDate, 
     endDate, 
     selectedTag, 
@@ -62,7 +64,20 @@ export const DashboardPage = () => {
     });
   }, [data, startDate, endDate, selectedTag, selectedMacro, selectedEsteira]);
 
+  // Total Produtividade calculation
+  const totalProdutividade = useMemo(() => {
+    return productivityData
+      .filter(item => {
+        if (startDate && item.DataProdutividade && item.DataProdutividade < startDate) return false;
+        if (endDate && item.DataProdutividade && item.DataProdutividade > endDate) return false;
+        if (selectedEsteira !== 'TODAS' && item.Esteira !== selectedEsteira) return false;
+        return true;
+      })
+      .reduce((sum, item) => sum + (Number(item.Quantidade) || 1), 0);
+  }, [productivityData, startDate, endDate, selectedEsteira]);
+
   // Helper to test if item is an error considering selectedForma
+
   const isErrorItem = (item: typeof data[0]) => {
     if (item.Erro !== '0') return false;
     if (selectedForma !== 'TODAS' && item.FormaMonitoria !== selectedForma) return false;
@@ -240,12 +255,13 @@ export const DashboardPage = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl hover:border-[#ffff00]/50 transition-colors">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Reincidência</p>
-            <TrendingUp size={18} className="text-[#ffff00]" />
+            <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Produtividade</p>
+            <Briefcase size={18} className="text-[#ffff00]" />
           </div>
-          <h3 className="text-3xl font-bold text-white">{reincidenciaRate}</h3>
-          <p className="text-xs text-zinc-500 mt-2">Taxa de erros repetidos em TAGs</p>
+          <h3 className="text-3xl font-bold text-white">{totalProdutividade.toLocaleString('pt-BR')}</h3>
+          <p className="text-xs text-zinc-500 mt-2">Total de itens produzidos no período</p>
         </div>
+
 
         <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl hover:border-[#ffff00]/50 transition-colors">
           <div className="flex items-center justify-between mb-2">

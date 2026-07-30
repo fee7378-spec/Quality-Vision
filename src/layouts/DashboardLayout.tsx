@@ -8,11 +8,17 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       <Sidebar />
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto bg-black">
-          {children}
+        <main className="flex-1 overflow-y-auto bg-black flex flex-col justify-between">
+          <div className="flex-1">
+            {children}
+          </div>
+          <footer className="w-full border-t border-zinc-900 bg-black py-4 px-6 text-center text-xs text-zinc-500 font-medium">
+            © Developed by Felipe Nascimento
+          </footer>
         </main>
       </div>
     </div>
   );
 };
+
 
