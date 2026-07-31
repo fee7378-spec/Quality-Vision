@@ -1,13 +1,15 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Database, Users, LineChart, Settings } from 'lucide-react';
+import { LayoutDashboard, Database, Users, LineChart, Layers, TrendingUp, Settings } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 const menuItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/analise', label: 'Análise & Evolução', icon: LineChart },
-  { path: '/analistas', label: 'Analistas', icon: Users },
-  { path: '/import', label: 'Importar Base', icon: Database },
+  { path: '/', label: 'Visão Geral', icon: LayoutDashboard },
+  { path: '/operacao', label: 'Operação & Demandas', icon: Layers },
+  { path: '/capacidade', label: 'Capacidade & Projeção', icon: TrendingUp },
+  { path: '/analise', label: 'Qualidade & Evolução', icon: LineChart },
+  { path: '/analistas', label: 'Gestão de Analistas', icon: Users },
+  { path: '/import', label: 'Processamento de dados', icon: Database },
 ];
 
 export const Sidebar = () => {

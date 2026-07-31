@@ -7,6 +7,7 @@ export const Header = () => {
   const location = useLocation();
   const { 
     data, 
+    productivityData,
     startDate, 
     endDate, 
     setStartDate, 
@@ -24,17 +25,24 @@ export const Header = () => {
 
   const getTitle = () => {
     switch (location.pathname) {
-      case '/': return 'Dashboard';
-      case '/analise': return 'Análise & Evolução';
-      case '/analistas': return 'Analistas';
-      case '/import': return 'Importar Base';
-      default: return 'Dashboard';
+      case '/': return 'Visão Geral';
+      case '/operacao': return 'Operação & Demandas';
+      case '/capacidade': return 'Capacidade & Projeção';
+      case '/analise': return 'Qualidade & Evolução';
+      case '/analistas': return 'Gestão de Analistas';
+      case '/import': return 'Processamento de dados';
+      default: return 'Visão Geral';
     }
   };
 
   const availableTags = useMemo(() => ['TODAS', ...Array.from(new Set(data.map(item => item.Tag).filter(Boolean)))], [data]);
   const availableMacros = useMemo(() => ['TODOS', ...Array.from(new Set(data.map(item => item.MotivoMacro).filter(Boolean)))], [data]);
-  const availableEsteiras = useMemo(() => ['TODAS', ...Array.from(new Set(data.map(item => item.Esteira).filter(Boolean)))], [data]);
+  const availableEsteiras = useMemo(() => {
+    const setE = new Set<string>();
+    data.forEach(item => { if (item.Esteira) setE.add(item.Esteira); });
+    productivityData.forEach(item => { if (item.Esteira) setE.add(item.Esteira); });
+    return ['TODAS', ...Array.from(setE).sort()];
+  }, [data, productivityData]);
 
   const showFilters = location.pathname !== '/import';
 
@@ -78,6 +86,7 @@ export const Header = () => {
                 <option value="TODAS">TODAS</option>
                 <option value="Qualidade Interfile">Qualidade Interfile</option>
                 <option value="Estudo">Estudo</option>
+                <option value="Double Check">Double Check</option>
               </select>
             </div>
 

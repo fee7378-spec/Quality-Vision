@@ -34,27 +34,36 @@ export interface ColumnMapping {
 
 export interface ProductivityItem {
   id?: string;
-  Esteira: string;          // Coluna B por padrão
-  NomeAnalista: string;     // Coluna C por padrão
-  DataProdutividade: string; // Coluna D por padrão (YYYY-MM-DD)
-  Quantidade: number;       // Valor numérico ou 1 por ocorrência
-  Prioridade?: string;      // Coluna E por padrão ('Sim' | 'Não')
-  PendenciaReprova?: string;// Coluna F por padrão ('Aprovado' | 'Pendência' | 'Reprovado')
-  MotivoPendencia?: string; // Coluna G por padrão (Ex: 'Documento Ilegível', 'Aguardando Assinatura')
-  TipoDemanda?: string;     // Coluna H por padrão (Ex: 'Abertura de Conta', 'Alteração Cadastral')
-  TmoMinutos?: number;      // Coluna I por padrão (Tempo Médio de Operação em Minutos)
+  NomeAnalista: string;      // Coluna A (ANALISTA)
+  DataProdutividade: string; // Coluna B (DATA - YYYY-MM-DD)
+  Apuracao?: string;         // Coluna C (APURAÇÃO)
+  Esteira: string;           // Coluna D (ESTEIRA)
+  TipoDemanda?: string;      // Coluna E (TIPO DE DEMANDA)
+  Complexidade?: string;     // Coluna F (Complexidade)
+  MotivoPendencia?: string;  // Coluna G (MOTIVO DE REPROVAÇÃO)
+  Prioridade?: string;       // Coluna H (PRIORIDADE)
+  PendenciaReprova?: string; // Coluna I (REPROVAÇÃO)
+  Segmento?: string;         // Coluna J (SEGMENTO)
+  CoSegmento?: string;       // Coluna K (CO SEGMENTO)
+  TipoSocietario?: string;   // Coluna L (TIPO SOCIETÁRIO)
+  Quantidade: number;        // Quantidade (1)
+  TmoMinutos?: number;
   [key: string]: any;
 }
 
 export interface ProductivityColumnMapping {
-  B: string; // Esteira (padrão B)
-  C: string; // Nome do Analista / Produtividade (padrão C)
-  D: string; // Data da Produtividade (padrão D)
-  E: string; // Prioridade (padrão E - Sim/Não)
-  F: string; // Status Pendência/Reprova (padrão F)
-  G: string; // Motivo Pendência/Reprova (padrão G)
-  H: string; // Tipo de Demanda / Atividade (padrão H)
-  I: string; // TMO em Minutos (padrão I)
+  A: string; // ANALISTA
+  B: string; // DATA
+  C: string; // APURAÇÃO
+  D: string; // ESTEIRA
+  E: string; // TIPO DE DEMANDA
+  F: string; // Complexidade
+  G: string; // MOTIVO DE REPROVAÇÃO
+  H: string; // PRIORIDADE
+  I: string; // REPROVAÇÃO
+  J: string; // SEGMENTO
+  K: string; // CO SEGMENTO
+  L: string; // TIPO SOCIETÁRIO
 }
 
 export const getCurrentMonthRange = () => {
@@ -231,12 +240,28 @@ export const isValidAnalystName = (name: any): boolean => {
   return true;
 };
 
+export const parseFormaMonitoria = (rawVal: any): string => {
+  if (!rawVal) return 'Estudo';
+  const str = String(rawVal).trim().toLowerCase();
+  if (!str) return 'Estudo';
+
+  if (str.includes('interfile')) {
+    return 'Qualidade Interfile';
+  }
+  if (str.includes('cliente') || str.includes('double')) {
+    return 'Double Check';
+  }
+  if (str.includes('estudo')) {
+    return 'Estudo';
+  }
+  return 'Estudo';
+};
+
 export const sanitizeItems = (items: MonitoringItem[]): MonitoringItem[] => {
   if (!Array.isArray(items)) return [];
   return items.map(item => {
     const rawForma = String(item.FormaMonitoria || item.AA || '').trim();
-    const isInterfile = rawForma.toLowerCase() === 'qualidade interfile';
-    const normalizedForma = isInterfile ? 'Qualidade Interfile' : 'Estudo';
+    const normalizedForma = parseFormaMonitoria(rawForma);
 
     return {
       ...item,
@@ -315,7 +340,7 @@ const initialSampleData: MonitoringItem[] = [
   { CodigoAnalista: 'MAT103', NomeAnalista: 'FERNANDO ALVES', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-18', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Crédito PJ', DataFeedback: '' },
 
   // MARIANA COSTA (Crédito PJ)
-  { CodigoAnalista: 'MAT104', NomeAnalista: 'MARIANA COSTA', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-06-15', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '100', Esteira: 'Crédito PJ', DataFeedback: '' },
+  { CodigoAnalista: 'MAT104', NomeAnalista: 'MARIANA COSTA', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Double Check', DataMonitoria: '2026-06-15', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '100', Esteira: 'Crédito PJ', DataFeedback: '' },
   { CodigoAnalista: 'MAT104', NomeAnalista: 'MARIANA COSTA', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-01', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '100', Esteira: 'Crédito PJ', DataFeedback: '' },
   { CodigoAnalista: 'MAT104', NomeAnalista: 'MARIANA COSTA', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-20', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Crédito PJ', DataFeedback: '' },
 
@@ -327,35 +352,35 @@ const initialSampleData: MonitoringItem[] = [
 
 export const initialSampleProductivityData: ProductivityItem[] = [
   // CARLOS SILVA (Abertura PJ)
-  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-06-02', Quantidade: 45, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Abertura de Conta PJ', TmoMinutos: 18 },
-  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-06-12', Quantidade: 50, Prioridade: 'Não', PendenciaReprova: 'Pendência', MotivoPendencia: 'Documento Ilegível', TipoDemanda: 'Alteração de Contrato Social', TmoMinutos: 22 },
-  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-06-25', Quantidade: 52, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Abertura de Conta PJ', TmoMinutos: 16 },
-  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-02', Quantidade: 48, Prioridade: 'Sim', PendenciaReprova: 'Reprovado', MotivoPendencia: 'Divergência de Assinatura', TipoDemanda: 'Abertura de Conta PJ', TmoMinutos: 25 },
-  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-10', Quantidade: 55, Prioridade: 'Não', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Inclusão de Sócio', TmoMinutos: 19 },
-  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-22', Quantidade: 60, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Abertura de Conta PJ', TmoMinutos: 15 },
+  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-06-02', Quantidade: 45, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Abertura de Conta PJ', Complexidade: 'Média', Segmento: 'PME', CoSegmento: 'Varejo', TipoSocietario: 'LTDA', TmoMinutos: 18 },
+  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-06-12', Quantidade: 50, Prioridade: 'Não', PendenciaReprova: 'Pendência', MotivoPendencia: 'Documento Ilegível', TipoDemanda: 'Alteração de Contrato Social', Complexidade: 'Alta', Segmento: 'PME', CoSegmento: 'Varejo', TipoSocietario: 'S/A', TmoMinutos: 22 },
+  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-06-25', Quantidade: 52, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Abertura de Conta PJ', Complexidade: 'Baixa', Segmento: 'PME', CoSegmento: 'Varejo', TipoSocietario: 'EIRELI', TmoMinutos: 16 },
+  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-02', Quantidade: 48, Prioridade: 'Sim', PendenciaReprova: 'Reprovado', MotivoPendencia: 'Divergência de Assinatura', TipoDemanda: 'Abertura de Conta PJ', Complexidade: 'Média', Segmento: 'PME', CoSegmento: 'Varejo', TipoSocietario: 'LTDA', TmoMinutos: 25 },
+  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-10', Quantidade: 55, Prioridade: 'Não', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Inclusão de Sócio', Complexidade: 'Média', Segmento: 'PME', CoSegmento: 'Varejo', TipoSocietario: 'LTDA', TmoMinutos: 19 },
+  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-22', Quantidade: 60, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Abertura de Conta PJ', Complexidade: 'Baixa', Segmento: 'PME', CoSegmento: 'Varejo', TipoSocietario: 'LTDA', TmoMinutos: 15 },
 
   // ANA BEATRIZ (MANUTENÇÃO PF)
-  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-06-05', Quantidade: 38, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Abertura de Conta PF', TmoMinutos: 12 },
-  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-06-18', Quantidade: 42, Prioridade: 'Não', PendenciaReprova: 'Pendência', MotivoPendencia: 'Comprovante Ilegível', TipoDemanda: 'Atualização Cadastral', TmoMinutos: 14 },
-  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-05', Quantidade: 40, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Abertura de Conta PF', TmoMinutos: 11 },
-  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-15', Quantidade: 46, Prioridade: 'Sim', PendenciaReprova: 'Reprovado', MotivoPendencia: 'Selfie com Baixa Qualidade', TipoDemanda: 'Abertura de Conta PF', TmoMinutos: 15 },
-  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-25', Quantidade: 51, Prioridade: 'Não', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Emissão de Cartão', TmoMinutos: 10 },
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-06-05', Quantidade: 38, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Abertura de Conta PF', Complexidade: 'Baixa', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 12 },
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-06-18', Quantidade: 42, Prioridade: 'Não', PendenciaReprova: 'Pendência', MotivoPendencia: 'Comprovante Ilegível', TipoDemanda: 'Atualização Cadastral', Complexidade: 'Baixa', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 14 },
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-05', Quantidade: 40, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Abertura de Conta PF', Complexidade: 'Baixa', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 11 },
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-15', Quantidade: 46, Prioridade: 'Sim', PendenciaReprova: 'Reprovado', MotivoPendencia: 'Selfie com Baixa Qualidade', TipoDemanda: 'Abertura de Conta PF', Complexidade: 'Média', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 15 },
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-25', Quantidade: 51, Prioridade: 'Não', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Emissão de Cartão', Complexidade: 'Baixa', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 10 },
 
   // FERNANDO ALVES (BTG CORPORATE)
-  { Esteira: 'BTG CORPORATE', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-06-10', Quantidade: 30, Prioridade: 'Sim', PendenciaReprova: 'Pendência', MotivoPendencia: 'Aguardando Parecer de Risco', TipoDemanda: 'Análise de Limite de Crédito', TmoMinutos: 35 },
-  { Esteira: 'BTG CORPORATE', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-06-20', Quantidade: 35, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Análise de Limite de Crédito', TmoMinutos: 28 },
-  { Esteira: 'BTG CORPORATE', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-07-08', Quantidade: 32, Prioridade: 'Não', PendenciaReprova: 'Reprovado', MotivoPendencia: 'Score Insuficiente', TipoDemanda: 'Renovação de Linha de Crédito', TmoMinutos: 32 },
-  { Esteira: 'BTG CORPORATE', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-07-18', Quantidade: 36, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Análise de Limite de Crédito', TmoMinutos: 26 },
+  { Esteira: 'BTG CORPORATE', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-06-10', Quantidade: 30, Prioridade: 'Sim', PendenciaReprova: 'Pendência', MotivoPendencia: 'Aguardando Parecer de Risco', TipoDemanda: 'Análise de Limite de Crédito', Complexidade: 'Alta', Segmento: 'Corporate', CoSegmento: 'Large Corporate', TipoSocietario: 'S/A', TmoMinutos: 35 },
+  { Esteira: 'BTG CORPORATE', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-06-20', Quantidade: 35, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Análise de Limite de Crédito', Complexidade: 'Alta', Segmento: 'Corporate', CoSegmento: 'Large Corporate', TipoSocietario: 'S/A', TmoMinutos: 28 },
+  { Esteira: 'BTG CORPORATE', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-07-08', Quantidade: 32, Prioridade: 'Não', PendenciaReprova: 'Reprovado', MotivoPendencia: 'Score Insuficiente', TipoDemanda: 'Renovação de Linha de Crédito', Complexidade: 'Alta', Segmento: 'Corporate', CoSegmento: 'Large Corporate', TipoSocietario: 'S/A', TmoMinutos: 32 },
+  { Esteira: 'BTG CORPORATE', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-07-18', Quantidade: 36, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Análise de Limite de Crédito', Complexidade: 'Alta', Segmento: 'Corporate', CoSegmento: 'Large Corporate', TipoSocietario: 'S/A', TmoMinutos: 26 },
 
   // MARIANA COSTA (BTG CORPORATE)
-  { Esteira: 'BTG CORPORATE', NomeAnalista: 'MARIANA COSTA', DataProdutividade: '2026-06-15', Quantidade: 28, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Análise de Limite de Crédito', TmoMinutos: 30 },
-  { Esteira: 'BTG CORPORATE', NomeAnalista: 'MARIANA COSTA', DataProdutividade: '2026-07-01', Quantidade: 34, Prioridade: 'Não', PendenciaReprova: 'Pendência', MotivoPendencia: 'Balanço Desatualizado', TipoDemanda: 'Revisão Anual de Crédito', TmoMinutos: 34 },
-  { Esteira: 'BTG CORPORATE', NomeAnalista: 'MARIANA COSTA', DataProdutividade: '2026-07-20', Quantidade: 39, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Análise de Limite de Crédito', TmoMinutos: 27 },
+  { Esteira: 'BTG CORPORATE', NomeAnalista: 'MARIANA COSTA', DataProdutividade: '2026-06-15', Quantidade: 28, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Análise de Limite de Crédito', Complexidade: 'Alta', Segmento: 'Corporate', CoSegmento: 'Large Corporate', TipoSocietario: 'S/A', TmoMinutos: 30 },
+  { Esteira: 'BTG CORPORATE', NomeAnalista: 'MARIANA COSTA', DataProdutividade: '2026-07-01', Quantidade: 34, Prioridade: 'Não', PendenciaReprova: 'Pendência', MotivoPendencia: 'Balanço Desatualizado', TipoDemanda: 'Revisão Anual de Crédito', Complexidade: 'Alta', Segmento: 'Corporate', CoSegmento: 'Large Corporate', TipoSocietario: 'S/A', TmoMinutos: 34 },
+  { Esteira: 'BTG CORPORATE', NomeAnalista: 'MARIANA COSTA', DataProdutividade: '2026-07-20', Quantidade: 39, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Análise de Limite de Crédito', Complexidade: 'Alta', Segmento: 'Corporate', CoSegmento: 'Large Corporate', TipoSocietario: 'S/A', TmoMinutos: 27 },
 
   // LUCAS MENDES (MANUTENÇÃO PF)
-  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'LUCAS MENDES', DataProdutividade: '2026-06-28', Quantidade: 41, Prioridade: 'Não', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Atualização Cadastral', TmoMinutos: 13 },
-  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'LUCAS MENDES', DataProdutividade: '2026-07-12', Quantidade: 44, Prioridade: 'Sim', PendenciaReprova: 'Pendência', MotivoPendencia: 'Comprovante Ausente', TipoDemanda: 'Abertura de Conta PF', TmoMinutos: 16 },
-  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'LUCAS MENDES', DataProdutividade: '2026-07-24', Quantidade: 47, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: 'Nenhum', TipoDemanda: 'Abertura de Conta PF', TmoMinutos: 12 },
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'LUCAS MENDES', DataProdutividade: '2026-06-28', Quantidade: 41, Prioridade: 'Não', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Atualização Cadastral', Complexidade: 'Baixa', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 13 },
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'LUCAS MENDES', DataProdutividade: '2026-07-12', Quantidade: 44, Prioridade: 'Sim', PendenciaReprova: 'Pendência', MotivoPendencia: 'Comprovante Ausente', TipoDemanda: 'Abertura de Conta PF', Complexidade: 'Baixa', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 16 },
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'LUCAS MENDES', DataProdutividade: '2026-07-24', Quantidade: 47, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Abertura de Conta PF', Complexidade: 'Baixa', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 12 },
 ];
 
 const loadInitialData = (): { 
@@ -374,21 +399,21 @@ const loadInitialData = (): {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     const savedTs = localStorage.getItem(TIMESTAMP_KEY);
-    if (saved) {
+    if (saved !== null) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         data = sanitizeItems(parsed);
-        lastProcessed = savedTs || 'Gravação em cache';
+        lastProcessed = savedTs || (parsed.length > 0 ? 'Gravação em cache' : null);
       }
     }
 
     const savedProd = localStorage.getItem(STORAGE_PROD_KEY);
     const savedProdTs = localStorage.getItem(TIMESTAMP_PROD_KEY);
-    if (savedProd) {
+    if (savedProd !== null) {
       const parsedProd = JSON.parse(savedProd);
-      if (Array.isArray(parsedProd) && parsedProd.length > 0) {
+      if (Array.isArray(parsedProd)) {
         prodData = parsedProd;
-        prodLastProcessed = savedProdTs || 'Gravação em cache';
+        prodLastProcessed = savedProdTs || (parsedProd.length > 0 ? 'Gravação em cache' : null);
       }
     }
 
@@ -434,6 +459,7 @@ export const useStore = create<AppState>((set, get) => ({
     BT: 'BT'
   },
   productivityMapping: {
+    A: 'A',
     B: 'B',
     C: 'C',
     D: 'D',
@@ -441,7 +467,10 @@ export const useStore = create<AppState>((set, get) => ({
     F: 'F',
     G: 'G',
     H: 'H',
-    I: 'I'
+    I: 'I',
+    J: 'J',
+    K: 'K',
+    L: 'L'
   },
   
   setData: (newData, timestamp) => {
@@ -581,10 +610,10 @@ export const useStore = create<AppState>((set, get) => ({
       console.error("Failed to clear Firebase Realtime Database:", err);
     });
 
-    idbDel(STORAGE_KEY);
+    idbSet(STORAGE_KEY, []);
     idbDel(TIMESTAMP_KEY);
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
       localStorage.removeItem(TIMESTAMP_KEY);
     } catch {
       // Ignore
@@ -598,10 +627,10 @@ export const useStore = create<AppState>((set, get) => ({
       console.error("Failed to clear productivity in Firebase:", err);
     });
 
-    idbDel(STORAGE_PROD_KEY);
+    idbSet(STORAGE_PROD_KEY, []);
     idbDel(TIMESTAMP_PROD_KEY);
     try {
-      localStorage.removeItem(STORAGE_PROD_KEY);
+      localStorage.setItem(STORAGE_PROD_KEY, JSON.stringify([]));
       localStorage.removeItem(TIMESTAMP_PROD_KEY);
     } catch {
       // Ignore
@@ -625,24 +654,30 @@ export const useStore = create<AppState>((set, get) => ({
 // Real-time synchronization listener with Firebase Realtime Database
 if (typeof window !== 'undefined') {
   subscribeToFirebaseData(
-    (fbItems, fbTimestamp, fbProd, fbProdTs) => {
-      if ((fbItems && fbItems.length > 0) || (fbProd && fbProd.length > 0)) {
+    (fbItems, fbTimestamp, fbProd, fbProdTs, isInitialized) => {
+      if (isInitialized) {
         useStore.setState((state) => ({
           ...state,
-          data: fbItems && fbItems.length > 0 ? fbItems : state.data,
-          lastProcessed: fbTimestamp || state.lastProcessed,
-          productivityData: fbProd && fbProd.length > 0 ? fbProd : state.productivityData,
-          productivityLastProcessed: fbProdTs || state.productivityLastProcessed,
+          data: fbItems || [],
+          lastProcessed: fbTimestamp || null,
+          productivityData: fbProd || [],
+          productivityLastProcessed: fbProdTs || null,
           isFirebaseConnected: true
         }));
-        if (fbItems && fbItems.length > 0) {
-          idbSet(STORAGE_KEY, fbItems);
-          if (fbTimestamp) idbSet(TIMESTAMP_KEY, fbTimestamp);
-        }
-        if (fbProd && fbProd.length > 0) {
-          idbSet(STORAGE_PROD_KEY, fbProd);
-          if (fbProdTs) idbSet(TIMESTAMP_PROD_KEY, fbProdTs);
-        }
+
+        idbSet(STORAGE_KEY, fbItems || []);
+        if (fbTimestamp) idbSet(TIMESTAMP_KEY, fbTimestamp); else idbDel(TIMESTAMP_KEY);
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(fbItems || []));
+          if (fbTimestamp) localStorage.setItem(TIMESTAMP_KEY, fbTimestamp); else localStorage.removeItem(TIMESTAMP_KEY);
+        } catch {}
+
+        idbSet(STORAGE_PROD_KEY, fbProd || []);
+        if (fbProdTs) idbSet(TIMESTAMP_PROD_KEY, fbProdTs); else idbDel(TIMESTAMP_PROD_KEY);
+        try {
+          localStorage.setItem(STORAGE_PROD_KEY, JSON.stringify(fbProd || []));
+          if (fbProdTs) localStorage.setItem(TIMESTAMP_PROD_KEY, fbProdTs); else localStorage.removeItem(TIMESTAMP_PROD_KEY);
+        } catch {}
       } else {
         // Firebase is empty: seed with initial dataset so RTDB has data
         const initialTs = new Date().toLocaleString('pt-BR');

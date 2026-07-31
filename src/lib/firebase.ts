@@ -56,7 +56,8 @@ export const subscribeToFirebaseData = (
     items: MonitoringItem[], 
     lastProcessed: string | null,
     productivityData?: ProductivityItem[],
-    productivityLastProcessed?: string | null
+    productivityLastProcessed?: string | null,
+    isInitialized?: boolean
   ) => void,
   onError?: (err: any) => void
 ) => {
@@ -67,6 +68,11 @@ export const subscribeToFirebaseData = (
     (snapshot) => {
       if (snapshot.exists()) {
         const val = snapshot.val() || {};
+        const isInitialized = val.isInitialized === true || 
+          snapshot.hasChild('items') || 
+          snapshot.hasChild('productivityData') || 
+          snapshot.hasChild('lastProcessed') || 
+          snapshot.hasChild('updatedAt');
         
         // Extract items (monolithic or chunked)
         let rawItems: any[] = [];
@@ -96,9 +102,9 @@ export const subscribeToFirebaseData = (
         const lastProcessed = val.lastProcessed || null;
         const prodLastProcessed = val.productivityLastProcessed || null;
         
-        onDataReceived(sanitized, lastProcessed, rawProd, prodLastProcessed);
+        onDataReceived(sanitized, lastProcessed, rawProd, prodLastProcessed, isInitialized);
       } else {
-        onDataReceived([], null, [], null);
+        onDataReceived([], null, [], null, false);
       }
     },
     (error) => {
@@ -120,6 +126,7 @@ export const saveToFirebase = async (
     const sanitizedProd = productivityData || [];
 
     // Save metadata child nodes
+    await set(ref(rtdb, `${DATA_REF_PATH}/isInitialized`), true);
     await set(ref(rtdb, `${DATA_REF_PATH}/lastProcessed`), timestamp || null);
     await set(ref(rtdb, `${DATA_REF_PATH}/productivityLastProcessed`), productivityTimestamp || null);
     await set(ref(rtdb, `${DATA_REF_PATH}/updatedAt`), new Date().toISOString());

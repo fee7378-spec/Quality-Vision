@@ -14,7 +14,8 @@ import {
   normalizeDateStr,
   normalizeName,
   isValidAnalystName,
-  getCanonicalEsteiraName
+  getCanonicalEsteiraName,
+  parseFormaMonitoria
 } from '../store/useStore';
 import { CustomModal } from '../components/CustomModal';
 
@@ -145,7 +146,44 @@ export const ImportPage = () => {
       }
     }
 
-    return normalizeDateStr(rawVal);
+    // Strip time portion if string contains space or T (e.g. dd/mm/yyyy hh:mm:ss -> dd/mm/yyyy)
+    let str = String(rawVal).trim();
+    if (str.includes(' ')) {
+      str = str.split(' ')[0];
+    } else if (str.includes('T')) {
+      str = str.split('T')[0];
+    }
+
+    return normalizeDateStr(str);
+  };
+
+  const parseApuracaoToMinutes = (rawVal: any): number => {
+    if (rawVal === undefined || rawVal === null) return 15;
+    const str = String(rawVal).trim();
+    if (!str) return 15;
+
+    if (str.includes(':')) {
+      const parts = str.split(':').map(p => parseFloat(p) || 0);
+      if (parts.length === 3) {
+        const mins = parts[0] * 60 + parts[1] + parts[2] / 60;
+        return mins > 0 ? Math.round(mins * 10) / 10 : 15;
+      } else if (parts.length === 2) {
+        const mins = parts[0] + parts[1] / 60;
+        return mins > 0 ? Math.round(mins * 10) / 10 : 15;
+      }
+    }
+
+    const cleanStr = str.replace(',', '.');
+    const num = parseFloat(cleanStr);
+    if (!isNaN(num) && num > 0) {
+      if (num < 1) {
+        const minsFromDay = num * 1440;
+        return Math.round(minsFromDay * 10) / 10;
+      }
+      return Math.round(num * 10) / 10;
+    }
+
+    return 15;
   };
 
   const parseErroValue = (rawVal: any): string => {
@@ -241,7 +279,7 @@ export const ImportPage = () => {
 
             const monitorVal = idxMonitor >= 0 && row[idxMonitor] ? String(row[idxMonitor]).trim() : 'MONITOR';
             const supervisorVal = idxSupervisor >= 0 && row[idxSupervisor] ? String(row[idxSupervisor]).trim() : 'SUPERVISOR';
-            const formaVal = idxForma >= 0 && row[idxForma] ? String(row[idxForma]).trim() : 'Gravada';
+            const formaVal = idxForma >= 0 ? parseFormaMonitoria(row[idxForma]) : 'Estudo';
             const dataVal = idxData >= 0 ? parseDateValue(row[idxData]) : new Date().toISOString().split('T')[0];
             const tagVal = idxTag >= 0 && row[idxTag] ? String(row[idxTag]).trim() : 'Geral';
             const macroVal = idxMacro >= 0 && row[idxMacro] ? String(row[idxMacro]).trim() : 'Geral';
@@ -292,14 +330,18 @@ export const ImportPage = () => {
             return;
           }
 
-          const idxEsteira = colLetterToIndex(localProdMapping.B || 'B');
-          const idxAnalista = colLetterToIndex(localProdMapping.C || 'C');
-          const idxData = colLetterToIndex(localProdMapping.D || 'D');
-          const idxPrio = colLetterToIndex(localProdMapping.E || 'E');
-          const idxStatus = colLetterToIndex(localProdMapping.F || 'F');
-          const idxMotivo = colLetterToIndex(localProdMapping.G || 'G');
-          const idxDemanda = colLetterToIndex(localProdMapping.H || 'H');
-          const idxTmo = colLetterToIndex(localProdMapping.I || 'I');
+          const idxAnalista   = colLetterToIndex(localProdMapping.A || 'A');
+          const idxData       = colLetterToIndex(localProdMapping.B || 'B');
+          const idxApuracao   = colLetterToIndex(localProdMapping.C || 'C');
+          const idxEsteira    = colLetterToIndex(localProdMapping.D || 'D');
+          const idxDemanda    = colLetterToIndex(localProdMapping.E || 'E');
+          const idxComplexi   = colLetterToIndex(localProdMapping.F || 'F');
+          const idxMotivo     = colLetterToIndex(localProdMapping.G || 'G');
+          const idxPrio       = colLetterToIndex(localProdMapping.H || 'H');
+          const idxStatus     = colLetterToIndex(localProdMapping.I || 'I');
+          const idxSegmento   = colLetterToIndex(localProdMapping.J || 'J');
+          const idxCoSegmento = colLetterToIndex(localProdMapping.K || 'K');
+          const idxSocietario = colLetterToIndex(localProdMapping.L || 'L');
 
           const prodItems: ProductivityItem[] = [];
 
@@ -315,15 +357,13 @@ export const ImportPage = () => {
             const row = rawRows[i];
             if (!row || row.length === 0) continue;
 
-            const rawEsteira = idxEsteira >= 0 && row[idxEsteira] ? String(row[idxEsteira]).trim() : 'Geral';
-            const esteiraVal = getCanonicalEsteiraName(rawEsteira, esteiraMappings);
-            const cellC = idxAnalista >= 0 && row[idxAnalista] ? String(row[idxAnalista]).trim() : '';
+            const cellA = idxAnalista >= 0 && row[idxAnalista] ? String(row[idxAnalista]).trim() : '';
 
             let matchedName = '';
 
-            if (isValidAnalystName(cellC)) {
-              const normC = normalizeName(cellC);
-              matchedName = registeredAnalystsMap.get(normC) || cellC.trim().toUpperCase();
+            if (isValidAnalystName(cellA)) {
+              const normA = normalizeName(cellA);
+              matchedName = registeredAnalystsMap.get(normA) || cellA.trim().toUpperCase();
             } else {
               for (const cell of row) {
                 if (!cell) continue;
@@ -341,7 +381,7 @@ export const ImportPage = () => {
             if (!matchedName) continue;
 
             let dataVal = new Date().toISOString().split('T')[0];
-            if (idxData >= 0 && row[idxData]) {
+            if (idxData >= 0 && row[idxData] !== undefined && row[idxData] !== null && String(row[idxData]).trim() !== '') {
               dataVal = parseDateValue(row[idxData]);
             } else {
               for (const cell of row) {
@@ -355,34 +395,53 @@ export const ImportPage = () => {
               }
             }
 
+            const apuracaoVal = idxApuracao >= 0 && row[idxApuracao] ? String(row[idxApuracao]).trim() : '';
+
+            const rawEsteira = idxEsteira >= 0 && row[idxEsteira] ? String(row[idxEsteira]).trim() : 'Geral';
+            const esteiraVal = getCanonicalEsteiraName(rawEsteira, esteiraMappings);
+
+            // If empty/blank, do NOT count / leave as empty string
+            const demandaVal = idxDemanda >= 0 && row[idxDemanda] ? String(row[idxDemanda]).trim() : '';
+            const complexidadeVal = idxComplexi >= 0 && row[idxComplexi] ? String(row[idxComplexi]).trim() : '';
+            const motivoVal = idxMotivo >= 0 && row[idxMotivo] ? String(row[idxMotivo]).trim() : '';
+
             const prioRaw = idxPrio >= 0 && row[idxPrio] ? String(row[idxPrio]).trim() : '';
-            const prioVal = /sim|s|yes|true|1|priorit/i.test(prioRaw) ? 'Sim' : 'Não';
+            let prioVal = '';
+            if (prioRaw) {
+              if (/sim|s|yes|true|1|priorit/i.test(prioRaw)) prioVal = 'Sim';
+              else if (/não|nao|n|no|false|0/i.test(prioRaw)) prioVal = 'Não';
+              else prioVal = prioRaw;
+            }
 
             const statusRaw = idxStatus >= 0 && row[idxStatus] ? String(row[idxStatus]).trim() : '';
-            let statusVal = 'Aprovado';
-            if (/reprov|rejeit|nc|nok/i.test(statusRaw)) statusVal = 'Reprovado';
-            else if (/pend|aguard|atraso/i.test(statusRaw)) statusVal = 'Pendência';
-
-            const motivoVal = idxMotivo >= 0 && row[idxMotivo] ? String(row[idxMotivo]).trim() : 'Nenhum';
-            const demandaVal = idxDemanda >= 0 && row[idxDemanda] ? String(row[idxDemanda]).trim() : 'Demanda Padrão';
-            
-            let tmoVal = 15;
-            if (idxTmo >= 0 && row[idxTmo]) {
-              const numTmo = parseFloat(String(row[idxTmo]).replace(',', '.'));
-              if (!isNaN(numTmo) && numTmo > 0) tmoVal = Math.round(numTmo);
+            let statusVal = '';
+            if (statusRaw) {
+              if (/reprov|rejeit|nc|nok/i.test(statusRaw)) statusVal = 'Reprovado';
+              else if (/pend|aguard|atraso/i.test(statusRaw)) statusVal = 'Pendência';
+              else if (/aprov|ok|sim|s/i.test(statusRaw)) statusVal = 'Aprovado';
+              else statusVal = statusRaw;
             }
+
+            const segmentoVal = idxSegmento >= 0 && row[idxSegmento] ? String(row[idxSegmento]).trim() : '';
+            const coSegmentoVal = idxCoSegmento >= 0 && row[idxCoSegmento] ? String(row[idxCoSegmento]).trim() : '';
+            const tipoSocietarioVal = idxSocietario >= 0 && row[idxSocietario] ? String(row[idxSocietario]).trim() : '';
 
             prodItems.push({
               id: `prod-${i}-${Date.now()}`,
-              Esteira: esteiraVal || 'Geral',
               NomeAnalista: matchedName,
               DataProdutividade: dataVal,
-              Quantidade: 1,
+              Apuracao: apuracaoVal,
+              Esteira: esteiraVal || 'Geral',
+              TipoDemanda: demandaVal,
+              Complexidade: complexidadeVal,
+              MotivoPendencia: motivoVal,
               Prioridade: prioVal,
               PendenciaReprova: statusVal,
-              MotivoPendencia: motivoVal,
-              TipoDemanda: demandaVal,
-              TmoMinutos: tmoVal
+              Segmento: segmentoVal,
+              CoSegmento: coSegmentoVal,
+              TipoSocietario: tipoSocietarioVal,
+              Quantidade: 1,
+              TmoMinutos: parseApuracaoToMinutes(apuracaoVal)
             });
           }
 
@@ -544,9 +603,9 @@ export const ImportPage = () => {
       {/* Top Header Row */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Importação e Mapeamento de Bases</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Importação de bases</h1>
           <p className="text-zinc-400 text-sm mt-1">
-            Gerencie o De-Para de Esteiras (MonitorA ↔ Tabulador) e importe as bases de Produtividade e Monitoria
+            Importação de produtividade e monitorias.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -579,7 +638,7 @@ export const ImportPage = () => {
             <div>
               <h2 className="text-lg font-bold text-white">Relacionamento de Esteiras (MonitorA ↔ Tabulador)</h2>
               <p className="text-xs text-zinc-400">
-                A Produtividade vem da base do Tabulador e o Mapeamento Fixo de Monitorias vem do MonitorA. Associe quais representam quais.
+                Produtividade e Monitoria dos analistas
               </p>
             </div>
           </div>
@@ -663,7 +722,7 @@ export const ImportPage = () => {
               <Briefcase size={22} />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">Importar Produtividade dos Analistas</h2>
+              <h2 className="text-lg font-bold text-white">Importação de produtividade</h2>
               <p className="text-xs text-zinc-400">Configure as colunas de Esteira (B), Analista/Produtividade (C) e Data (D)</p>
             </div>
           </div>
@@ -684,47 +743,173 @@ export const ImportPage = () => {
               Configuração de Colunas de Produtividade
             </h3>
 
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
               <div>
                 <label className="text-xs text-zinc-300 font-semibold block mb-1">
-                  1. Esteira (Contabilizar Esteira)
+                  1. Analista (A)
                 </label>
                 <input
                   type="text"
-                  value={localProdMapping.B}
+                  value={localProdMapping.A || 'A'}
+                  onChange={(e) => setLocalProdMapping({ ...localProdMapping, A: e.target.value.toUpperCase() })}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  placeholder="A"
+                />
+                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna A</p>
+              </div>
+
+              <div>
+                <label className="text-xs text-zinc-300 font-semibold block mb-1">
+                  2. Data (B)
+                </label>
+                <input
+                  type="text"
+                  value={localProdMapping.B || 'B'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, B: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2 text-sm text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
                   placeholder="B"
                 />
-                <p className="text-[10px] text-zinc-500 mt-1">Fixo/Padrão: Coluna B</p>
+                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna B (Apenas a data é considerada, ignora horas)</p>
               </div>
 
               <div>
                 <label className="text-xs text-zinc-300 font-semibold block mb-1">
-                  2. Analista / Produtividade
+                  3. Apuração (C)
                 </label>
                 <input
                   type="text"
-                  value={localProdMapping.C}
+                  value={localProdMapping.C || 'C'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, C: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2 text-sm text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
                   placeholder="C"
                 />
-                <p className="text-[10px] text-zinc-500 mt-1">Fixo/Padrão: Coluna C (Nome ou Quantidade)</p>
+                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna C (Tempo de cada demanda / TMO do analista)</p>
               </div>
 
               <div>
                 <label className="text-xs text-zinc-300 font-semibold block mb-1">
-                  3. Data da Produtividade
+                  4. Esteira (D)
                 </label>
                 <input
                   type="text"
-                  value={localProdMapping.D}
+                  value={localProdMapping.D || 'D'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, D: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2 text-sm text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
                   placeholder="D"
                 />
-                <p className="text-[10px] text-zinc-500 mt-1">Fixo/Padrão: Coluna D</p>
+                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna D</p>
+              </div>
+
+              <div>
+                <label className="text-xs text-zinc-300 font-semibold block mb-1">
+                  5. Tipo de Demanda (E)
+                </label>
+                <input
+                  type="text"
+                  value={localProdMapping.E || 'E'}
+                  onChange={(e) => setLocalProdMapping({ ...localProdMapping, E: e.target.value.toUpperCase() })}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  placeholder="E"
+                />
+                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna E (Se em branco, não contabiliza)</p>
+              </div>
+
+              <div>
+                <label className="text-xs text-zinc-300 font-semibold block mb-1">
+                  6. Complexidade (F)
+                </label>
+                <input
+                  type="text"
+                  value={localProdMapping.F || 'F'}
+                  onChange={(e) => setLocalProdMapping({ ...localProdMapping, F: e.target.value.toUpperCase() })}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  placeholder="F"
+                />
+                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna F (Se em branco, não contabiliza)</p>
+              </div>
+
+              <div>
+                <label className="text-xs text-zinc-300 font-semibold block mb-1">
+                  7. Motivo de Reprovação (G)
+                </label>
+                <input
+                  type="text"
+                  value={localProdMapping.G || 'G'}
+                  onChange={(e) => setLocalProdMapping({ ...localProdMapping, G: e.target.value.toUpperCase() })}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  placeholder="G"
+                />
+                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna G (Se em branco, não contabiliza)</p>
+              </div>
+
+              <div>
+                <label className="text-xs text-zinc-300 font-semibold block mb-1">
+                  8. Prioridade (H)
+                </label>
+                <input
+                  type="text"
+                  value={localProdMapping.H || 'H'}
+                  onChange={(e) => setLocalProdMapping({ ...localProdMapping, H: e.target.value.toUpperCase() })}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  placeholder="H"
+                />
+                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna H (Se em branco, não contabiliza)</p>
+              </div>
+
+              <div>
+                <label className="text-xs text-zinc-300 font-semibold block mb-1">
+                  9. Reprovação (I)
+                </label>
+                <input
+                  type="text"
+                  value={localProdMapping.I || 'I'}
+                  onChange={(e) => setLocalProdMapping({ ...localProdMapping, I: e.target.value.toUpperCase() })}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  placeholder="I"
+                />
+                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna I (Se em branco, não contabiliza)</p>
+              </div>
+
+              <div>
+                <label className="text-xs text-zinc-300 font-semibold block mb-1">
+                  10. Segmento (J)
+                </label>
+                <input
+                  type="text"
+                  value={localProdMapping.J || 'J'}
+                  onChange={(e) => setLocalProdMapping({ ...localProdMapping, J: e.target.value.toUpperCase() })}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  placeholder="J"
+                />
+                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna J (Se em branco, não contabiliza)</p>
+              </div>
+
+              <div>
+                <label className="text-xs text-zinc-300 font-semibold block mb-1">
+                  11. Co Segmento (K)
+                </label>
+                <input
+                  type="text"
+                  value={localProdMapping.K || 'K'}
+                  onChange={(e) => setLocalProdMapping({ ...localProdMapping, K: e.target.value.toUpperCase() })}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  placeholder="K"
+                />
+                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna K (Se em branco, não contabiliza)</p>
+              </div>
+
+              <div>
+                <label className="text-xs text-zinc-300 font-semibold block mb-1">
+                  12. Tipo Societário (L)
+                </label>
+                <input
+                  type="text"
+                  value={localProdMapping.L || 'L'}
+                  onChange={(e) => setLocalProdMapping({ ...localProdMapping, L: e.target.value.toUpperCase() })}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  placeholder="L"
+                />
+                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna L (Se em branco, não contabiliza)</p>
               </div>
             </div>
 
@@ -820,8 +1005,8 @@ export const ImportPage = () => {
               <FileText size={22} />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">Mapeamento Fixo de Monitorias</h2>
-              <p className="text-xs text-zinc-400">Configure o mapeamento das colunas S, T, V, Y, AA, AB, AE, AF, AH, R, BT</p>
+              <h2 className="text-lg font-bold text-white">Importação de Monitorias</h2>
+              <p className="text-xs text-zinc-400">Importe aqui a base do tabulador</p>
             </div>
           </div>
 

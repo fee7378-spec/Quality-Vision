@@ -9,6 +9,8 @@ import { ImportPage } from './pages/ImportPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { AnalistasPage } from './pages/AnalistasPage';
 import { AnaliseEvolucaoPage } from './pages/AnaliseEvolucaoPage';
+import { OperacaoPage } from './pages/OperacaoPage';
+import { CapacidadePage } from './pages/CapacidadePage';
 
 export default function App() {
   return (
@@ -17,6 +19,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/operacao" element={<OperacaoPage />} />
+          <Route path="/capacidade" element={<CapacidadePage />} />
           <Route path="/analise" element={<AnaliseEvolucaoPage />} />
           <Route path="/analistas" element={<AnalistasPage />} />
           <Route path="/import" element={<ImportPage />} />
