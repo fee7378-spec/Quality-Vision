@@ -723,7 +723,7 @@ export const ImportPage = () => {
             </div>
             <div>
               <h2 className="text-lg font-bold text-white">Importação de produtividade</h2>
-              <p className="text-xs text-zinc-400">Configure as colunas de Esteira (B), Analista/Produtividade (C) e Data (D)</p>
+              <p className="text-xs text-zinc-400">Configure o mapeamento das colunas de produtividade</p>
             </div>
           </div>
           
@@ -746,7 +746,7 @@ export const ImportPage = () => {
             <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
               <div>
                 <label className="text-xs text-zinc-300 font-semibold block mb-1">
-                  1. Analista (A)
+                  1. Analista
                 </label>
                 <input
                   type="text"
@@ -755,12 +755,11 @@ export const ImportPage = () => {
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
                   placeholder="A"
                 />
-                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna A</p>
               </div>
 
               <div>
                 <label className="text-xs text-zinc-300 font-semibold block mb-1">
-                  2. Data (B)
+                  2. Data
                 </label>
                 <input
                   type="text"
@@ -769,12 +768,11 @@ export const ImportPage = () => {
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
                   placeholder="B"
                 />
-                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna B (Apenas a data é considerada, ignora horas)</p>
               </div>
 
               <div>
                 <label className="text-xs text-zinc-300 font-semibold block mb-1">
-                  3. Apuração (C)
+                  3. Apuração
                 </label>
                 <input
                   type="text"
@@ -783,12 +781,11 @@ export const ImportPage = () => {
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
                   placeholder="C"
                 />
-                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna C (Tempo de cada demanda / TMO do analista)</p>
               </div>
 
               <div>
                 <label className="text-xs text-zinc-300 font-semibold block mb-1">
-                  4. Esteira (D)
+                  4. Esteira
                 </label>
                 <input
                   type="text"
@@ -797,12 +794,11 @@ export const ImportPage = () => {
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
                   placeholder="D"
                 />
-                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna D</p>
               </div>
 
               <div>
                 <label className="text-xs text-zinc-300 font-semibold block mb-1">
-                  5. Tipo de Demanda (E)
+                  5. Tipo de Demanda
                 </label>
                 <input
                   type="text"
@@ -811,12 +807,11 @@ export const ImportPage = () => {
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
                   placeholder="E"
                 />
-                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna E (Se em branco, não contabiliza)</p>
               </div>
 
               <div>
                 <label className="text-xs text-zinc-300 font-semibold block mb-1">
-                  6. Complexidade (F)
+                  6. Complexidade
                 </label>
                 <input
                   type="text"
@@ -825,12 +820,11 @@ export const ImportPage = () => {
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
                   placeholder="F"
                 />
-                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna F (Se em branco, não contabiliza)</p>
               </div>
 
               <div>
                 <label className="text-xs text-zinc-300 font-semibold block mb-1">
-                  7. Motivo de Reprovação (G)
+                  7. Motivo de Reprovação
                 </label>
                 <input
                   type="text"
@@ -839,12 +833,11 @@ export const ImportPage = () => {
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
                   placeholder="G"
                 />
-                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna G (Se em branco, não contabiliza)</p>
               </div>
 
               <div>
                 <label className="text-xs text-zinc-300 font-semibold block mb-1">
-                  8. Prioridade (H)
+                  8. Prioridade
                 </label>
                 <input
                   type="text"
@@ -853,12 +846,11 @@ export const ImportPage = () => {
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
                   placeholder="H"
                 />
-                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna H (Se em branco, não contabiliza)</p>
               </div>
 
               <div>
                 <label className="text-xs text-zinc-300 font-semibold block mb-1">
-                  9. Reprovação (I)
+                  9. Reprovação
                 </label>
                 <input
                   type="text"
@@ -867,12 +859,11 @@ export const ImportPage = () => {
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
                   placeholder="I"
                 />
-                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna I (Se em branco, não contabiliza)</p>
               </div>
 
               <div>
                 <label className="text-xs text-zinc-300 font-semibold block mb-1">
-                  10. Segmento (J)
+                  10. Segmento
                 </label>
                 <input
                   type="text"
@@ -881,12 +872,11 @@ export const ImportPage = () => {
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
                   placeholder="J"
                 />
-                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna J (Se em branco, não contabiliza)</p>
               </div>
 
               <div>
                 <label className="text-xs text-zinc-300 font-semibold block mb-1">
-                  11. Co Segmento (K)
+                  11. Co Segmento
                 </label>
                 <input
                   type="text"
@@ -895,12 +885,11 @@ export const ImportPage = () => {
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
                   placeholder="K"
                 />
-                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna K (Se em branco, não contabiliza)</p>
               </div>
 
               <div>
                 <label className="text-xs text-zinc-300 font-semibold block mb-1">
-                  12. Tipo Societário (L)
+                  12. Tipo Societário
                 </label>
                 <input
                   type="text"
@@ -909,7 +898,6 @@ export const ImportPage = () => {
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
                   placeholder="L"
                 />
-                <p className="text-[10px] text-zinc-500 mt-0.5">Padrão: Coluna L (Se em branco, não contabiliza)</p>
               </div>
             </div>
 
@@ -1029,12 +1017,9 @@ export const ImportPage = () => {
             <div className="space-y-3.5 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
               {fieldsList.map((field) => (
                 <div key={field.key} className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs text-zinc-300 font-medium">
-                      {field.label}
-                    </label>
-                    <span className="text-[11px] text-amber-400 font-mono">Padrão: {field.defaultLetter}</span>
-                  </div>
+                  <label className="text-xs text-zinc-300 font-medium block">
+                    {field.label}
+                  </label>
                   <input
                     type="text"
                     value={localMapping[field.key] || field.defaultLetter}
