@@ -67,15 +67,9 @@ export interface ProductivityColumnMapping {
 }
 
 export const getCurrentMonthRange = () => {
-
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const lastDayNum = new Date(year, now.getMonth() + 1, 0).getDate();
-  const lastDay = String(lastDayNum).padStart(2, '0');
   return {
-    start: `${year}-${month}-01`,
-    end: `${year}-${month}-${lastDay}`
+    start: '2026-07-01',
+    end: '2026-07-31'
   };
 };
 
@@ -93,18 +87,6 @@ export const normalizeDateStr = (raw: any): string => {
   if (!str) return '';
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
-    const parts = str.split('-');
-    let year = Number(parts[0]);
-    let month = Number(parts[1]);
-    let day = Number(parts[2]);
-
-    // Auto-fix legacy inverted dates post-July (where month > 7 was wrongly inverted from DD/MM/YYYY)
-    if (month > 7 && day <= 12) {
-      const temp = month;
-      month = day;
-      day = temp;
-      return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    }
     return str;
   }
 
@@ -148,6 +130,35 @@ export const normalizeDateStr = (raw: any): string => {
   }
 
   return str.slice(0, 10);
+};
+
+export interface EsteiraParam {
+  esteira: string;
+  contratados: number;        // Quantidade de analistas contratados
+  tmoAlvoSegundos: number;    // Meta/TMO Médio em segundos (ex: 34min = 2040s)
+  horasTrabalhoDia: number;   // Horas trabalhadas por dia por analista (ex: 8h)
+  metaDiaria: number;         // Meta de demandas por dia por analista
+  diasUteisMes: number;       // Dias úteis no mês
+}
+
+export const formatSecondsToHHMMSS = (totalSeconds: number): string => {
+  if (isNaN(totalSeconds) || totalSeconds < 0) return '00:00:00';
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = Math.floor(totalSeconds % 60);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+};
+
+export const parseHHMMSSToSeconds = (str: string): number => {
+  if (!str) return 0;
+  const parts = str.split(':').map(p => parseInt(p, 10) || 0);
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  }
+  if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  }
+  return parseInt(str, 10) || 0;
 };
 
 export interface EsteiraMapping {
@@ -285,6 +296,9 @@ interface AppState {
   selectedMacro: string;
   selectedEsteira: string;
   selectedForma: string;
+  selectedSupervisor: string;
+  analystSearchQuery: string;
+  esteiraParams: Record<string, EsteiraParam>;
   columnMapping: ColumnMapping;
   productivityMapping: ProductivityColumnMapping;
   esteiraMappings: EsteiraMapping[];
@@ -298,6 +312,9 @@ interface AppState {
   setSelectedMacro: (macro: string) => void;
   setSelectedEsteira: (esteira: string) => void;
   setSelectedForma: (forma: string) => void;
+  setSelectedSupervisor: (supervisor: string) => void;
+  setAnalystSearchQuery: (query: string) => void;
+  setEsteiraParam: (esteira: string, param: Partial<EsteiraParam>) => void;
   setColumnMapping: (mapping: ColumnMapping) => void;
   setProductivityMapping: (mapping: ProductivityColumnMapping) => void;
   setEsteiraMappings: (mappings: EsteiraMapping[]) => void;
@@ -319,67 +336,67 @@ const STORAGE_ESTEIRA_MAP_KEY = 'quality_vision_esteira_mappings_v1';
 // Initial rich mock data so the app displays instantly with meaningful metrics
 const initialSampleData: MonitoringItem[] = [
   // CARLOS SILVA (Abertura PJ)
-  { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-06-02', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '0', Esteira: 'Abertura PJ', DataFeedback: '2026-06-05' },
-  { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-06-12', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '0', Esteira: 'Abertura PJ', DataFeedback: '2026-06-15' },
-  { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-06-25', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Abertura PJ', DataFeedback: '' },
-  { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-02', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Abertura PJ', DataFeedback: '' },
-  { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-10', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '100', Esteira: 'Abertura PJ', DataFeedback: '' },
+  { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-01', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '0', Esteira: 'Abertura PJ', DataFeedback: '2026-07-03' },
+  { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-04', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '0', Esteira: 'Abertura PJ', DataFeedback: '2026-07-06' },
+  { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-08', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Abertura PJ', DataFeedback: '' },
+  { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-12', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Abertura PJ', DataFeedback: '' },
+  { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-18', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '100', Esteira: 'Abertura PJ', DataFeedback: '' },
   { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-22', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '100', Esteira: 'Abertura PJ', DataFeedback: '' },
 
   // ANA BEATRIZ (Abertura PF)
-  { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-06-05', Tag: 'SLA Excedido', MotivoMacro: 'Atraso na Entrega', Erro: '0', Esteira: 'Abertura PF', DataFeedback: '2026-06-08' },
-  { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-06-18', Tag: 'SLA Excedido', MotivoMacro: 'Atraso na Entrega', Erro: '0', Esteira: 'Abertura PF', DataFeedback: '2026-06-20' },
-  { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-05', Tag: 'SLA Excedido', MotivoMacro: 'Atraso na Entrega', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
-  { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-15', Tag: 'Atendimento ao Cliente', MotivoMacro: 'Comunicação Inadequada', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
+  { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-02', Tag: 'SLA Excedido', MotivoMacro: 'Atraso na Entrega', Erro: '0', Esteira: 'Abertura PF', DataFeedback: '2026-07-05' },
+  { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-07', Tag: 'SLA Excedido', MotivoMacro: 'Atraso na Entrega', Erro: '0', Esteira: 'Abertura PF', DataFeedback: '2026-07-09' },
+  { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-14', Tag: 'SLA Excedido', MotivoMacro: 'Atraso na Entrega', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
+  { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-20', Tag: 'Atendimento ao Cliente', MotivoMacro: 'Comunicação Inadequada', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
   { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-25', Tag: 'SLA Excedido', MotivoMacro: 'Atraso na Entrega', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
 
   // FERNANDO ALVES (Crédito PJ)
-  { CodigoAnalista: 'MAT103', NomeAnalista: 'FERNANDO ALVES', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-06-10', Tag: 'Erro de Cadastro', MotivoMacro: 'Falha de Digitação', Erro: '0', Esteira: 'Crédito PJ', DataFeedback: '2026-06-12' },
-  { CodigoAnalista: 'MAT103', NomeAnalista: 'FERNANDO ALVES', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-06-20', Tag: 'Erro de Cadastro', MotivoMacro: 'Falha de Digitação', Erro: '0', Esteira: 'Crédito PJ', DataFeedback: '' },
-  { CodigoAnalista: 'MAT103', NomeAnalista: 'FERNANDO ALVES', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-08', Tag: 'Erro de Cadastro', MotivoMacro: 'Falha de Digitação', Erro: '0', Esteira: 'Crédito PJ', DataFeedback: '2026-07-10' },
-  { CodigoAnalista: 'MAT103', NomeAnalista: 'FERNANDO ALVES', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-18', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Crédito PJ', DataFeedback: '' },
+  { CodigoAnalista: 'MAT103', NomeAnalista: 'FERNANDO ALVES', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-03', Tag: 'Erro de Cadastro', MotivoMacro: 'Falha de Digitação', Erro: '0', Esteira: 'Crédito PJ', DataFeedback: '2026-07-05' },
+  { CodigoAnalista: 'MAT103', NomeAnalista: 'FERNANDO ALVES', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-09', Tag: 'Erro de Cadastro', MotivoMacro: 'Falha de Digitação', Erro: '0', Esteira: 'Crédito PJ', DataFeedback: '' },
+  { CodigoAnalista: 'MAT103', NomeAnalista: 'FERNANDO ALVES', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-15', Tag: 'Erro de Cadastro', MotivoMacro: 'Falha de Digitação', Erro: '0', Esteira: 'Crédito PJ', DataFeedback: '2026-07-17' },
+  { CodigoAnalista: 'MAT103', NomeAnalista: 'FERNANDO ALVES', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-21', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Crédito PJ', DataFeedback: '' },
 
   // MARIANA COSTA (Crédito PJ)
-  { CodigoAnalista: 'MAT104', NomeAnalista: 'MARIANA COSTA', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Double Check', DataMonitoria: '2026-06-15', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '100', Esteira: 'Crédito PJ', DataFeedback: '' },
-  { CodigoAnalista: 'MAT104', NomeAnalista: 'MARIANA COSTA', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-01', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '100', Esteira: 'Crédito PJ', DataFeedback: '' },
+  { CodigoAnalista: 'MAT104', NomeAnalista: 'MARIANA COSTA', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Double Check', DataMonitoria: '2026-07-06', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '100', Esteira: 'Crédito PJ', DataFeedback: '' },
+  { CodigoAnalista: 'MAT104', NomeAnalista: 'MARIANA COSTA', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-11', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '100', Esteira: 'Crédito PJ', DataFeedback: '' },
   { CodigoAnalista: 'MAT104', NomeAnalista: 'MARIANA COSTA', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-20', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Crédito PJ', DataFeedback: '' },
 
   // LUCAS MENDES (Abertura PF)
-  { CodigoAnalista: 'MAT105', NomeAnalista: 'LUCAS MENDES', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-06-28', Tag: 'Atendimento ao Cliente', MotivoMacro: 'Comunicação Inadequada', Erro: '0', Esteira: 'Abertura PF', DataFeedback: '2026-06-30' },
-  { CodigoAnalista: 'MAT105', NomeAnalista: 'LUCAS MENDES', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-12', Tag: 'Atendimento ao Cliente', MotivoMacro: 'Comunicação Inadequada', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
+  { CodigoAnalista: 'MAT105', NomeAnalista: 'LUCAS MENDES', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-05', Tag: 'Atendimento ao Cliente', MotivoMacro: 'Comunicação Inadequada', Erro: '0', Esteira: 'Abertura PF', DataFeedback: '2026-07-08' },
+  { CodigoAnalista: 'MAT105', NomeAnalista: 'LUCAS MENDES', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-16', Tag: 'Atendimento ao Cliente', MotivoMacro: 'Comunicação Inadequada', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
   { CodigoAnalista: 'MAT105', NomeAnalista: 'LUCAS MENDES', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-24', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
 ];
 
 export const initialSampleProductivityData: ProductivityItem[] = [
   // CARLOS SILVA (Abertura PJ)
-  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-06-02', Quantidade: 45, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Abertura de Conta PJ', Complexidade: 'Média', Segmento: 'PME', CoSegmento: 'Varejo', TipoSocietario: 'LTDA', TmoMinutos: 18 },
-  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-06-12', Quantidade: 50, Prioridade: 'Não', PendenciaReprova: 'Pendência', MotivoPendencia: 'Documento Ilegível', TipoDemanda: 'Alteração de Contrato Social', Complexidade: 'Alta', Segmento: 'PME', CoSegmento: 'Varejo', TipoSocietario: 'S/A', TmoMinutos: 22 },
-  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-06-25', Quantidade: 52, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Abertura de Conta PJ', Complexidade: 'Baixa', Segmento: 'PME', CoSegmento: 'Varejo', TipoSocietario: 'EIRELI', TmoMinutos: 16 },
-  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-02', Quantidade: 48, Prioridade: 'Sim', PendenciaReprova: 'Reprovado', MotivoPendencia: 'Divergência de Assinatura', TipoDemanda: 'Abertura de Conta PJ', Complexidade: 'Média', Segmento: 'PME', CoSegmento: 'Varejo', TipoSocietario: 'LTDA', TmoMinutos: 25 },
-  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-10', Quantidade: 55, Prioridade: 'Não', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Inclusão de Sócio', Complexidade: 'Média', Segmento: 'PME', CoSegmento: 'Varejo', TipoSocietario: 'LTDA', TmoMinutos: 19 },
+  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-01', Quantidade: 45, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Abertura de Conta PJ', Complexidade: 'Média', Segmento: 'PME', CoSegmento: 'Varejo', TipoSocietario: 'LTDA', TmoMinutos: 18 },
+  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-04', Quantidade: 50, Prioridade: 'Não', PendenciaReprova: 'Pendência', MotivoPendencia: 'Documento Ilegível', TipoDemanda: 'Alteração de Contrato Social', Complexidade: 'Alta', Segmento: 'PME', CoSegmento: 'Varejo', TipoSocietario: 'S/A', TmoMinutos: 22 },
+  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-08', Quantidade: 52, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Abertura de Conta PJ', Complexidade: 'Baixa', Segmento: 'PME', CoSegmento: 'Varejo', TipoSocietario: 'EIRELI', TmoMinutos: 16 },
+  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-12', Quantidade: 48, Prioridade: 'Sim', PendenciaReprova: 'Reprovado', MotivoPendencia: 'Divergência de Assinatura', TipoDemanda: 'Abertura de Conta PJ', Complexidade: 'Média', Segmento: 'PME', CoSegmento: 'Varejo', TipoSocietario: 'LTDA', TmoMinutos: 25 },
+  { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-18', Quantidade: 55, Prioridade: 'Não', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Inclusão de Sócio', Complexidade: 'Média', Segmento: 'PME', CoSegmento: 'Varejo', TipoSocietario: 'LTDA', TmoMinutos: 19 },
   { Esteira: 'BTG ONBOARDING PJ', NomeAnalista: 'CARLOS SILVA', DataProdutividade: '2026-07-22', Quantidade: 60, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Abertura de Conta PJ', Complexidade: 'Baixa', Segmento: 'PME', CoSegmento: 'Varejo', TipoSocietario: 'LTDA', TmoMinutos: 15 },
 
   // ANA BEATRIZ (MANUTENÇÃO PF)
-  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-06-05', Quantidade: 38, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Abertura de Conta PF', Complexidade: 'Baixa', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 12 },
-  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-06-18', Quantidade: 42, Prioridade: 'Não', PendenciaReprova: 'Pendência', MotivoPendencia: 'Comprovante Ilegível', TipoDemanda: 'Atualização Cadastral', Complexidade: 'Baixa', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 14 },
-  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-05', Quantidade: 40, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Abertura de Conta PF', Complexidade: 'Baixa', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 11 },
-  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-15', Quantidade: 46, Prioridade: 'Sim', PendenciaReprova: 'Reprovado', MotivoPendencia: 'Selfie com Baixa Qualidade', TipoDemanda: 'Abertura de Conta PF', Complexidade: 'Média', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 15 },
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-02', Quantidade: 38, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Abertura de Conta PF', Complexidade: 'Baixa', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 12 },
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-07', Quantidade: 42, Prioridade: 'Não', PendenciaReprova: 'Pendência', MotivoPendencia: 'Comprovante Ilegível', TipoDemanda: 'Atualização Cadastral', Complexidade: 'Baixa', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 14 },
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-14', Quantidade: 40, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Abertura de Conta PF', Complexidade: 'Baixa', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 11 },
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-20', Quantidade: 46, Prioridade: 'Sim', PendenciaReprova: 'Reprovado', MotivoPendencia: 'Selfie com Baixa Qualidade', TipoDemanda: 'Abertura de Conta PF', Complexidade: 'Média', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 15 },
   { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'ANA BEATRIZ', DataProdutividade: '2026-07-25', Quantidade: 51, Prioridade: 'Não', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Emissão de Cartão', Complexidade: 'Baixa', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 10 },
 
   // FERNANDO ALVES (BTG CORPORATE)
-  { Esteira: 'BTG CORPORATE', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-06-10', Quantidade: 30, Prioridade: 'Sim', PendenciaReprova: 'Pendência', MotivoPendencia: 'Aguardando Parecer de Risco', TipoDemanda: 'Análise de Limite de Crédito', Complexidade: 'Alta', Segmento: 'Corporate', CoSegmento: 'Large Corporate', TipoSocietario: 'S/A', TmoMinutos: 35 },
-  { Esteira: 'BTG CORPORATE', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-06-20', Quantidade: 35, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Análise de Limite de Crédito', Complexidade: 'Alta', Segmento: 'Corporate', CoSegmento: 'Large Corporate', TipoSocietario: 'S/A', TmoMinutos: 28 },
-  { Esteira: 'BTG CORPORATE', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-07-08', Quantidade: 32, Prioridade: 'Não', PendenciaReprova: 'Reprovado', MotivoPendencia: 'Score Insuficiente', TipoDemanda: 'Renovação de Linha de Crédito', Complexidade: 'Alta', Segmento: 'Corporate', CoSegmento: 'Large Corporate', TipoSocietario: 'S/A', TmoMinutos: 32 },
-  { Esteira: 'BTG CORPORATE', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-07-18', Quantidade: 36, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Análise de Limite de Crédito', Complexidade: 'Alta', Segmento: 'Corporate', CoSegmento: 'Large Corporate', TipoSocietario: 'S/A', TmoMinutos: 26 },
+  { Esteira: 'BTG CORPORATE', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-07-03', Quantidade: 30, Prioridade: 'Sim', PendenciaReprova: 'Pendência', MotivoPendencia: 'Aguardando Parecer de Risco', TipoDemanda: 'Análise de Limite de Crédito', Complexidade: 'Alta', Segmento: 'Corporate', CoSegmento: 'Large Corporate', TipoSocietario: 'S/A', TmoMinutos: 35 },
+  { Esteira: 'BTG CORPORATE', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-07-09', Quantidade: 35, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Análise de Limite de Crédito', Complexidade: 'Alta', Segmento: 'Corporate', CoSegmento: 'Large Corporate', TipoSocietario: 'S/A', TmoMinutos: 28 },
+  { Esteira: 'BTG CORPORATE', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-07-15', Quantidade: 32, Prioridade: 'Não', PendenciaReprova: 'Reprovado', MotivoPendencia: 'Score Insuficiente', TipoDemanda: 'Renovação de Linha de Crédito', Complexidade: 'Alta', Segmento: 'Corporate', CoSegmento: 'Large Corporate', TipoSocietario: 'S/A', TmoMinutos: 32 },
+  { Esteira: 'BTG CORPORATE', NomeAnalista: 'FERNANDO ALVES', DataProdutividade: '2026-07-21', Quantidade: 36, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Análise de Limite de Crédito', Complexidade: 'Alta', Segmento: 'Corporate', CoSegmento: 'Large Corporate', TipoSocietario: 'S/A', TmoMinutos: 26 },
 
   // MARIANA COSTA (BTG CORPORATE)
-  { Esteira: 'BTG CORPORATE', NomeAnalista: 'MARIANA COSTA', DataProdutividade: '2026-06-15', Quantidade: 28, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Análise de Limite de Crédito', Complexidade: 'Alta', Segmento: 'Corporate', CoSegmento: 'Large Corporate', TipoSocietario: 'S/A', TmoMinutos: 30 },
-  { Esteira: 'BTG CORPORATE', NomeAnalista: 'MARIANA COSTA', DataProdutividade: '2026-07-01', Quantidade: 34, Prioridade: 'Não', PendenciaReprova: 'Pendência', MotivoPendencia: 'Balanço Desatualizado', TipoDemanda: 'Revisão Anual de Crédito', Complexidade: 'Alta', Segmento: 'Corporate', CoSegmento: 'Large Corporate', TipoSocietario: 'S/A', TmoMinutos: 34 },
+  { Esteira: 'BTG CORPORATE', NomeAnalista: 'MARIANA COSTA', DataProdutividade: '2026-07-06', Quantidade: 28, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Análise de Limite de Crédito', Complexidade: 'Alta', Segmento: 'Corporate', CoSegmento: 'Large Corporate', TipoSocietario: 'S/A', TmoMinutos: 30 },
+  { Esteira: 'BTG CORPORATE', NomeAnalista: 'MARIANA COSTA', DataProdutividade: '2026-07-11', Quantidade: 34, Prioridade: 'Não', PendenciaReprova: 'Pendência', MotivoPendencia: 'Balanço Desatualizado', TipoDemanda: 'Revisão Anual de Crédito', Complexidade: 'Alta', Segmento: 'Corporate', CoSegmento: 'Large Corporate', TipoSocietario: 'S/A', TmoMinutos: 34 },
   { Esteira: 'BTG CORPORATE', NomeAnalista: 'MARIANA COSTA', DataProdutividade: '2026-07-20', Quantidade: 39, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Análise de Limite de Crédito', Complexidade: 'Alta', Segmento: 'Corporate', CoSegmento: 'Large Corporate', TipoSocietario: 'S/A', TmoMinutos: 27 },
 
   // LUCAS MENDES (MANUTENÇÃO PF)
-  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'LUCAS MENDES', DataProdutividade: '2026-06-28', Quantidade: 41, Prioridade: 'Não', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Atualização Cadastral', Complexidade: 'Baixa', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 13 },
-  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'LUCAS MENDES', DataProdutividade: '2026-07-12', Quantidade: 44, Prioridade: 'Sim', PendenciaReprova: 'Pendência', MotivoPendencia: 'Comprovante Ausente', TipoDemanda: 'Abertura de Conta PF', Complexidade: 'Baixa', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 16 },
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'LUCAS MENDES', DataProdutividade: '2026-07-05', Quantidade: 41, Prioridade: 'Não', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Atualização Cadastral', Complexidade: 'Baixa', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 13 },
+  { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'LUCAS MENDES', DataProdutividade: '2026-07-16', Quantidade: 44, Prioridade: 'Sim', PendenciaReprova: 'Pendência', MotivoPendencia: 'Comprovante Ausente', TipoDemanda: 'Abertura de Conta PF', Complexidade: 'Baixa', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 16 },
   { Esteira: 'MANUTENÇÃO PF', NomeAnalista: 'LUCAS MENDES', DataProdutividade: '2026-07-24', Quantidade: 47, Prioridade: 'Sim', PendenciaReprova: 'Aprovado', MotivoPendencia: '', TipoDemanda: 'Abertura de Conta PF', Complexidade: 'Baixa', Segmento: 'PF', CoSegmento: 'Digital', TipoSocietario: 'Individual', TmoMinutos: 12 },
 ];
 
@@ -402,7 +419,8 @@ const loadInitialData = (): {
     if (saved !== null) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
-        data = sanitizeItems(parsed);
+        // Strip any stale June items from cached sample data if present
+        data = sanitizeItems(parsed).filter(item => !item.DataMonitoria || !item.DataMonitoria.includes('-06-'));
         lastProcessed = savedTs || (parsed.length > 0 ? 'Gravação em cache' : null);
       }
     }
@@ -412,7 +430,8 @@ const loadInitialData = (): {
     if (savedProd !== null) {
       const parsedProd = JSON.parse(savedProd);
       if (Array.isArray(parsedProd)) {
-        prodData = parsedProd;
+        // Strip any stale June items from cached sample productivity data if present
+        prodData = parsedProd.filter(item => !item.DataProdutividade || !item.DataProdutividade.includes('-06-'));
         prodLastProcessed = savedProdTs || (parsedProd.length > 0 ? 'Gravação em cache' : null);
       }
     }
@@ -444,6 +463,25 @@ export const useStore = create<AppState>((set, get) => ({
   selectedMacro: 'TODOS',
   selectedEsteira: 'TODAS',
   selectedForma: 'TODAS',
+  selectedSupervisor: 'TODOS',
+  analystSearchQuery: '',
+  esteiraParams: {
+    'Geral': { esteira: 'Geral', contratados: 200, tmoAlvoSegundos: 1800, horasTrabalhoDia: 8, metaDiaria: 45, diasUteisMes: 22 },
+    'BTG ABONO PJ': { esteira: 'BTG ABONO PJ', contratados: 6, tmoAlvoSegundos: 1560, horasTrabalhoDia: 8, metaDiaria: 50, diasUteisMes: 22 },
+    'BTG BKO ABERTURA PJ': { esteira: 'BTG BKO ABERTURA PJ', contratados: 3, tmoAlvoSegundos: 1500, horasTrabalhoDia: 8, metaDiaria: 40, diasUteisMes: 22 },
+    'BTG BKO MANUTENÇÃOPJ': { esteira: 'BTG BKO MANUTENÇÃOPJ', contratados: 30, tmoAlvoSegundos: 2340, horasTrabalhoDia: 8, metaDiaria: 45, diasUteisMes: 22 },
+    'BTG CORPORATE': { esteira: 'BTG CORPORATE', contratados: 10, tmoAlvoSegundos: 3600, horasTrabalhoDia: 8, metaDiaria: 30, diasUteisMes: 22 },
+    'BTG EXTRANET PJ': { esteira: 'BTG EXTRANET PJ', contratados: 4, tmoAlvoSegundos: 3300, horasTrabalhoDia: 8, metaDiaria: 45, diasUteisMes: 22 },
+    'BTG FATCA PJ': { esteira: 'BTG FATCA PJ', contratados: 5, tmoAlvoSegundos: 1800, horasTrabalhoDia: 8, metaDiaria: 50, diasUteisMes: 22 },
+    'BTG MANUTENÇÃO PJ': { esteira: 'BTG MANUTENÇÃO PJ', contratados: 24, tmoAlvoSegundos: 2040, horasTrabalhoDia: 8, metaDiaria: 45, diasUteisMes: 22 },
+    'BTG ONBOARDING PJ': { esteira: 'BTG ONBOARDING PJ', contratados: 24, tmoAlvoSegundos: 1260, horasTrabalhoDia: 8, metaDiaria: 40, diasUteisMes: 22 },
+    'BTG PREMIUM PJ': { esteira: 'BTG PREMIUM PJ', contratados: 5, tmoAlvoSegundos: 3540, horasTrabalhoDia: 8, metaDiaria: 35, diasUteisMes: 22 },
+    'BTG VINTAGE PJ': { esteira: 'BTG VINTAGE PJ', contratados: 5, tmoAlvoSegundos: 3540, horasTrabalhoDia: 8, metaDiaria: 40, diasUteisMes: 22 },
+    'MANUTENÇÃO PF': { esteira: 'MANUTENÇÃO PF', contratados: 15, tmoAlvoSegundos: 1500, horasTrabalhoDia: 8, metaDiaria: 50, diasUteisMes: 22 },
+    'PARAMETRIZAÇÃO': { esteira: 'PARAMETRIZAÇÃO', contratados: 31, tmoAlvoSegundos: 2400, horasTrabalhoDia: 8, metaDiaria: 40, diasUteisMes: 22 },
+    'SH-PME': { esteira: 'SH-PME', contratados: 3, tmoAlvoSegundos: 1680, horasTrabalhoDia: 8, metaDiaria: 45, diasUteisMes: 22 },
+    'WM': { esteira: 'WM', contratados: 3, tmoAlvoSegundos: 3300, horasTrabalhoDia: 8, metaDiaria: 35, diasUteisMes: 22 }
+  },
   isFirebaseConnected: true,
   columnMapping: {
     S: 'S',
@@ -557,6 +595,25 @@ export const useStore = create<AppState>((set, get) => ({
   setSelectedMacro: (macro) => set({ selectedMacro: macro }),
   setSelectedEsteira: (esteira) => set({ selectedEsteira: esteira }),
   setSelectedForma: (forma) => set({ selectedForma: forma }),
+  setSelectedSupervisor: (supervisor) => set({ selectedSupervisor: supervisor }),
+  setAnalystSearchQuery: (query) => set({ analystSearchQuery: query }),
+  setEsteiraParam: (esteira, param) => {
+    const current = get().esteiraParams;
+    const existing: EsteiraParam = current[esteira] || { 
+      esteira, 
+      contratados: 10, 
+      tmoAlvoSegundos: 1800, 
+      horasTrabalhoDia: 8, 
+      metaDiaria: 45, 
+      diasUteisMes: 22 
+    };
+    set({
+      esteiraParams: {
+        ...current,
+        [esteira]: { ...existing, ...param }
+      }
+    });
+  },
   setColumnMapping: (mapping) => set({ columnMapping: mapping }),
   setProductivityMapping: (mapping) => set({ productivityMapping: mapping }),
   

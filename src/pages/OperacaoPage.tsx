@@ -7,7 +7,38 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, 
   Legend, LabelList, LineChart, Line, PieChart, Pie, Cell 
 } from 'recharts';
-import { useStore, ProductivityItem } from '../store/useStore';
+import { useStore } from '../store/useStore';
+
+const CustomXAxisTick = (props: any) => {
+  const { x, y, payload } = props;
+  const value = payload.value || '';
+
+  const words = value.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+
+  words.forEach((word: string) => {
+    if ((currentLine + ' ' + word).trim().length <= 12) {
+      currentLine = (currentLine + ' ' + word).trim();
+    } else {
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
+    }
+  });
+  if (currentLine) lines.push(currentLine);
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={0} y={0} dy={4} textAnchor="middle" fill="#e4e4e7" fontSize={11} fontWeight="600">
+        {lines.slice(0, 3).map((line, index) => (
+          <tspan x={0} dy={index === 0 ? 10 : 13} key={index}>
+            {line}
+          </tspan>
+        ))}
+      </text>
+    </g>
+  );
+};
 
 export const OperacaoPage: React.FC = () => {
   const { 
@@ -39,15 +70,15 @@ export const OperacaoPage: React.FC = () => {
     const pendReprovTotal = pendentesCount + reprovadosCount;
     const pendReprovPercent = totalVolume > 0 ? ((pendReprovTotal / totalVolume) * 100).toFixed(1) : '0';
 
-    // TMO average
+    // Average TMO per analyst / item
     const tmoSum = filteredProd.reduce((acc, curr) => acc + (curr.TmoMinutos || 15), 0);
-    const tmoAvg = filteredProd.length > 0 ? Math.round(tmoSum / filteredProd.length) : 0;
+    const tmoAvg = filteredProd.length > 0 ? (tmoSum / filteredProd.length).toFixed(1) : '0.0';
 
-    // Peak day
+    // Peak day calculated strictly by the day with highest tabulated demands
     const dayMap: Record<string, number> = {};
     filteredProd.forEach(p => {
       const d = p.DataProdutividade;
-      if (d) {
+      if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
         dayMap[d] = (dayMap[d] || 0) + (p.Quantidade || 1);
       }
     });
@@ -76,7 +107,7 @@ export const OperacaoPage: React.FC = () => {
     };
   }, [filteredProd]);
 
-  // 2. Volumetria por Esteira e Prioridade (Sim vs Não)
+  // 2. Volumetria por Esteira e Prioridade (Sim vs Não) - Descending Order
   const esteiraPrioData = useMemo(() => {
     const map: Record<string, { esteira: string; sim: number; nao: number; total: number }> = {};
     filteredProd.forEach(p => {
@@ -93,6 +124,7 @@ export const OperacaoPage: React.FC = () => {
       map[e].total += qty;
     });
 
+    // Sort descending by total volume
     return Object.values(map).sort((a, b) => b.total - a.total);
   }, [filteredProd]);
 
@@ -111,7 +143,7 @@ export const OperacaoPage: React.FC = () => {
 
     return [
       { name: 'Aprovados', value: aprovados, color: '#10b981' },
-      { name: 'Pendências', value: pendentes, color: '#f59e0b' },
+      { name: 'Pendências', value: pendentes, color: '#FFFF00' },
       { name: 'Reprovados', value: reprovados, color: '#ef4444' }
     ];
   }, [filteredProd]);
@@ -131,7 +163,7 @@ export const OperacaoPage: React.FC = () => {
       .slice(0, 5);
   }, [filteredProd]);
 
-  // 4. Atividades com maior volume por Esteira (Tipo de Demanda)
+  // 4. Atividades com maior volume por Esteira (Tipo de Demanda - Todas as demandas)
   const atividadeVolume = useMemo(() => {
     const map: Record<string, number> = {};
     filteredProd.forEach(p => {
@@ -141,11 +173,10 @@ export const OperacaoPage: React.FC = () => {
 
     return Object.entries(map)
       .map(([atividade, volume]) => ({ atividade, volume }))
-      .sort((a, b) => b.volume - a.volume)
-      .slice(0, 6);
+      .sort((a, b) => b.volume - a.volume);
   }, [filteredProd]);
 
-  // 5. TMO por Esteira
+  // 5. TMO por Esteira (Vertical Bars, Descending Order)
   const tmoPorEsteira = useMemo(() => {
     const map: Record<string, { count: number; sum: number }> = {};
     filteredProd.forEach(p => {
@@ -155,10 +186,10 @@ export const OperacaoPage: React.FC = () => {
       map[e].sum += (p.TmoMinutos || 15);
     });
 
+    // Descending order of TMO with 1 decimal place
     return Object.entries(map).map(([esteira, val]) => ({
       esteira,
-      tmoMedio: Math.round(val.sum / val.count),
-      metaSla: 20 // Benchmark SLA Meta TMO
+      tmoMedio: parseFloat((val.sum / val.count).toFixed(1))
     })).sort((a, b) => b.tmoMedio - a.tmoMedio);
   }, [filteredProd]);
 
@@ -183,31 +214,19 @@ export const OperacaoPage: React.FC = () => {
   }, [filteredProd]);
 
   return (
-    <div className="p-6 md:p-8 bg-black text-zinc-100 min-h-screen space-y-8 overflow-y-auto">
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
-            <Layers className="text-amber-400" size={26} />
-            Operação & Demandas
-          </h1>
-          <p className="text-zinc-400 text-sm mt-1">
-            Análise de volumetria, priorização de filas, pendências, tipos de demanda e TMO operacional
-          </p>
-        </div>
-      </div>
+    <div className="w-full p-4 sm:p-6 md:p-8 bg-black text-zinc-100 space-y-8">
 
       {/* KPI Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* KPI 1: Volumetria Tratada */}
-        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-md hover:border-amber-400/40 transition-colors space-y-2">
+        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-md hover:border-amber-600/40 transition-colors space-y-2">
           <div className="flex items-center justify-between text-zinc-400 text-xs font-semibold uppercase">
-            <span>Volumetria Tratada</span>
-            <BarChart2 size={18} className="text-amber-400" />
+            <span>VOLUMETRIA TRATADA</span>
+            <BarChart2 size={18} className="text-amber-500" />
           </div>
           <div className="flex items-baseline justify-between">
             <h3 className="text-3xl font-extrabold text-white">{kpis.totalVolume.toLocaleString('pt-BR')}</h3>
-            <span className="text-xs font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/30">
+            <span className="text-xs font-bold text-amber-500 bg-amber-600/10 px-2 py-0.5 rounded border border-amber-600/30">
               {kpis.prioPercent}% Prioritário
             </span>
           </div>
@@ -217,13 +236,13 @@ export const OperacaoPage: React.FC = () => {
         </div>
 
         {/* KPI 2: Taxa de Pendência / Reprova */}
-        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-md hover:border-amber-400/40 transition-colors space-y-2">
+        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-md hover:border-amber-600/40 transition-colors space-y-2">
           <div className="flex items-center justify-between text-zinc-400 text-xs font-semibold uppercase">
-            <span>Pendências & Reprovas</span>
-            <AlertTriangle size={18} className="text-amber-400" />
+            <span>PENDÊNCIAS & REPROVAS</span>
+            <AlertTriangle size={18} className="text-amber-500" />
           </div>
           <div className="flex items-baseline justify-between">
-            <h3 className="text-3xl font-extrabold text-amber-400">{kpis.pendReprovPercent}%</h3>
+            <h3 className="text-3xl font-extrabold text-amber-500">{kpis.pendReprovPercent}%</h3>
             <span className="text-xs font-bold text-zinc-300 bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700">
               {kpis.pendReprovTotal} ocorrências
             </span>
@@ -234,10 +253,10 @@ export const OperacaoPage: React.FC = () => {
         </div>
 
         {/* KPI 3: Dia de Maior Volume */}
-        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-md hover:border-amber-400/40 transition-colors space-y-2">
+        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-md hover:border-amber-600/40 transition-colors space-y-2">
           <div className="flex items-center justify-between text-zinc-400 text-xs font-semibold uppercase">
-            <span>Pico do Mês</span>
-            <Calendar size={18} className="text-amber-400" />
+            <span>PICO DO MÊS</span>
+            <Calendar size={18} className="text-amber-500" />
           </div>
           <div className="flex items-baseline justify-between">
             <h3 className="text-2xl font-extrabold text-white">{kpis.peakDay}</h3>
@@ -246,71 +265,88 @@ export const OperacaoPage: React.FC = () => {
             </span>
           </div>
           <p className="text-xs text-zinc-500">
-            Data com maior volume de tratativas registradas
+            Data com maior volume de demandas tabuladas
           </p>
         </div>
 
         {/* KPI 4: TMO Médio Operacional */}
-        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-md hover:border-amber-400/40 transition-colors space-y-2">
+        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-md hover:border-amber-600/40 transition-colors space-y-2">
           <div className="flex items-center justify-between text-zinc-400 text-xs font-semibold uppercase">
-            <span>TMO Médio Operacional</span>
-            <Clock size={18} className="text-amber-400" />
+            <span>TMO MÉDIO OPERACIONAL</span>
+            <Clock size={18} className="text-amber-500" />
           </div>
           <div className="flex items-baseline justify-between">
             <h3 className="text-3xl font-extrabold text-white">{kpis.tmoAvg} <span className="text-sm font-normal text-zinc-400">min</span></h3>
             <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
-              Meta SLA: 20 min
+              Média Geral
             </span>
           </div>
           <p className="text-xs text-zinc-500">
-            Tempo Médio de Operação por item tratado nas esteiras
+            Tempo Médio de Operação acumulado por demanda tratada
           </p>
         </div>
       </div>
 
       {/* SECTION 1: Volumetria Tratada x Prioridade & Pendências / Reprovas */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Chart 1: Volumetria por Esteira e Prioridade */}
+        {/* Chart 1: Volumetria por Esteira e Prioridade (Vertical bars, Descending order, Scrollable) */}
         <div className="lg:col-span-7 bg-zinc-900 border border-zinc-800 p-6 rounded-md space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h3 className="text-white font-bold text-base flex items-center gap-2">
-                <BarChart2 size={18} className="text-amber-400" />
-                Volumetria Tratada por Fila & Prioridade
+              <h3 className="text-white font-bold text-base flex items-center gap-2 uppercase">
+                <BarChart2 size={18} className="text-amber-500" />
+                VOLUMETRIA DE PRIORIDADES
               </h3>
-              <p className="text-xs text-zinc-400 mt-1">Comparativo de itens prioritários (Sim) vs normais (Não) por esteira</p>
+            </div>
+
+            {/* Fixed Legend opposite Title */}
+            <div className="flex items-center gap-4 bg-black/70 border border-zinc-800 px-3.5 py-1.5 rounded-md self-start sm:self-auto flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-sm bg-amber-600 inline-block" />
+                <span className="text-xs font-bold text-zinc-100">Prioridade (SIM)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" />
+                <span className="text-xs font-bold text-zinc-100">Normal (NÃO)</span>
+              </div>
             </div>
           </div>
 
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={esteiraPrioData} margin={{ top: 20, right: 20, left: -15, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                <XAxis dataKey="esteira" stroke="#71717a" tick={{ fontSize: 11 }} />
-                <YAxis stroke="#71717a" tick={{ fontSize: 11 }} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '6px', color: '#fff', fontSize: '12px' }}
-                />
-                <Legend wrapperStyle={{ fontSize: '12px', color: '#fff', paddingTop: '10px' }} />
-                <Bar dataKey="sim" name="Prioridade (SIM)" fill="#f59e0b" radius={[4, 4, 0, 0]}>
-                  <LabelList dataKey="sim" position="top" offset={6} fill="#f59e0b" fontSize={10} fontWeight="bold" />
-                </Bar>
-                <Bar dataKey="nao" name="Normal (NÃO)" fill="#3f3f46" radius={[4, 4, 0, 0]}>
-                  <LabelList dataKey="nao" position="top" offset={6} fill="#a1a1aa" fontSize={10} fontWeight="bold" />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="overflow-x-auto pb-2 custom-scrollbar">
+            <div style={{ minWidth: Math.max(800, esteiraPrioData.length * 160), height: 350 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={esteiraPrioData} margin={{ top: 25, right: 20, left: -10, bottom: 25 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                  <XAxis 
+                    dataKey="esteira" 
+                    stroke="#71717a" 
+                    interval={0}
+                    tick={<CustomXAxisTick />}
+                    height={55}
+                  />
+                  <YAxis stroke="#71717a" tick={{ fontSize: 11 }} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '6px', color: '#fff', fontSize: '12px' }}
+                  />
+                  <Bar dataKey="sim" name="Prioridade (SIM)" fill="#FFFF00" radius={[4, 4, 0, 0]} barSize={34}>
+                    <LabelList dataKey="sim" position="top" offset={6} fill="#FFFF00" fontSize={11} fontWeight="bold" />
+                  </Bar>
+                  <Bar dataKey="nao" name="Normal (NÃO)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={34}>
+                    <LabelList dataKey="nao" position="top" offset={6} fill="#10b981" fontSize={11} fontWeight="bold" />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
         {/* Chart 2: Pendência & Reprova com Principais Motivos */}
         <div className="lg:col-span-5 bg-zinc-900 border border-zinc-800 p-6 rounded-md space-y-4 flex flex-col justify-between">
           <div>
-            <h3 className="text-white font-bold text-base flex items-center gap-2">
-              <ShieldAlert size={18} className="text-amber-400" />
-              Status de Conclusão & Principais Motivos
+            <h3 className="text-white font-bold text-base flex items-center gap-2 uppercase">
+              <ShieldAlert size={18} className="text-amber-500" />
+              STATUS DAS ANÁLISES
             </h3>
-            <p className="text-xs text-zinc-400 mt-1">Taxa de pendência/reprova e motivos registrados no tabulador</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
@@ -351,15 +387,15 @@ export const OperacaoPage: React.FC = () => {
 
           {/* Top Motivos Table */}
           <div className="border-t border-zinc-800 pt-3 space-y-2">
-            <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-              <AlertTriangle size={14} /> Principais Motivos de Pendência / Reprova
+            <h4 className="text-xs font-bold text-amber-500 uppercase tracking-wider flex items-center gap-1.5">
+              <AlertTriangle size={14} /> PRINCIPAIS MOTIVOS DE PENDÊNCIA / REPROVA
             </h4>
             <div className="space-y-1.5 text-xs">
               {topMotivos.length > 0 ? (
                 topMotivos.map((m, idx) => (
                   <div key={idx} className="flex items-center justify-between bg-black border border-zinc-800 px-3 py-1.5 rounded text-zinc-300">
                     <span className="truncate pr-2 font-medium">{idx + 1}. {m.motivo}</span>
-                    <span className="font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded text-[11px] border border-amber-400/20">
+                    <span className="font-bold text-amber-500 bg-amber-600/10 px-2 py-0.5 rounded text-[11px] border border-amber-600/20">
                       {m.count} ocorrência(s)
                     </span>
                   </div>
@@ -372,101 +408,86 @@ export const OperacaoPage: React.FC = () => {
         </div>
       </div>
 
-      {/* SECTION 2: Maior Volume por Atividade/Esteira & Visualização do TMO */}
+      {/* SECTION 2: Maior Volume por Atividade/Esteira & Visualização do TMO Vertical (Descrescente) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Atividade com maior volume por esteira */}
-        <div className="lg:col-span-6 bg-zinc-900 border border-zinc-800 p-6 rounded-md space-y-4">
+        <div className="lg:col-span-5 bg-zinc-900 border border-zinc-800 p-6 rounded-md space-y-4">
           <div>
-            <h3 className="text-white font-bold text-base flex items-center gap-2">
-              <Activity size={18} className="text-amber-400" />
-              Atividade / Tipo de Demanda com Maior Volume
+            <h3 className="text-white font-bold text-base flex items-center gap-2 uppercase">
+              <Activity size={18} className="text-amber-500" />
+              VOLUMETRIA DE TIPOS DE DEMANDA
             </h3>
-            <p className="text-xs text-zinc-400 mt-1">Ranking de demandas mais tratadas nas esteiras operacionais</p>
           </div>
 
-          <div className="space-y-2.5">
-            {atividadeVolume.map((item, index) => {
-              const maxVol = atividadeVolume[0]?.volume || 1;
-              const percent = Math.round((item.volume / maxVol) * 100);
+          <div className="space-y-2.5 max-h-[380px] overflow-y-auto custom-scrollbar pr-1.5">
+            {atividadeVolume.length > 0 ? (
+              atividadeVolume.map((item, index) => {
+                const maxVol = atividadeVolume[0]?.volume || 1;
+                const percent = Math.round((item.volume / maxVol) * 100);
 
-              return (
-                <div key={index} className="bg-black border border-zinc-800 p-3 rounded-md space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-white truncate max-w-[80%]">{index + 1}. {item.atividade}</span>
-                    <span className="font-bold text-amber-400">{item.volume} itens</span>
+                return (
+                  <div key={index} className="bg-black border border-zinc-800 p-3 rounded-md space-y-1.5">
+                    <div className="flex items-center justify-between text-xs gap-2">
+                      <span className="font-semibold text-white truncate max-w-[78%] flex items-center gap-1.5">
+                        <span className="font-bold text-amber-500 bg-amber-600/10 border border-amber-600/20 px-1.5 py-0.5 rounded text-[11px] flex-shrink-0">
+                          {index + 1}º
+                        </span>
+                        <span className="truncate">{item.atividade}</span>
+                      </span>
+                      <span className="font-bold text-amber-500 flex-shrink-0">{item.volume} itens</span>
+                    </div>
+                    <div className="w-full bg-zinc-900 rounded-full h-2 overflow-hidden border border-zinc-800">
+                      <div 
+                        className="bg-amber-600 h-full rounded-full transition-all duration-500" 
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="w-full bg-zinc-900 rounded-full h-2 overflow-hidden border border-zinc-800">
-                    <div 
-                      className="bg-amber-400 h-full rounded-full transition-all duration-500" 
-                      style={{ width: `${percent}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            ) : (
+              <p className="text-xs text-zinc-500 py-6 text-center">Nenhuma demanda registrada no filtro atual.</p>
+            )}
           </div>
         </div>
 
-        {/* Visualização de TMO por esteira */}
-        <div className="lg:col-span-6 bg-zinc-900 border border-zinc-800 p-6 rounded-md space-y-4">
-          <div>
-            <h3 className="text-white font-bold text-base flex items-center gap-2">
-              <Clock size={18} className="text-amber-400" />
-              Tempo Médio de Operação (TMO) por Esteira
-            </h3>
-            <p className="text-xs text-zinc-400 mt-1">Média de minutos por demanda em comparação ao benchmark (SLA 20 min)</p>
+        {/* Visualização de TMO por esteira (VERTICAL BARS, DECRESCENTE, COM LEGENDA FIXADA E 1 CASA DECIMAL) */}
+        <div className="lg:col-span-7 bg-zinc-900 border border-zinc-800 p-6 rounded-md space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-white font-bold text-base flex items-center gap-2 uppercase">
+                <Clock size={18} className="text-amber-500" />
+                TEMPO MÉDIO DE OPERAÇÃO POR ESTEIRAS
+              </h3>
+            </div>
+
+            
           </div>
 
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={tmoPorEsteira} layout="vertical" margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                <XAxis type="number" stroke="#71717a" tick={{ fontSize: 11 }} unit=" min" />
-                <YAxis dataKey="esteira" type="category" stroke="#71717a" tick={{ fontSize: 11 }} width={120} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '6px', color: '#fff', fontSize: '12px' }}
-                  formatter={(val: any) => [`${val} minutos`, 'TMO Médio']}
-                />
-                <Bar dataKey="tmoMedio" name="TMO Médio (min)" fill="#f59e0b" radius={[0, 4, 4, 0]}>
-                  <LabelList dataKey="tmoMedio" position="right" offset={10} fill="#f59e0b" fontSize={11} fontWeight="bold" formatter={(v: any) => `${v}m`} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="overflow-x-auto pb-2 custom-scrollbar">
+            <div style={{ minWidth: Math.max(1000, tmoPorEsteira.length * 300), height: 350 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={tmoPorEsteira} margin={{ top: 25, right: 20, left: -10, bottom: 25 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                  <XAxis 
+                    dataKey="esteira" 
+                    stroke="#71717a" 
+                    interval={0}
+                    tick={<CustomXAxisTick />}
+                    height={55}
+                  />
+                  <YAxis stroke="#71717a" tick={{ fontSize: 11 }} unit=" min" />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '6px', color: '#fff', fontSize: '12px' }}
+                    formatter={(val: any) => [`${Number(val).toFixed(1)} minutos`, 'TMO Médio']}
+                  />
+                  <Bar dataKey="tmoMedio" name="TMO Médio (min)" fill="#FFFF00" radius={[4, 4, 0, 0]} barSize={40}>
+                    <LabelList dataKey="tmoMedio" position="top" offset={6} fill="#FFFF00" fontSize={11} fontWeight="bold" formatter={(v: any) => `${Number(v).toFixed(1)}m`} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-
-          <div className="flex items-center justify-between text-xs text-zinc-400 pt-2 border-t border-zinc-800">
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-amber-400 rounded-sm"></span> TMO Registrado</span>
-            <span className="text-emerald-400 font-semibold">Meta SLA Padrão: ≤ 20 min</span>
-          </div>
-        </div>
-      </div>
-
-      {/* SECTION 3: Evolução Diária & Pico do Mês */}
-      <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-md space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-white font-bold text-base flex items-center gap-2">
-              <Calendar size={18} className="text-amber-400" />
-              Evolução Diária do Volume e Dia de Maior Pico
-            </h3>
-            <p className="text-xs text-zinc-400 mt-1">
-              Distribuição do volume diário do mês destacando o dia {kpis.peakDay} ({kpis.peakVol} itens)
-            </p>
-          </div>
-        </div>
-
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={evolucaoDiaria} margin={{ top: 25, right: 25, left: -10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-              <XAxis dataKey="label" stroke="#71717a" tick={{ fontSize: 11 }} />
-              <YAxis stroke="#71717a" tick={{ fontSize: 11 }} />
-              <Tooltip contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '6px', color: '#fff', fontSize: '12px' }} />
-              <Line type="monotone" dataKey="volume" name="Itens Tratados" stroke="#f59e0b" strokeWidth={3} dot={{ fill: '#f59e0b', r: 5 }}>
-                <LabelList dataKey="volume" position="top" offset={10} fill="#f59e0b" fontSize={11} fontWeight="bold" />
-              </Line>
-            </LineChart>
-          </ResponsiveContainer>
         </div>
       </div>
     </div>

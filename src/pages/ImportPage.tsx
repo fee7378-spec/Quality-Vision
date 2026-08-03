@@ -588,7 +588,7 @@ export const ImportPage = () => {
   ).size;
 
   return (
-    <div className="p-6 md:p-8 bg-black text-zinc-100 min-h-screen overflow-y-auto space-y-8">
+    <div className="w-full p-4 sm:p-6 md:p-8 bg-black text-zinc-100 space-y-8">
       <CustomModal
         isOpen={modalConfig.isOpen}
         onClose={closeModal}
@@ -601,16 +601,10 @@ export const ImportPage = () => {
       />
 
       {/* Top Header Row */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Importação de bases</h1>
-          <p className="text-zinc-400 text-sm mt-1">
-            Importação de produtividade e monitorias.
-          </p>
-        </div>
+      <div className="flex items-center justify-end gap-4">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-4 py-2 rounded-md text-xs font-medium text-zinc-300">
-            <RefreshCw size={14} className="text-amber-400" />
+            <RefreshCw size={14} className="text-amber-500" />
             <span>ÚLTIMA MONITORIA</span>
             <span className="font-bold text-white ml-1">{lastProcessed || 'Nenhum'}</span>
           </div>
@@ -620,7 +614,7 @@ export const ImportPage = () => {
       {statusMessage && (
         <div className={`p-4 rounded-md border flex items-center gap-3 text-sm font-medium ${
           statusMessage.type === 'success' 
-            ? 'bg-zinc-900 border-amber-400/60 text-amber-400' 
+            ? 'bg-zinc-900 border-amber-600/60 text-amber-500' 
             : 'bg-red-950/50 border-red-800 text-red-400'
         }`}>
           {statusMessage.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
@@ -632,7 +626,7 @@ export const ImportPage = () => {
       <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-lg space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-4 border-b border-zinc-800 pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-md bg-black border border-zinc-800 text-amber-400">
+            <div className="p-2.5 rounded-md bg-black border border-zinc-800 text-amber-500">
               <ArrowRightLeft size={22} />
             </div>
             <div>
@@ -648,7 +642,7 @@ export const ImportPage = () => {
               onClick={() => addEsteiraMapping()}
               className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-white px-3.5 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer border border-zinc-700"
             >
-              <Plus size={15} className="text-amber-400" />
+              <Plus size={15} className="text-amber-500" />
               <span>Adicionar Relação</span>
             </button>
             <button
@@ -666,10 +660,10 @@ export const ImportPage = () => {
         <div className="bg-black border border-zinc-800/90 rounded-md p-4 overflow-x-auto space-y-3">
           <div className="grid grid-cols-12 gap-4 text-xs font-bold text-zinc-400 uppercase px-2 pb-1 border-b border-zinc-800/80">
             <div className="col-span-5 flex items-center gap-1.5">
-              <span className="text-amber-400">1.</span> Esteira MonitorA (Monitoria)
+              <span className="text-amber-500">1.</span> Esteira MonitorA (Monitoria)
             </div>
             <div className="col-span-6 flex items-center gap-1.5">
-              <span className="text-amber-400">2.</span> Tabulador (Produtividade)
+              <span className="text-amber-500">2.</span> Tabulador (Produtividade)
             </div>
             <div className="col-span-1 text-center">Ações</div>
           </div>
@@ -682,7 +676,7 @@ export const ImportPage = () => {
                     type="text"
                     value={mapItem.monitora}
                     onChange={(e) => updateEsteiraMapping(idx, 'monitora', e.target.value.toUpperCase())}
-                    className="w-full bg-black border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                    className="w-full bg-black border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
                     placeholder="Ex: BTG ONBOARDING PJ"
                   />
                 </div>
@@ -691,7 +685,7 @@ export const ImportPage = () => {
                     type="text"
                     value={mapItem.tabulador}
                     onChange={(e) => updateEsteiraMapping(idx, 'tabulador', e.target.value.toUpperCase())}
-                    className="w-full bg-black border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                    className="w-full bg-black border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
                     placeholder="Ex: ABERTURA PJ"
                   />
                 </div>
@@ -718,7 +712,7 @@ export const ImportPage = () => {
       <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-lg space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-4 border-b border-zinc-800 pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-md bg-black border border-zinc-800 text-amber-400">
+            <div className="p-2.5 rounded-md bg-black border border-zinc-800 text-amber-500">
               <Briefcase size={22} />
             </div>
             <div>
@@ -729,7 +723,7 @@ export const ImportPage = () => {
           
           <div className="flex items-center gap-4 text-xs font-semibold">
             <span className="text-zinc-400">Total de Produtividade Carregada:</span>
-            <span className="text-lg font-bold text-amber-400">
+            <span className="text-lg font-bold text-amber-500">
               {productivityData.reduce((acc, curr) => acc + (curr.Quantidade || 1), 0).toLocaleString('pt-BR')} itens
             </span>
           </div>
@@ -739,7 +733,7 @@ export const ImportPage = () => {
           {/* Mapeamento de Colunas de Produtividade */}
           <div className="lg:col-span-5 bg-black border border-zinc-800/80 p-5 rounded-md space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
-              <Sliders size={16} className="text-amber-400" />
+              <Sliders size={16} className="text-amber-500" />
               Configuração de Colunas de Produtividade
             </h3>
 
@@ -752,7 +746,7 @@ export const ImportPage = () => {
                   type="text"
                   value={localProdMapping.A || 'A'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, A: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
                   placeholder="A"
                 />
               </div>
@@ -765,7 +759,7 @@ export const ImportPage = () => {
                   type="text"
                   value={localProdMapping.B || 'B'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, B: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
                   placeholder="B"
                 />
               </div>
@@ -778,7 +772,7 @@ export const ImportPage = () => {
                   type="text"
                   value={localProdMapping.C || 'C'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, C: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
                   placeholder="C"
                 />
               </div>
@@ -791,7 +785,7 @@ export const ImportPage = () => {
                   type="text"
                   value={localProdMapping.D || 'D'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, D: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
                   placeholder="D"
                 />
               </div>
@@ -804,7 +798,7 @@ export const ImportPage = () => {
                   type="text"
                   value={localProdMapping.E || 'E'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, E: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
                   placeholder="E"
                 />
               </div>
@@ -817,7 +811,7 @@ export const ImportPage = () => {
                   type="text"
                   value={localProdMapping.F || 'F'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, F: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
                   placeholder="F"
                 />
               </div>
@@ -830,7 +824,7 @@ export const ImportPage = () => {
                   type="text"
                   value={localProdMapping.G || 'G'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, G: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
                   placeholder="G"
                 />
               </div>
@@ -843,7 +837,7 @@ export const ImportPage = () => {
                   type="text"
                   value={localProdMapping.H || 'H'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, H: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
                   placeholder="H"
                 />
               </div>
@@ -856,7 +850,7 @@ export const ImportPage = () => {
                   type="text"
                   value={localProdMapping.I || 'I'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, I: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
                   placeholder="I"
                 />
               </div>
@@ -869,7 +863,7 @@ export const ImportPage = () => {
                   type="text"
                   value={localProdMapping.J || 'J'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, J: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
                   placeholder="J"
                 />
               </div>
@@ -882,7 +876,7 @@ export const ImportPage = () => {
                   type="text"
                   value={localProdMapping.K || 'K'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, K: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
                   placeholder="K"
                 />
               </div>
@@ -895,7 +889,7 @@ export const ImportPage = () => {
                   type="text"
                   value={localProdMapping.L || 'L'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, L: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
                   placeholder="L"
                 />
               </div>
@@ -904,7 +898,7 @@ export const ImportPage = () => {
             <button
               onClick={handleConsolidateProductivity}
               disabled={isProdProcessing || selectedProdFiles.length === 0}
-              className="w-full bg-amber-400 text-zinc-950 font-bold py-3 rounded-md hover:bg-amber-300 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-xs cursor-pointer shadow-md uppercase tracking-wider"
+              className="w-full bg-amber-600 text-zinc-950 font-bold py-3 rounded-md hover:bg-amber-500 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-xs cursor-pointer shadow-md uppercase tracking-wider"
             >
               {isProdProcessing ? (
                 <>
@@ -926,16 +920,16 @@ export const ImportPage = () => {
               {...getProdRootProps()}
               className={`border-2 border-dashed rounded-md flex flex-col items-center justify-center p-6 text-center cursor-pointer transition-colors min-h-[180px] ${
                 isProdDragActive
-                  ? 'border-amber-400 bg-black'
+                  ? 'border-amber-600 bg-black'
                   : selectedProdFiles.length > 0
-                  ? 'border-amber-400/50 bg-black/60'
+                  ? 'border-amber-600/50 bg-black/60'
                   : 'border-zinc-800 hover:border-zinc-700 bg-black/30'
               }`}
             >
               <input {...getProdInputProps()} />
-              <Upload size={36} className={`mb-2 ${selectedProdFiles.length > 0 ? 'text-amber-400' : 'text-zinc-600'}`} />
+              <Upload size={36} className={`mb-2 ${selectedProdFiles.length > 0 ? 'text-amber-500' : 'text-zinc-600'}`} />
               <p className="text-xs font-bold text-white">
-                Clique ou arraste a <span className="text-amber-400">planilha de Produtividade</span> aqui
+                Clique ou arraste a <span className="text-amber-500">planilha de Produtividade</span> aqui
               </p>
               <p className="text-[11px] text-zinc-500 mt-1">
                 Formatos aceitos: .xlsx, .xls e .csv
@@ -967,7 +961,7 @@ export const ImportPage = () => {
               <div className="flex items-center gap-4">
                 <div className="text-right">
                   <p className="text-[10px] text-zinc-500 font-semibold uppercase">Analistas Cadastrados</p>
-                  <p className="text-lg font-bold text-amber-400">{uniqueProdAnalystsCount} Analistas</p>
+                  <p className="text-lg font-bold text-amber-500">{uniqueProdAnalystsCount} Analistas</p>
                 </div>
 
                 {productivityData.length > 0 && (
@@ -989,7 +983,7 @@ export const ImportPage = () => {
       <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-lg space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-4 border-b border-zinc-800 pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-md bg-black border border-zinc-800 text-amber-400">
+            <div className="p-2.5 rounded-md bg-black border border-zinc-800 text-amber-500">
               <FileText size={22} />
             </div>
             <div>
@@ -1000,7 +994,7 @@ export const ImportPage = () => {
 
           <div className="flex items-center gap-4 text-xs font-semibold">
             <span className="text-zinc-400">Total de Monitorias Carregadas:</span>
-            <span className="text-lg font-bold text-amber-400">
+            <span className="text-lg font-bold text-amber-500">
               {data.length.toLocaleString('pt-BR')} itens
             </span>
           </div>
@@ -1010,7 +1004,7 @@ export const ImportPage = () => {
           {/* Mapeamento de Colunas de Monitorias */}
           <div className="lg:col-span-5 bg-black border border-zinc-800/80 p-5 rounded-md space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
-              <Sliders size={16} className="text-amber-400" />
+              <Sliders size={16} className="text-amber-500" />
               Configuração de Colunas de Monitoria
             </h3>
 
@@ -1024,7 +1018,7 @@ export const ImportPage = () => {
                     type="text"
                     value={localMapping[field.key] || field.defaultLetter}
                     onChange={(e) => setLocalMapping({ ...localMapping, [field.key]: e.target.value.toUpperCase() })}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-400 outline-none transition-colors"
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none transition-colors"
                   />
                 </div>
               ))}
@@ -1033,7 +1027,7 @@ export const ImportPage = () => {
             <button
               onClick={handleConsolidate}
               disabled={isProcessing || selectedFiles.length === 0}
-              className="w-full bg-amber-400 text-zinc-950 font-bold py-3 rounded-md hover:bg-amber-300 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-50 text-xs cursor-pointer uppercase tracking-wider"
+              className="w-full bg-amber-600 text-zinc-950 font-bold py-3 rounded-md hover:bg-amber-500 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-50 text-xs cursor-pointer uppercase tracking-wider"
             >
               {isProcessing ? (
                 <>
@@ -1055,16 +1049,16 @@ export const ImportPage = () => {
               {...getRootProps()}
               className={`border-2 border-dashed rounded-md flex flex-col items-center justify-center p-6 text-center cursor-pointer transition-colors min-h-[180px] ${
                 isDragActive
-                  ? 'border-amber-400 bg-black'
+                  ? 'border-amber-600 bg-black'
                   : selectedFiles.length > 0
-                  ? 'border-amber-400/50 bg-black/60'
+                  ? 'border-amber-600/50 bg-black/60'
                   : 'border-zinc-800 hover:border-zinc-700 bg-black/30'
               }`}
             >
               <input {...getInputProps()} />
-              <Upload size={36} className={`mb-2 ${selectedFiles.length > 0 ? 'text-amber-400' : 'text-zinc-600'}`} />
+              <Upload size={36} className={`mb-2 ${selectedFiles.length > 0 ? 'text-amber-500' : 'text-zinc-600'}`} />
               <p className="text-xs font-bold text-white">
-                Clique ou arraste o <span className="text-amber-400">arquivo de monitorias</span> aqui
+                Clique ou arraste o <span className="text-amber-500">arquivo de monitorias</span> aqui
               </p>
               <p className="text-[11px] text-zinc-500 mt-1">
                 Suporta formatos .xlsx, .xls e .csv
@@ -1096,7 +1090,7 @@ export const ImportPage = () => {
               <div className="flex items-center gap-4">
                 <div className="text-right">
                   <p className="text-[10px] text-zinc-500 font-semibold uppercase">Analistas Cadastrados</p>
-                  <p className="text-lg font-bold text-amber-400">{uniqueMonAnalystsCount} Analistas</p>
+                  <p className="text-lg font-bold text-amber-500">{uniqueMonAnalystsCount} Analistas</p>
                 </div>
 
                 {data.length > 0 && (

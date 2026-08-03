@@ -1,13 +1,30 @@
 @import "tailwindcss";
 
+@theme {
+  --color-amber-400: #FFFF00;
+  --color-amber-500: #FFFF00;
+  --color-amber-600: #e6e600;
+  --color-amber-700: #cccc00;
+  --color-amber-800: #b3b300;
+  --color-amber-900: #666600;
+  --color-amber-950: #333300;
+}
+
 @layer base {
   :root {
     color-scheme: dark;
   }
+  html, body, #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
   body {
     background-color: #000000;
     color: #f4f4f5;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    font-family: 'Montserrat', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   }
 }
 

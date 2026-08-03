@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X, AlertTriangle, CheckCircle, Info, HelpCircle } from 'lucide-react';
 
 interface CustomModalProps {
@@ -22,21 +22,32 @@ export const CustomModal: React.FC<CustomModalProps> = ({
   confirmText = 'Confirmar',
   cancelText = 'Cancelar',
 }) => {
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const getIcon = () => {
     switch (type) {
       case 'confirm':
-        return <HelpCircle className="text-amber-400" size={28} />;
+        return <HelpCircle className="text-[#FFFF00]" size={28} />;
       case 'error':
         return <AlertTriangle className="text-red-400" size={28} />;
       case 'success':
         return <CheckCircle className="text-emerald-400" size={28} />;
       case 'alert':
-        return <AlertTriangle className="text-amber-400" size={28} />;
+        return <AlertTriangle className="text-[#FFFF00]" size={28} />;
       case 'info':
       default:
-        return <Info className="text-blue-400" size={28} />;
+        return <Info className="text-[#FFFF00]" size={28} />;
     }
   };
 
@@ -51,7 +62,7 @@ export const CustomModal: React.FC<CustomModalProps> = ({
             <div>
               <h3 className="text-base font-bold text-white leading-tight">{title}</h3>
               {type === 'confirm' && (
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-amber-400">
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-[#FFFF00]">
                   Confirmação
                 </span>
               )}
@@ -85,7 +96,7 @@ export const CustomModal: React.FC<CustomModalProps> = ({
                   if (onConfirm) onConfirm();
                   onClose();
                 }}
-                className="px-4 py-2 text-xs font-bold text-zinc-950 bg-amber-400 rounded-md hover:bg-amber-300 active:scale-95 transition-all shadow-md cursor-pointer"
+                className="px-4 py-2 text-xs font-bold text-black bg-[#FFFF00] rounded-md hover:bg-[#e6e600] active:scale-95 transition-all shadow-md cursor-pointer"
               >
                 {confirmText}
               </button>
@@ -93,7 +104,7 @@ export const CustomModal: React.FC<CustomModalProps> = ({
           ) : (
             <button
               onClick={onClose}
-              className="px-5 py-2 text-xs font-bold text-zinc-950 bg-amber-400 rounded-md hover:bg-amber-300 active:scale-95 transition-all shadow-md cursor-pointer"
+              className="px-5 py-2 text-xs font-bold text-black bg-[#FFFF00] rounded-md hover:bg-[#e6e600] active:scale-95 transition-all shadow-md cursor-pointer"
             >
               Entendido
             </button>
