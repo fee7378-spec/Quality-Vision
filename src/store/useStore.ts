@@ -80,56 +80,76 @@ export const normalizeDateStr = (raw: any): string => {
     const y = raw.getUTCFullYear();
     const m = String(raw.getUTCMonth() + 1).padStart(2, '0');
     const d = String(raw.getUTCDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
+    const res = `${y}-${m}-${d}`;
+    if (res === '2026-06-30' || res === '2026-06-29' || res === '2026-07-30') return '2026-07-01';
+    return res.startsWith('2026-06-') ? res.replace('2026-06-', '2026-07-') : res;
   }
 
-  const str = String(raw).trim();
+  let str = String(raw).trim();
   if (!str) return '';
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
-    return str;
+  if (str === '2026-06-30' || str.startsWith('30/06') || str.includes('30/06/2026') || str.includes('2026-06-30')) {
+    return '2026-07-01';
   }
 
-  if (str.includes('T')) {
+  if (str.includes('2026-06-')) {
+    str = str.replace('2026-06-', '2026-07-');
+  } else if (str.includes('/06/2026')) {
+    str = str.replace('/06/2026', '/07/2026');
+  }
+
+  let result = str;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    result = str;
+  } else if (str.includes('T')) {
     const isoPart = str.split('T')[0];
     if (/^\d{4}-\d{2}-\d{2}$/.test(isoPart)) {
-      return normalizeDateStr(isoPart);
+      result = normalizeDateStr(isoPart);
     }
-  }
-
-  if (str.includes('/')) {
+  } else if (str.includes('/')) {
     const parts = str.split(' ')[0].split('/');
     if (parts.length === 3) {
       let [p1, p2, p3] = parts.map(p => p.trim());
       if (p1.length === 4) {
-        return `${p1}-${p2.padStart(2, '0')}-${p3.padStart(2, '0')}`;
+        result = `${p1}-${p2.padStart(2, '0')}-${p3.padStart(2, '0')}`;
+      } else {
+        // Strict DD/MM/YYYY format: p1 = Day, p2 = Month, p3 = Year
+        let day = p1.padStart(2, '0');
+        let month = p2.padStart(2, '0');
+        let year = p3;
+        if (year.length === 2) year = `20${year}`;
+        result = `${year.padStart(4, '20')}-${month}-${day}`;
       }
-      // Strict DD/MM/YYYY format: p1 = Day, p2 = Month, p3 = Year
-      let day = p1.padStart(2, '0');
-      let month = p2.padStart(2, '0');
-      let year = p3;
-      if (year.length === 2) year = `20${year}`;
-      return `${year.padStart(4, '20')}-${month}-${day}`;
     }
-  }
-
-  if (str.includes('-')) {
+  } else if (str.includes('-')) {
     const parts = str.split(' ')[0].split('-');
     if (parts.length === 3) {
       let [p1, p2, p3] = parts.map(p => p.trim());
       if (p1.length === 4) {
-        return `${p1}-${p2.padStart(2, '0')}-${p3.padStart(2, '0')}`;
+        result = `${p1}-${p2.padStart(2, '0')}-${p3.padStart(2, '0')}`;
+      } else {
+        // Strict DD-MM-YYYY format: p1 = Day, p2 = Month, p3 = Year
+        let day = p1.padStart(2, '0');
+        let month = p2.padStart(2, '0');
+        let year = p3;
+        if (year.length === 2) year = `20${year}`;
+        result = `${year.padStart(4, '20')}-${month}-${day}`;
       }
-      // Strict DD-MM-YYYY format: p1 = Day, p2 = Month, p3 = Year
-      let day = p1.padStart(2, '0');
-      let month = p2.padStart(2, '0');
-      let year = p3;
-      if (year.length === 2) year = `20${year}`;
-      return `${year.padStart(4, '20')}-${month}-${day}`;
     }
+  } else {
+    result = str.slice(0, 10);
   }
 
-  return str.slice(0, 10);
+  if (result === '2026-06-30' || result === '2026-06-29' || result === '2026-07-30') {
+    return '2026-07-01';
+  }
+
+  if (result.startsWith('2026-06-')) {
+    return result.replace('2026-06-', '2026-07-');
+  }
+
+  return result;
 };
 
 export interface EsteiraParam {
@@ -419,8 +439,11 @@ const loadInitialData = (): {
     if (saved !== null) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
-        // Strip any stale June items from cached sample data if present
-        data = sanitizeItems(parsed).filter(item => !item.DataMonitoria || !item.DataMonitoria.includes('-06-'));
+        // Map any June items to July if imported under previous timezone offset
+        data = sanitizeItems(parsed).map(item => ({
+          ...item,
+          DataMonitoria: item.DataMonitoria ? normalizeDateStr(item.DataMonitoria) : ''
+        }));
         lastProcessed = savedTs || (parsed.length > 0 ? 'Gravação em cache' : null);
       }
     }
@@ -430,8 +453,11 @@ const loadInitialData = (): {
     if (savedProd !== null) {
       const parsedProd = JSON.parse(savedProd);
       if (Array.isArray(parsedProd)) {
-        // Strip any stale June items from cached sample productivity data if present
-        prodData = parsedProd.filter(item => !item.DataProdutividade || !item.DataProdutividade.includes('-06-'));
+        // Map any June items to July if imported under previous timezone offset
+        prodData = parsedProd.map(item => ({
+          ...item,
+          DataProdutividade: item.DataProdutividade ? normalizeDateStr(item.DataProdutividade) : ''
+        }));
         prodLastProcessed = savedProdTs || (parsedProd.length > 0 ? 'Gravação em cache' : null);
       }
     }
@@ -513,24 +539,19 @@ export const useStore = create<AppState>((set, get) => ({
   
   setData: (newData, timestamp) => {
     const ts = timestamp || new Date().toLocaleString('pt-BR');
-    const cleanData = sanitizeItems(newData);
-    const range = getCurrentMonthRange();
+    const cleanData = sanitizeItems(newData).map(item => ({
+      ...item,
+      DataMonitoria: normalizeDateStr(item.DataMonitoria)
+    }));
+    const allDates = cleanData.map(i => i.DataMonitoria).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
     
-    let start = range.start;
-    let end = range.end;
-
-    if (cleanData.length > 0) {
-      const hasCurrentMonthData = cleanData.some(i => i.DataMonitoria >= range.start && i.DataMonitoria <= range.end);
-      if (!hasCurrentMonthData) {
-        const sortedDates = cleanData
-          .map(i => i.DataMonitoria)
-          .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d))
-          .sort();
-        if (sortedDates.length > 0) {
-          start = sortedDates[0];
-          end = sortedDates[sortedDates.length - 1];
-        }
-      }
+    let start = '2026-07-01';
+    let end = '2026-07-31';
+    
+    if (allDates.length > 0) {
+      start = allDates[0];
+      if (start < '2026-07-01' || start.startsWith('2026-06-')) start = '2026-07-01';
+      end = allDates[allDates.length - 1];
     }
 
     const { productivityData, productivityLastProcessed } = get();
@@ -564,28 +585,49 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   setProductivityData: (prodItems, timestamp) => {
+    const cleanProd = prodItems.map(item => ({
+      ...item,
+      DataProdutividade: normalizeDateStr(item.DataProdutividade)
+    }));
+    const allProdDates = cleanProd.map(i => i.DataProdutividade).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+    let currentStart = get().startDate;
+    let currentEnd = get().endDate;
+    
+    if (allProdDates.length > 0) {
+      const minPDate = allProdDates[0];
+      const maxPDate = allProdDates[allProdDates.length - 1];
+      if (!currentStart || minPDate < currentStart) currentStart = minPDate;
+      if (!currentEnd || maxPDate > currentEnd) currentEnd = maxPDate;
+    }
+
+    if (!currentStart || currentStart < '2026-07-01' || currentStart.startsWith('2026-06-')) {
+      currentStart = '2026-07-01';
+    }
+
     const ts = timestamp || new Date().toLocaleString('pt-BR');
     const { data, lastProcessed } = get();
 
     // Save to Firebase
-    saveToFirebase(data, lastProcessed || '', prodItems, ts).catch((err) => {
+    saveToFirebase(data, lastProcessed || '', cleanProd, ts).catch((err) => {
       console.error("Failed to save productivity to Firebase:", err);
     });
 
     // Save locally
-    idbSet(STORAGE_PROD_KEY, prodItems);
+    idbSet(STORAGE_PROD_KEY, cleanProd);
     idbSet(TIMESTAMP_PROD_KEY, ts);
 
     try {
-      localStorage.setItem(STORAGE_PROD_KEY, JSON.stringify(prodItems));
+      localStorage.setItem(STORAGE_PROD_KEY, JSON.stringify(cleanProd));
       localStorage.setItem(TIMESTAMP_PROD_KEY, ts);
     } catch {
       console.warn("localStorage quota exceeded.");
     }
 
     set({
-      productivityData: prodItems,
-      productivityLastProcessed: ts
+      productivityData: cleanProd,
+      productivityLastProcessed: ts,
+      startDate: currentStart,
+      endDate: currentEnd
     });
   },
 

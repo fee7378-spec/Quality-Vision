@@ -13,7 +13,6 @@ import {
   formatSecondsToHHMMSS, 
   parseHHMMSSToSeconds 
 } from '../store/useStore';
-import { ParametrosPage } from './ParametrosPage';
 
 export const CapacidadePage: React.FC = () => {
   const { 
@@ -173,38 +172,7 @@ export const CapacidadePage: React.FC = () => {
 
   return (
     <div className="w-full p-4 sm:p-6 md:p-8 bg-black text-zinc-100 space-y-8">
-      {/* Navigation Tabs */}
-      <div className="flex items-center justify-end border-b border-zinc-800 pb-4">
-        {/* Tab Selector */}
-        <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 p-1.5 rounded-lg">
-          <button
-            onClick={() => setActiveTab('projecao')}
-            className={`px-4 py-2 rounded-md text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              activeTab === 'projecao' 
-                ? 'bg-[#FFFF00] text-black shadow-md shadow-[#FFFF00]/20' 
-                : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            <TrendingUp size={15} />
-            Capacity & Projection
-          </button>
-          <button
-            onClick={() => setActiveTab('parametros')}
-            className={`px-4 py-2 rounded-md text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              activeTab === 'parametros' 
-                ? 'bg-[#FFFF00] text-black shadow-md shadow-[#FFFF00]/20' 
-                : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            <Settings size={15} />
-            Goals & Parameters
-          </button>
-        </div>
-      </div>
-
-      {activeTab === 'projecao' ? (
-        <>
-          {/* KPI Cards Row */}
+      {/* KPI Cards Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {/* KPI 1: Volume Realizado x MoM */}
             <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-md hover:border-amber-600/40 transition-colors space-y-2">
@@ -333,74 +301,6 @@ export const CapacidadePage: React.FC = () => {
               </ResponsiveContainer>
             </div>
           </div>
-        </>
-      ) : (
-        /* TAB 2: Parâmetros de Metas e TMO por Esteira */
-        <ParametrosPage />
-      )}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden shadow-xl space-y-3 p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-white font-bold text-base flex items-center gap-2 uppercase">
-                  <Users size={18} className="text-amber-500" />
-                  CAPACIDADE E PRODUÇÃO POR ESTEIRA
-                </h3>
-                <p className="text-[11px] text-zinc-500/80 mt-0.5">Calculado de acordo com a meta cadastrada vs dias úteis parametrizados</p>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto border border-zinc-800 rounded-md">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-900 text-white font-bold border-b border-zinc-700">
-                    <th className="py-3 px-4 font-extrabold uppercase tracking-wider">Esteiras</th>
-                    <th className="py-3 px-4 font-extrabold uppercase tracking-wider text-center">Contratado</th>
-                    <th className="py-3 px-4 font-extrabold uppercase tracking-wider text-center">TMO (HH:MM:SS)</th>
-                    <th className="py-3 px-4 font-extrabold uppercase tracking-wider text-center">Capacidade Dia</th>
-                    <th className="py-3 px-4 font-extrabold uppercase tracking-wider text-center">Produzido Fila</th>
-                    <th className="py-3 px-4 font-extrabold uppercase tracking-wider text-center">Produzido Prioridade</th>
-                    <th className="py-3 px-4 font-extrabold uppercase tracking-wider text-center">Total Produzido</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-800/80">
-                  {capacityTableData.rows.map((row, idx) => (
-                    <tr 
-                      key={row.esteira} 
-                      className={idx % 2 === 0 ? 'bg-zinc-900/60 hover:bg-zinc-800/50' : 'bg-black/40 hover:bg-zinc-800/50'}
-                    >
-                      <td className="py-2.5 px-4 font-bold text-white max-w-[220px] truncate">{row.esteira}</td>
-                      <td className="py-2.5 px-4 text-center font-semibold text-zinc-300">{row.contratados}</td>
-                      <td className="py-2.5 px-4 text-center font-mono text-amber-500 font-bold">{row.tmoFormatted}</td>
-                      <td className="py-2.5 px-4 text-center font-bold text-zinc-200">{row.capDia.toLocaleString('pt-BR')}</td>
-                      <td className="py-2.5 px-4 text-center font-semibold text-zinc-300">{row.prodFila.toLocaleString('pt-BR')}</td>
-                      <td className="py-2.5 px-4 text-center font-semibold text-amber-500">{row.prodPrio.toLocaleString('pt-BR')}</td>
-                      <td className={`py-2.5 px-4 text-center font-bold text-sm ${
-                        row.isAlert 
-                          ? 'bg-red-950/70 text-red-400 border border-red-800/60' 
-                          : 'bg-emerald-950/40 text-emerald-400'
-                      }`}>
-                        {row.totalProd.toLocaleString('pt-BR')}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-slate-950 text-white font-extrabold border-t-2 border-zinc-700 text-xs">
-                    <td className="py-3.5 px-4 font-black text-amber-500 uppercase tracking-wider">Total</td>
-                    <td className="py-3.5 px-4 text-center text-white">{capacityTableData.totals.contratados}</td>
-                    <td className="py-3.5 px-4 text-center text-zinc-500">-</td>
-                    <td className="py-3.5 px-4 text-center text-amber-500 font-extrabold">{capacityTableData.totals.capDia.toLocaleString('pt-BR')}</td>
-                    <td className="py-3.5 px-4 text-center text-zinc-300">{capacityTableData.totals.prodFila.toLocaleString('pt-BR')}</td>
-                    <td className="py-3.5 px-4 text-center text-amber-500">{capacityTableData.totals.prodPrio.toLocaleString('pt-BR')}</td>
-                    <td className="py-3.5 px-4 text-center text-white font-black text-sm bg-zinc-900">
-                      {capacityTableData.totals.totalProd.toLocaleString('pt-BR')}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
-
           {/* SECTION 2: Comparação Volume Mês a Mês e Provisão */}
     </div>
   );
