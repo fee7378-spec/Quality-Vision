@@ -67,10 +67,17 @@ export interface ProductivityColumnMapping {
 }
 
 export const getCurrentMonthRange = () => {
-  return {
-    start: '2026-07-01',
-    end: '2026-07-31'
-  };
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const mStr = String(month + 1).padStart(2, '0');
+  const start = `${year}-${mStr}-01`;
+  
+  const lastDayObj = new Date(year, month + 1, 0);
+  const endDay = String(lastDayObj.getDate()).padStart(2, '0');
+  const end = `${year}-${mStr}-${endDay}`;
+  
+  return { start, end };
 };
 
 export const normalizeDateStr = (raw: any): string => {
@@ -80,76 +87,53 @@ export const normalizeDateStr = (raw: any): string => {
     const y = raw.getUTCFullYear();
     const m = String(raw.getUTCMonth() + 1).padStart(2, '0');
     const d = String(raw.getUTCDate()).padStart(2, '0');
-    const res = `${y}-${m}-${d}`;
-    if (res === '2026-06-30' || res === '2026-06-29' || res === '2026-07-30') return '2026-07-01';
-    return res.startsWith('2026-06-') ? res.replace('2026-06-', '2026-07-') : res;
+    return `${y}-${m}-${d}`;
   }
 
   let str = String(raw).trim();
   if (!str) return '';
 
-  if (str === '2026-06-30' || str.startsWith('30/06') || str.includes('30/06/2026') || str.includes('2026-06-30')) {
-    return '2026-07-01';
-  }
-
-  if (str.includes('2026-06-')) {
-    str = str.replace('2026-06-', '2026-07-');
-  } else if (str.includes('/06/2026')) {
-    str = str.replace('/06/2026', '/07/2026');
-  }
-
-  let result = str;
-
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
-    result = str;
-  } else if (str.includes('T')) {
+    return str;
+  }
+  if (str.includes('T')) {
     const isoPart = str.split('T')[0];
     if (/^\d{4}-\d{2}-\d{2}$/.test(isoPart)) {
-      result = normalizeDateStr(isoPart);
+      return isoPart;
     }
-  } else if (str.includes('/')) {
+  }
+  if (str.includes('/')) {
     const parts = str.split(' ')[0].split('/');
     if (parts.length === 3) {
       let [p1, p2, p3] = parts.map(p => p.trim());
       if (p1.length === 4) {
-        result = `${p1}-${p2.padStart(2, '0')}-${p3.padStart(2, '0')}`;
-      } else {
-        // Strict DD/MM/YYYY format: p1 = Day, p2 = Month, p3 = Year
-        let day = p1.padStart(2, '0');
-        let month = p2.padStart(2, '0');
-        let year = p3;
-        if (year.length === 2) year = `20${year}`;
-        result = `${year.padStart(4, '20')}-${month}-${day}`;
+        return `${p1}-${p2.padStart(2, '0')}-${p3.padStart(2, '0')}`;
       }
+      // Strict DD/MM/YYYY format: p1 = Day, p2 = Month, p3 = Year
+      let day = p1.padStart(2, '0');
+      let month = p2.padStart(2, '0');
+      let year = p3;
+      if (year.length === 2) year = `20${year}`;
+      return `${year.padStart(4, '20')}-${month}-${day}`;
     }
-  } else if (str.includes('-')) {
+  }
+  if (str.includes('-')) {
     const parts = str.split(' ')[0].split('-');
     if (parts.length === 3) {
       let [p1, p2, p3] = parts.map(p => p.trim());
       if (p1.length === 4) {
-        result = `${p1}-${p2.padStart(2, '0')}-${p3.padStart(2, '0')}`;
-      } else {
-        // Strict DD-MM-YYYY format: p1 = Day, p2 = Month, p3 = Year
-        let day = p1.padStart(2, '0');
-        let month = p2.padStart(2, '0');
-        let year = p3;
-        if (year.length === 2) year = `20${year}`;
-        result = `${year.padStart(4, '20')}-${month}-${day}`;
+        return `${p1}-${p2.padStart(2, '0')}-${p3.padStart(2, '0')}`;
       }
+      // Strict DD-MM-YYYY format: p1 = Day, p2 = Month, p3 = Year
+      let day = p1.padStart(2, '0');
+      let month = p2.padStart(2, '0');
+      let year = p3;
+      if (year.length === 2) year = `20${year}`;
+      return `${year.padStart(4, '20')}-${month}-${day}`;
     }
-  } else {
-    result = str.slice(0, 10);
   }
 
-  if (result === '2026-06-30' || result === '2026-06-29' || result === '2026-07-30') {
-    return '2026-07-01';
-  }
-
-  if (result.startsWith('2026-06-')) {
-    return result.replace('2026-06-', '2026-07-');
-  }
-
-  return result;
+  return str.slice(0, 10);
 };
 
 export interface EsteiraParam {
@@ -477,14 +461,16 @@ const loadInitialData = (): {
 
 const initialStored = loadInitialData();
 
+const currentMonthRange = getCurrentMonthRange();
+
 export const useStore = create<AppState>((set, get) => ({
   data: initialStored.data,
   lastProcessed: initialStored.lastProcessed,
   productivityData: initialStored.prodData,
   productivityLastProcessed: initialStored.prodLastProcessed,
   esteiraMappings: initialStored.esteiraMappings,
-  startDate: initialMonthRange.start,
-  endDate: initialMonthRange.end,
+  startDate: currentMonthRange.start,
+  endDate: currentMonthRange.end,
   selectedTag: 'TODAS',
   selectedMacro: 'TODOS',
   selectedEsteira: 'TODAS',
@@ -545,12 +531,12 @@ export const useStore = create<AppState>((set, get) => ({
     }));
     const allDates = cleanData.map(i => i.DataMonitoria).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
     
-    let start = '2026-07-01';
-    let end = '2026-07-31';
+    const fallbackRange = getCurrentMonthRange();
+    let start = fallbackRange.start;
+    let end = fallbackRange.end;
     
     if (allDates.length > 0) {
       start = allDates[0];
-      if (start < '2026-07-01' || start.startsWith('2026-06-')) start = '2026-07-01';
       end = allDates[allDates.length - 1];
     }
 
@@ -600,8 +586,8 @@ export const useStore = create<AppState>((set, get) => ({
       if (!currentEnd || maxPDate > currentEnd) currentEnd = maxPDate;
     }
 
-    if (!currentStart || currentStart < '2026-07-01' || currentStart.startsWith('2026-06-')) {
-      currentStart = '2026-07-01';
+    if (!currentStart) {
+      currentStart = getCurrentMonthRange().start;
     }
 
     const ts = timestamp || new Date().toLocaleString('pt-BR');
