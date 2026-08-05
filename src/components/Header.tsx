@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { RefreshCw, Search, X } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-import { useStore } from '../store/useStore';
+import { useStore, matchesFilter } from '../store/useStore';
+import { MultiSelectDropdown } from './MultiSelectDropdown';
 
 export const Header = () => {
   const location = useLocation();
@@ -32,7 +33,7 @@ export const Header = () => {
       case '/':
         return (
           <>
-            DASHBOARD <span className="text-[#FFFF00] font-extrabold">OVERVIEW</span>
+            DASHBOARD <span className="text-[#001E62] font-extrabold">OVERVIEW</span>
           </>
         );
       case '/operacao':
@@ -43,12 +44,16 @@ export const Header = () => {
         return 'OPERACIONAL QUALITY';
       case '/analistas':
         return 'ANALYSTS VIEW';
+      case '/metricas':
+        return 'MÉTRICAS DAS ESTEIRAS';
+      case '/history':
+        return 'HISTÓRICO DE ERROS';
       case '/import':
         return 'DATA HUB';
       default:
         return (
           <>
-            DASHBOARD <span className="text-[#FFFF00] font-extrabold">OVERVIEW</span>
+            DASHBOARD <span className="text-[#001E62] font-extrabold">OVERVIEW</span>
           </>
         );
     }
@@ -74,37 +79,26 @@ export const Header = () => {
 
   // Interdependent (Cascading) dropdown filters
   const availableFormas = useMemo(() => {
-    let items = data;
-    if (selectedEsteira !== 'TODAS') {
-      items = items.filter(i => i.Esteira === selectedEsteira);
-    }
+    let items = data.filter(i => matchesFilter(selectedEsteira, i.Esteira, 'TODAS'));
     const setF = new Set<string>(items.map(i => i.FormaMonitoria).filter(Boolean));
     return ['TODAS', ...Array.from(setF).sort()];
   }, [data, selectedEsteira]);
 
   const availableMacros = useMemo(() => {
-    let items = data;
-    if (selectedEsteira !== 'TODAS') {
-      items = items.filter(i => i.Esteira === selectedEsteira);
-    }
-    if (selectedForma !== 'TODAS') {
-      items = items.filter(i => i.FormaMonitoria === selectedForma);
-    }
+    let items = data.filter(i => 
+      matchesFilter(selectedEsteira, i.Esteira, 'TODAS') && 
+      matchesFilter(selectedForma, i.FormaMonitoria, 'TODAS')
+    );
     const setM = new Set<string>(items.map(i => i.MotivoMacro).filter(Boolean));
     return ['TODOS', ...Array.from(setM).sort()];
   }, [data, selectedEsteira, selectedForma]);
 
   const availableTags = useMemo(() => {
-    let items = data;
-    if (selectedEsteira !== 'TODAS') {
-      items = items.filter(i => i.Esteira === selectedEsteira);
-    }
-    if (selectedForma !== 'TODAS') {
-      items = items.filter(i => i.FormaMonitoria === selectedForma);
-    }
-    if (selectedMacro !== 'TODOS') {
-      items = items.filter(i => i.MotivoMacro === selectedMacro);
-    }
+    let items = data.filter(i => 
+      matchesFilter(selectedEsteira, i.Esteira, 'TODAS') && 
+      matchesFilter(selectedForma, i.FormaMonitoria, 'TODAS') &&
+      matchesFilter(selectedMacro, i.MotivoMacro, 'TODOS')
+    );
     const setT = new Set<string>(items.map(i => i.Tag).filter(Boolean));
     return ['TODAS', ...Array.from(setT).sort()];
   }, [data, selectedEsteira, selectedForma, selectedMacro]);
@@ -113,38 +107,38 @@ export const Header = () => {
   const showFilters = path !== '/import';
 
   // Specific visibility per page
-  const showPeriodFilter = path === '/' || path === '/operacao' || path === '/capacidade' || path === '/parametros' || path === '/analise';
-  const showFormaFilter = path === '/' || path === '/analise';
-  const showEsteiraFilter = path === '/' || path === '/operacao' || path === '/capacidade' || path === '/parametros' || path === '/analise' || path === '/analistas';
-  const showSearchAnalyst = path === '/analistas';
-  const showSupervisorFilter = path === '/' || path === '/analistas' || path === '/analise';
+  const showPeriodFilter = path === '/' || path === '/operacao' || path === '/capacidade' || path === '/parametros' || path === '/analise' || path === '/analistas' || path === '/history';
+  const showFormaFilter = path === '/' || path === '/analise' || path === '/history';
+  const showEsteiraFilter = path === '/' || path === '/operacao' || path === '/capacidade' || path === '/parametros' || path === '/analise' || path === '/analistas' || path === '/history';
+  const showSearchAnalyst = path === '/analistas' || path === '/history';
+  const showSupervisorFilter = path === '/' || path === '/analistas' || path === '/analise' || path === '/history';
 
   return (
-    <header className="bg-zinc-950 border-b border-zinc-800 min-h-16 py-2 px-6 flex flex-wrap items-center justify-between gap-3 text-zinc-200 z-40">
+    <header className="bg-white border-b border-gray-200 min-h-16 py-2 px-6 flex flex-wrap items-center justify-between gap-3 text-gray-800 z-40">
       <div className="flex items-center gap-3">
-        <h1 className="text-xl sm:text-2xl font-black tracking-wider text-white uppercase whitespace-nowrap">
+        <h1 className="text-xl sm:text-2xl font-black tracking-wider text-brand-blue uppercase whitespace-nowrap">
           {getTitleNode()}
         </h1>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         {showFilters && (
-          <div className="flex flex-wrap items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-zinc-200">
-            {/* Search Input for Gestão de Analistas */}
+          <div className="flex flex-wrap items-center gap-2.5 bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs text-gray-800">
+            {/* Search Input for Gestão de Analistas / Histórico */}
             {showSearchAnalyst && (
               <div className="relative flex items-center">
-                <Search size={14} className="absolute left-2.5 text-zinc-400" />
+                <Search size={14} className="absolute left-2.5 text-gray-500" />
                 <input
                   type="text"
-                  placeholder="Pesquisar analista por nome ou código..."
+                  placeholder="Pesquisar por analista, código..."
                   value={analystSearchQuery}
                   onChange={(e) => setAnalystSearchQuery(e.target.value)}
-                  className="bg-black border border-zinc-800 rounded-md pl-8 pr-7 py-1 text-xs text-white outline-none focus:border-amber-600 w-64 md:w-80"
+                  className="bg-gray-50 border border-gray-200 rounded-md pl-8 pr-7 py-1 text-xs text-gray-900 outline-none focus:border-brand-blue-dark w-52 md:w-64"
                 />
                 {analystSearchQuery && (
                   <button 
                     onClick={() => setAnalystSearchQuery('')} 
-                    className="absolute right-2 text-zinc-400 hover:text-white"
+                    className="absolute right-2 text-gray-500 hover:text-gray-900"
                   >
                     <X size={13} />
                   </button>
@@ -153,81 +147,72 @@ export const Header = () => {
             )}
 
             {showSearchAnalyst && showEsteiraFilter && (
-              <div className="h-4 w-px bg-zinc-800 mx-1" />
+              <div className="h-4 w-px bg-gray-100 mx-1" />
             )}
 
             {/* Period Filter */}
             {showPeriodFilter && (
               <div className="flex items-center gap-1.5">
-                <span className="text-zinc-400 font-semibold text-[11px] uppercase">Período:</span>
+                <span className="text-gray-500 font-semibold text-[11px] uppercase">Período:</span>
                 <input 
                   type="date" 
                   value={startDate} 
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="bg-black border border-zinc-800 rounded-md px-2 py-1 text-xs text-white outline-none focus:border-amber-600"
+                  className="bg-gray-50 border border-gray-200 rounded-md px-2 py-1 text-xs text-gray-900 outline-none focus:border-[#001E62] transition-colors cursor-pointer"
                 />
-                <span className="text-zinc-500 text-[11px]">até</span>
+                <span className="text-gray-400 text-[11px]">até</span>
                 <input 
                   type="date" 
                   value={endDate} 
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="bg-black border border-zinc-800 rounded-md px-2 py-1 text-xs text-white outline-none focus:border-amber-600"
+                  className="bg-gray-50 border border-gray-200 rounded-md px-2 py-1 text-xs text-gray-900 outline-none focus:border-[#001E62] transition-colors cursor-pointer"
                 />
               </div>
             )}
 
             {showPeriodFilter && (showFormaFilter || showEsteiraFilter) && (
-              <div className="h-4 w-px bg-zinc-800 hidden sm:block mx-1" />
+              <div className="h-4 w-px bg-gray-100 hidden sm:block mx-1" />
             )}
 
             {/* Forma Filter */}
             {showFormaFilter && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-zinc-400 font-semibold text-[11px] uppercase">Forma:</span>
-                <select
-                  value={selectedForma}
-                  onChange={(e) => setSelectedForma(e.target.value)}
-                  className="bg-black border border-zinc-800 rounded-md px-2 py-1 text-xs text-white outline-none focus:border-amber-600 cursor-pointer"
-                >
-                  {availableFormas.map(f => <option key={f} value={f}>{f}</option>)}
-                </select>
-              </div>
+              <MultiSelectDropdown
+                label="Forma"
+                options={availableFormas}
+                selected={selectedForma}
+                onChange={setSelectedForma}
+                defaultOption="TODAS"
+              />
             )}
 
             {showFormaFilter && showEsteiraFilter && (
-              <div className="h-4 w-px bg-zinc-800 hidden md:block mx-1" />
+              <div className="h-4 w-px bg-gray-100 hidden md:block mx-1" />
             )}
 
             {/* Esteira Filter */}
             {showEsteiraFilter && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-zinc-400 font-semibold text-[11px] uppercase">Esteira:</span>
-                <select
-                  value={selectedEsteira}
-                  onChange={(e) => setSelectedEsteira(e.target.value)}
-                  className="bg-black border border-zinc-800 rounded-md px-2 py-1 text-xs text-white outline-none focus:border-amber-600 cursor-pointer max-w-[160px] truncate"
-                >
-                  {availableEsteiras.map(e => <option key={e} value={e}>{e}</option>)}
-                </select>
-              </div>
+              <MultiSelectDropdown
+                label="Esteira"
+                options={availableEsteiras}
+                selected={selectedEsteira}
+                onChange={setSelectedEsteira}
+                defaultOption="TODAS"
+              />
             )}
 
             {showEsteiraFilter && showSupervisorFilter && (
-              <div className="h-4 w-px bg-zinc-800 hidden md:block mx-1" />
+              <div className="h-4 w-px bg-gray-100 hidden md:block mx-1" />
             )}
 
             {/* Supervisor Filter */}
             {showSupervisorFilter && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-zinc-400 font-semibold text-[11px] uppercase">Supervisor:</span>
-                <select
-                  value={selectedSupervisor}
-                  onChange={(e) => setSelectedSupervisor(e.target.value)}
-                  className="bg-black border border-zinc-800 rounded-md px-2 py-1 text-xs text-white outline-none focus:border-amber-600 cursor-pointer max-w-[170px] truncate"
-                >
-                  {availableSupervisors.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
+              <MultiSelectDropdown
+                label="Supervisor"
+                options={availableSupervisors}
+                selected={selectedSupervisor}
+                onChange={setSelectedSupervisor}
+                defaultOption="TODOS"
+              />
             )}
           </div>
         )}
@@ -235,7 +220,7 @@ export const Header = () => {
         {/* Refresh / Reset Button */}
         <button
           onClick={resetToCurrentMonth}
-          className="flex items-center justify-center bg-[#FFFF00] text-black p-2 rounded-md hover:bg-[#e6e600] active:scale-95 transition-all cursor-pointer shadow-sm shadow-[#FFFF00]/20 font-bold"
+          className="flex items-center justify-center bg-white text-brand-blue border border-brand-blue p-2 rounded-md hover:bg-brand-blue hover:text-white active:scale-95 transition-all cursor-pointer shadow-sm shadow-[#001E62]/20 font-bold"
           title="Resetar filtros e voltar para o Mês Atual"
         >
           <RefreshCw size={15} className="stroke-[2.5]" />

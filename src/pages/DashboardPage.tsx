@@ -1,12 +1,13 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, PieChart, Pie, Cell, Legend, LabelList 
 } from 'recharts';
-import { AlertCircle, CheckCircle2, Award, Briefcase, BarChart3, PieChart as PieIcon, Filter, Calendar } from 'lucide-react';
-import { useStore } from '../store/useStore';
+import { AlertCircle, CheckCircle2, Award, Briefcase, BarChart3, PieChart as PieIcon, Filter, Calendar, Eye, Target } from 'lucide-react';
+import { useStore, matchesFilter } from '../store/useStore';
+import { AnalystModal } from '../components/AnalystModal';
 
-const MACRO_COLORS = ['#FFFF00', '#FFFF00', '#10b981', '#a855f7', '#06b6d4', '#f97316', '#ec4899', '#FFFF00'];
+const MACRO_COLORS = ['#001E62', '#001E62', '#10b981', '#a855f7', '#06b6d4', '#f97316', '#ec4899', '#001E62'];
 
 const CustomXAxisTick = (props: any) => {
   const { x, y, payload } = props;
@@ -51,6 +52,8 @@ export const DashboardPage = () => {
     selectedForma
   } = useStore();
 
+  const [selectedAnalystForModal, setSelectedAnalystForModal] = useState<{ code: string | null; name: string | null } | null>(null);
+
   const hasActiveFilters = useMemo(() => {
     return selectedEsteira !== 'TODAS' || selectedForma !== 'TODAS' || selectedTag !== 'TODAS' || selectedMacro !== 'TODOS';
   }, [selectedEsteira, selectedForma, selectedTag, selectedMacro]);
@@ -67,10 +70,10 @@ export const DashboardPage = () => {
   // 2. Filtered Data (Date + Forma, Esteira, Tag, Macro) for specific dashboard sections
   const filteredData = useMemo(() => {
     return baseDateData.filter(item => {
-      if (selectedEsteira !== 'TODAS' && item.Esteira !== selectedEsteira) return false;
-      if (selectedForma !== 'TODAS' && item.FormaMonitoria !== selectedForma) return false;
-      if (selectedTag !== 'TODAS' && item.Tag !== selectedTag) return false;
-      if (selectedMacro !== 'TODOS' && item.MotivoMacro !== selectedMacro) return false;
+      if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
+      if (!matchesFilter(selectedForma, item.FormaMonitoria, 'TODAS')) return false;
+      if (!matchesFilter(selectedTag, item.Tag, 'TODAS')) return false;
+      if (!matchesFilter(selectedMacro, item.MotivoMacro, 'TODOS')) return false;
       return true;
     });
   }, [baseDateData, selectedEsteira, selectedForma, selectedTag, selectedMacro]);
@@ -80,8 +83,8 @@ export const DashboardPage = () => {
     return productivityData
       .filter(item => {
         if (startDate && item.DataProdutividade && item.DataProdutividade < startDate) return false;
-        if (endDate && item.DataProdutividade && item.DataProdutividade > endDate) return false;
-        if (selectedEsteira !== 'TODAS' && item.Esteira !== selectedEsteira) return false;
+        if (endDate && item.DataProdutividade && item.DataProdutividade < endDate) return false;
+        if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
         return true;
       })
       .reduce((sum, item) => sum + (Number(item.Quantidade) || 1), 0);
@@ -109,10 +112,10 @@ export const DashboardPage = () => {
   const qualidade = qualidadeNum.toFixed(1) + '%';
 
   const getQualityColor = (pct: number) => {
-    if (pct >= 97) return 'text-emerald-400';
-    if (pct >= 95) return 'text-amber-500';
-    if (pct >= 92) return 'text-orange-400';
-    return 'text-red-400';
+    if (pct >= 97) return 'text-emerald-600';
+    if (pct >= 95) return 'text-brand-blue';
+    if (pct >= 92) return 'text-orange-600';
+    return 'text-red-600';
   };
 
   // Identify recurrences based on the FULL monitora base (data)
@@ -270,131 +273,179 @@ export const DashboardPage = () => {
   }, [productivityData, startDate, endDate, selectedEsteira]);
 
   return (
-    <div className="w-full bg-black p-4 sm:p-6 md:p-8 space-y-8 text-zinc-100">
+    <div className="w-full bg-gray-50 p-4 sm:p-6 md:p-8 space-y-8 text-gray-900">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-md hover:border-amber-600/50 transition-colors">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">PRODUTIVIDADE</p>
-            <Briefcase size={18} className="text-amber-500" />
+        <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">PRODUTIVIDADE</p>
+            <div className="p-1.5 rounded-lg bg-gray-50 border border-gray-100">
+              <Briefcase size={18} className="text-[#001E62]" />
+            </div>
           </div>
-          <h3 className="text-3xl font-bold text-white">{totalProdutividade.toLocaleString('pt-BR')}</h3>
-          <p className="text-[10px] text-zinc-500/80 mt-1">Produção de atividades tratadas</p>
+          <div>
+            <h3 className="text-3xl font-black text-gray-900 tracking-tight">{totalProdutividade.toLocaleString('pt-BR')}</h3>
+          </div>
+          <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
+            <span className="text-gray-500 font-medium text-[11px]">Volume total no período</span>
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-[#001E62] font-bold text-[11px]">
+              <span>Itens Tratados</span>
+            </div>
+          </div>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-md hover:border-amber-600/50 transition-colors">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">MONITORIAS</p>
-            <BarChart3 size={18} className="text-amber-500" />
+        <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">MONITORIAS</p>
+            <div className="p-1.5 rounded-lg bg-gray-50 border border-gray-100">
+              <BarChart3 size={18} className="text-[#001E62]" />
+            </div>
           </div>
-          <h3 className="text-3xl font-bold text-white">{totalMonitorias}</h3>
-          <p className="text-[10px] text-zinc-500/80 mt-1">Total de monitorias no filtro</p>
+          <div>
+            <h3 className="text-3xl font-black text-gray-900 tracking-tight">{totalMonitorias}</h3>
+          </div>
+          <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
+            <span className="text-gray-500 font-medium text-[11px]">Amostragem auditada</span>
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-[#001E62] font-bold text-[11px]">
+              <span>Avaliações</span>
+            </div>
+          </div>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-md hover:border-amber-600/50 transition-colors">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">QUALIDADE</p>
-            <CheckCircle2 size={18} className={getQualityColor(qualidadeNum)} />
+        <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">QUALIDADE</p>
+            <div className="p-1.5 rounded-lg bg-gray-50 border border-gray-100">
+              <CheckCircle2 size={18} className={getQualityColor(qualidadeNum)} />
+            </div>
           </div>
-          <h3 className={`text-3xl font-bold ${getQualityColor(qualidadeNum)}`}>{qualidade}</h3>
-          <p className="text-[10px] text-zinc-500/80 mt-1">Qualidade operacional no filtro</p>
+          <div>
+            <h3 className={`text-3xl font-black tracking-tight ${getQualityColor(qualidadeNum)}`}>{qualidade}</h3>
+          </div>
+          <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
+            <span className="text-gray-500 font-medium text-[11px]">Meta: <strong className="text-gray-800 font-bold">95,0%</strong></span>
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[#001E62] font-bold text-[11px]">
+              <Target size={12} className="text-[#001E62]" />
+              <span>{((qualidadeNum / 95) * 100).toFixed(1)}% da Meta</span>
+            </div>
+          </div>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-md hover:border-amber-600/50 transition-colors">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">ERROS APONTADOS</p>
-            <AlertCircle size={18} className="text-red-400" />
+        <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">ERROS APONTADOS</p>
+            <div className="p-1.5 rounded-lg bg-red-50 border border-red-100">
+              <AlertCircle size={18} className="text-red-600" />
+            </div>
           </div>
-          <h3 className="text-3xl font-bold text-white">{totalErros}</h3>
-          <p className="text-[10px] text-zinc-500/80 mt-1">Monitorias com não conformidade</p>
+          <div>
+            <h3 className="text-3xl font-black text-gray-900 tracking-tight">{totalErros}</h3>
+          </div>
+          <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
+            <span className="text-gray-500 font-medium text-[11px]">Desvios em auditoria</span>
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-50 border border-red-200 text-red-700 font-bold text-[11px]">
+              <span>Não Conformidades</span>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* SECTION 3: Evolução Diária */}
-      <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-md space-y-4">
+      <div className="bg-white border border-gray-200 p-6 rounded-md space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-white font-bold text-base flex items-center gap-2 uppercase">
-              <Calendar size={18} className="text-amber-500" />
+            <h3 className="text-brand-blue font-bold text-base flex items-center gap-2 uppercase">
+              <Calendar size={18} className="text-brand-blue" />
               EVOLUÇÃO DA PRODUTIVIDADE DIÁRIA
             </h3>
-            <p className="text-[11px] text-zinc-500/80 mt-0.5">Distribuição do volume diário do período</p>
           </div>
-
         </div>
 
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={evolucaoDiaria} margin={{ top: 25, right: 25, left: -10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-              <XAxis dataKey="label" stroke="#71717a" tick={{ fontSize: 11 }} />
-              <YAxis stroke="#71717a" tick={{ fontSize: 11 }} />
-              <Tooltip contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '6px', color: '#fff', fontSize: '12px' }} />
-              <Line type="monotone" dataKey="volume" name="Itens Tratados" stroke="#FFFF00" strokeWidth={3} dot={{ fill: '#FFFF00', r: 5 }}>
-                <LabelList dataKey="volume" position="top" offset={10} fill="#FFFF00" fontSize={11} fontWeight="bold" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="label" stroke="#6b7280" tick={{ fontSize: 11 }} />
+              <YAxis stroke="#6b7280" tick={{ fontSize: 11 }} />
+              <Tooltip 
+                cursor={{ stroke: '#001E62', strokeDasharray: '3 3' }} 
+                contentStyle={{ backgroundColor: '#ffffff', borderColor: '#001E62', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', color: '#001E62', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }} 
+                itemStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
+                labelStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
+              />
+              <Line type="monotone" dataKey="volume" name="Itens Tratados" stroke="#001E62" strokeWidth={3} dot={{ fill: '#001E62', r: 5 }}>
+                <LabelList dataKey="volume" position="top" offset={10} fill="#001E62" fontSize={11} fontWeight="bold" />
               </Line>
             </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
+
       {/* Grid: Ranking de Reincidentes & Evolução de Erros */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
         {/* Ranking de Reincidentes (Filtered by Esteira/Tag/Macro) */}
-        <div className="lg:col-span-5 bg-zinc-900 border border-zinc-800 p-6 rounded-md flex flex-col h-[360px]">
+        <div className="lg:col-span-5 bg-white border border-gray-200 p-6 rounded-md flex flex-col h-[360px]">
           <div className="flex-shrink-0 mb-4">
-            <h3 className="text-white font-bold text-base flex items-center gap-2 uppercase">
-              <Award size={18} className="text-amber-500" />
+            <h3 className="text-brand-blue font-bold text-base flex items-center gap-2 uppercase">
+              <Award size={18} className="text-brand-blue" />
               RANKING REINCIDENTES
             </h3>
-            <p className="text-[11px] text-zinc-500/80 mt-0.5">Calculado pela repetição de tags por analista</p>
           </div>
 
           <div className="flex-1 overflow-y-auto space-y-2.5 pr-1.5 custom-scrollbar">
             {rankingReincidentes.length > 0 ? (
               rankingReincidentes.map((item, idx) => (
-                <div key={item.codigo + idx} className="bg-black border border-zinc-800 p-3 rounded-md flex items-center justify-between gap-3">
+                <div 
+                  key={item.codigo + idx} 
+                  onClick={() => setSelectedAnalystForModal({ code: item.codigo, name: item.nome })}
+                  className="bg-gray-50 border border-gray-200 hover:border-brand-blue/60 p-3 rounded-md flex items-center justify-between gap-3 cursor-pointer transition-all hover:bg-white group"
+                  title="Clique para abrir detalhes do analista"
+                >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-7 h-7 rounded-md bg-zinc-800 border border-zinc-700 flex items-center justify-center font-bold text-xs text-amber-500 flex-shrink-0">
+                    <div className="w-7 h-7 rounded-md bg-gray-100 border border-gray-300 group-hover:border-brand-blue flex items-center justify-center font-bold text-xs text-brand-blue flex-shrink-0">
                       #{idx + 1}
                     </div>
                     <div className="truncate">
-                      <p className="text-xs font-semibold text-white truncate">{item.nome}</p>
-                      <p className="text-[10px] text-amber-500/90 truncate mt-0.5">
+                      <p className="text-xs font-semibold text-gray-900 group-hover:text-brand-blue-light truncate flex items-center gap-1.5">
+                        {item.nome}
+                        <Eye size={12} className="opacity-0 group-hover:opacity-100 text-brand-blue-light transition-opacity" />
+                      </p>
+                      <p className="text-[10px] text-brand-blue/90 truncate mt-0.5">
                         Tag principal: <span className="font-semibold">{item.tagMaisErros}</span> ({item.topTagCount}x)
                       </p>
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <span className="bg-red-950/60 border border-red-800/80 text-red-400 px-2 py-0.5 rounded-md text-[11px] font-bold">
+                    <span className="bg-red-50 border border-red-300 text-red-700 px-2 py-0.5 rounded-md text-[11px] font-bold">
                       {item.reincidencias} reincidência(s)
                     </span>
-                    <p className="text-[10px] text-zinc-400 mt-1">
+                    <p className="text-[10px] text-gray-500 mt-1">
                       {item.totalErros} erro(s) em {item.tagsCount} tag(s)
                     </p>
                   </div>
                 </div>
               ))
             ) : (
-              <p className="text-xs text-zinc-500 py-6 text-center">Nenhuma reincidência registrada no filtro atual.</p>
+              <p className="text-xs text-gray-400 py-6 text-center">Nenhuma reincidência registrada no filtro atual.</p>
             )}
           </div>
         </div>
 
         {/* Evolução de Erros no Tempo */}
-        <div className="lg:col-span-7 bg-zinc-900 border border-zinc-800 p-6 rounded-md flex flex-col h-[360px]">
+        <div className="lg:col-span-7 bg-white border border-gray-200 p-6 rounded-md flex flex-col h-[360px]">
           <div className="flex items-center justify-between flex-shrink-0 mb-3">
-            <h3 className="text-white font-bold text-base flex items-center gap-2 uppercase">
-              <span className="w-2.5 h-2.5 rounded-sm bg-amber-600"></span>
+            <h3 className="text-brand-blue font-bold text-base flex items-center gap-2 uppercase">
+              <span className="w-2.5 h-2.5 rounded-sm bg-brand-blue-dark"></span>
               EVOLUÇÃO DE ERROS
             </h3>
 
             {/* Fixed Legend opposite Title */}
-            <div className="flex items-center gap-3 bg-black/70 border border-zinc-800 px-3 py-1 rounded-md text-xs font-bold">
-              <div className="flex items-center gap-1.5 text-amber-500">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-600 inline-block" />
+            <div className="flex items-center gap-3 bg-gray-50/70 border border-gray-200 px-3 py-1 rounded-md text-xs font-bold">
+              <div className="flex items-center gap-1.5 text-brand-blue">
+                <span className="w-2.5 h-2.5 rounded-full bg-brand-blue-dark inline-block" />
                 <span>Erros</span>
               </div>
-              <div className="flex items-center gap-1.5 text-zinc-400">
+              <div className="flex items-center gap-1.5 text-gray-500">
                 <span className="w-2.5 h-2.5 rounded-full bg-zinc-500 inline-block" />
                 <span>Total Monitorias</span>
               </div>
@@ -404,19 +455,33 @@ export const DashboardPage = () => {
           <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={timelineData.list} margin={{ top: 25, right: 25, left: -10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                <XAxis dataKey="label" stroke="#71717a" tick={{ fontSize: 11 }} padding={{ left: 30, right: 30 }} />
-                <YAxis stroke="#71717a" tick={{ fontSize: 11 }} />
-                <Tooltip contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '6px', color: '#fff' }} />
-                <Line type="monotone" dataKey="erros" name="Erros" stroke="#FFFF00" strokeWidth={3} dot={{ fill: '#FFFF00', r: 4 }}>
-                  <LabelList dataKey="erros" position="top" offset={10} fill="#FFFF00" fontSize={11} fontWeight="bold" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="label" stroke="#6b7280" tick={{ fontSize: 11 }} padding={{ left: 30, right: 30 }} />
+                <YAxis stroke="#6b7280" tick={{ fontSize: 11 }} />
+                <Tooltip 
+                  cursor={{ stroke: '#001E62', strokeDasharray: '3 3' }} 
+                  contentStyle={{ backgroundColor: '#ffffff', borderColor: '#001E62', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', color: '#001E62', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }} 
+                  itemStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
+                  labelStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
+                />
+                <Line type="monotone" dataKey="erros" name="Erros" stroke="#001E62" strokeWidth={3} dot={{ fill: '#001E62', r: 4 }}>
+                  <LabelList dataKey="erros" position="top" offset={10} fill="#001E62" fontSize={11} fontWeight="bold" />
                 </Line>
-                <Line type="monotone" dataKey="total" name="Total Monitorias" stroke="#71717a" strokeWidth={1.5} strokeDasharray="4 4" />
+                <Line type="monotone" dataKey="total" name="Total Monitorias" stroke="#6b7280" strokeWidth={1.5} strokeDasharray="4 4" />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
+
+      {/* Analyst Modal */}
+      {selectedAnalystForModal && (
+        <AnalystModal
+          analystCode={selectedAnalystForModal.code}
+          analystName={selectedAnalystForModal.name}
+          onClose={() => setSelectedAnalystForModal(null)}
+        />
+      )}
 
     </div>
   );

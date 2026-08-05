@@ -15,6 +15,8 @@ export interface MonitoringItem {
   Erro: string; // '0' = Error, '100' = OK
   Esteira: string;
   DataFeedback: string; // YYYY-MM-DD or empty
+  Plano?: string;      // Coluna BQ (Plano de ação)
+  DataPlano?: string;  // Coluna BT (Data do plano de ação)
   [key: string]: any;
 }
 
@@ -30,6 +32,30 @@ export interface ColumnMapping {
   AH: string; // Erro/Não Erro (0 ou 100)
   R: string;  // Esteira
   BT: string; // Data do Feedback
+  BQ?: string; // Plano de Ação (Coluna BQ)
+  BT_Plano?: string; // Data do Plano de Ação (Coluna BT)
+}
+
+export type FilterValue = string | string[];
+
+export const matchesFilter = (selected: FilterValue, value: string | undefined, defaultVal: string = 'TODAS') => {
+  if (!selected) return true;
+  if (Array.isArray(selected)) {
+    if (selected.length === 0 || selected.includes(defaultVal) || selected.includes('TODOS')) return true;
+    return value ? selected.includes(value) : false;
+  }
+  if (selected === defaultVal || selected === 'TODOS') return true;
+  return value === selected;
+};
+
+export interface EsteiraMetric {
+  esteira: string;
+  contratados: number;
+  tmo: number; // em minutos
+  capacidadeDia: number;
+  produzidoFila: number;
+  produzidoPrioridade: number;
+  totalProduzido: number;
 }
 
 export interface ProductivityItem {
@@ -272,6 +298,13 @@ export const parseFormaMonitoria = (rawVal: any): string => {
   return 'Estudo';
 };
 
+export const getTabuladorName = (esteiraName: string, mappings: EsteiraMapping[]): string => {
+  if (!esteiraName) return '';
+  if (!mappings || !Array.isArray(mappings)) return esteiraName;
+  const match = mappings.find(m => m.monitora && m.monitora.trim().toLowerCase() === esteiraName.trim().toLowerCase());
+  return match && match.tabulador && match.tabulador.trim() ? match.tabulador.trim() : esteiraName;
+};
+
 export const sanitizeItems = (items: MonitoringItem[]): MonitoringItem[] => {
   if (!Array.isArray(items)) return [];
   return items.map(item => {
@@ -298,11 +331,14 @@ interface AppState {
   endDate: string;
   selectedTag: string;
   selectedMacro: string;
-  selectedEsteira: string;
-  selectedForma: string;
-  selectedSupervisor: string;
+  selectedEsteira: FilterValue;
+  selectedForma: FilterValue;
+  selectedSupervisor: FilterValue;
   analystSearchQuery: string;
   esteiraParams: Record<string, EsteiraParam>;
+  esteirasMetrics: Record<string, EsteiraMetric>;
+  tmoMode: 'base' | 'manual';
+  dailyWorkingHours: number;
   columnMapping: ColumnMapping;
   productivityMapping: ProductivityColumnMapping;
   esteiraMappings: EsteiraMapping[];
@@ -314,11 +350,14 @@ interface AppState {
   setEndDate: (date: string) => void;
   setSelectedTag: (tag: string) => void;
   setSelectedMacro: (macro: string) => void;
-  setSelectedEsteira: (esteira: string) => void;
-  setSelectedForma: (forma: string) => void;
-  setSelectedSupervisor: (supervisor: string) => void;
+  setSelectedEsteira: (esteira: FilterValue) => void;
+  setSelectedForma: (forma: FilterValue) => void;
+  setSelectedSupervisor: (supervisor: FilterValue) => void;
   setAnalystSearchQuery: (query: string) => void;
   setEsteiraParam: (esteira: string, param: Partial<EsteiraParam>) => void;
+  setEsteiraMetric: (esteira: string, metric: Partial<EsteiraMetric>) => void;
+  setTmoMode: (mode: 'base' | 'manual') => void;
+  setDailyWorkingHours: (hours: number) => void;
   setColumnMapping: (mapping: ColumnMapping) => void;
   setProductivityMapping: (mapping: ProductivityColumnMapping) => void;
   setEsteiraMappings: (mappings: EsteiraMapping[]) => void;
@@ -328,6 +367,7 @@ interface AppState {
   resetEsteiraMappings: () => void;
   clearData: () => void;
   clearProductivityData: () => void;
+  loadFakeData: () => void;
   resetToCurrentMonth: () => void;
 }
 
@@ -463,6 +503,23 @@ const initialStored = loadInitialData();
 
 const currentMonthRange = getCurrentMonthRange();
 
+const initialEsteirasMetrics: Record<string, EsteiraMetric> = {
+  'BTG ABONO PJ': { esteira: 'BTG ABONO PJ', contratados: 6, tmo: 26, capacidadeDia: 50, produzidoFila: 220, produzidoPrioridade: 80, totalProduzido: 300 },
+  'BTG BKO ABERTURA PJ': { esteira: 'BTG BKO ABERTURA PJ', contratados: 3, tmo: 25, capacidadeDia: 40, produzidoFila: 110, produzidoPrioridade: 40, totalProduzido: 150 },
+  'BTG BKO MANUTENÇÃOPJ': { esteira: 'BTG BKO MANUTENÇÃOPJ', contratados: 30, tmo: 39, capacidadeDia: 45, produzidoFila: 950, produzidoPrioridade: 400, totalProduzido: 1350 },
+  'BTG CORPORATE': { esteira: 'BTG CORPORATE', contratados: 10, tmo: 60, capacidadeDia: 30, produzidoFila: 210, produzidoPrioridade: 90, totalProduzido: 300 },
+  'BTG EXTRANET PJ': { esteira: 'BTG EXTRANET PJ', contratados: 4, tmo: 55, capacidadeDia: 45, produzidoFila: 140, produzidoPrioridade: 40, totalProduzido: 180 },
+  'BTG FATCA PJ': { esteira: 'BTG FATCA PJ', contratados: 5, tmo: 30, capacidadeDia: 50, produzidoFila: 180, produzidoPrioridade: 70, totalProduzido: 250 },
+  'BTG MANUTENÇÃO PJ': { esteira: 'BTG MANUTENÇÃO PJ', contratados: 24, tmo: 34, capacidadeDia: 45, produzidoFila: 780, produzidoPrioridade: 300, totalProduzido: 1080 },
+  'BTG ONBOARDING PJ': { esteira: 'BTG ONBOARDING PJ', contratados: 24, tmo: 21, capacidadeDia: 40, produzidoFila: 690, produzidoPrioridade: 270, totalProduzido: 960 },
+  'BTG PREMIUM PJ': { esteira: 'BTG PREMIUM PJ', contratados: 5, tmo: 59, capacidadeDia: 35, produzidoFila: 130, produzidoPrioridade: 45, totalProduzido: 175 },
+  'BTG VINTAGE PJ': { esteira: 'BTG VINTAGE PJ', contratados: 5, tmo: 59, capacidadeDia: 40, produzidoFila: 140, produzidoPrioridade: 60, totalProduzido: 200 },
+  'MANUTENÇÃO PF': { esteira: 'MANUTENÇÃO PF', contratados: 15, tmo: 25, capacidadeDia: 50, produzidoFila: 520, produzidoPrioridade: 230, totalProduzido: 750 },
+  'PARAMETRIZAÇÃO': { esteira: 'PARAMETRIZAÇÃO', contratados: 31, tmo: 40, capacidadeDia: 40, produzidoFila: 860, produzidoPrioridade: 380, totalProduzido: 1240 },
+  'SH-PME': { esteira: 'SH-PME', contratados: 3, tmo: 28, capacidadeDia: 45, produzidoFila: 90, produzidoPrioridade: 45, totalProduzido: 135 },
+  'WM': { esteira: 'WM', contratados: 3, tmo: 55, capacidadeDia: 35, produzidoFila: 70, produzidoPrioridade: 35, totalProduzido: 105 }
+};
+
 export const useStore = create<AppState>((set, get) => ({
   data: initialStored.data,
   lastProcessed: initialStored.lastProcessed,
@@ -473,10 +530,13 @@ export const useStore = create<AppState>((set, get) => ({
   endDate: currentMonthRange.end,
   selectedTag: 'TODAS',
   selectedMacro: 'TODOS',
-  selectedEsteira: 'TODAS',
-  selectedForma: 'TODAS',
-  selectedSupervisor: 'TODOS',
+  selectedEsteira: ['TODAS'],
+  selectedForma: ['TODAS'],
+  selectedSupervisor: ['TODOS'],
   analystSearchQuery: '',
+  esteirasMetrics: initialEsteirasMetrics,
+  tmoMode: 'manual',
+  dailyWorkingHours: 8,
   esteiraParams: {
     'Geral': { esteira: 'Geral', contratados: 200, tmoAlvoSegundos: 1800, horasTrabalhoDia: 8, metaDiaria: 45, diasUteisMes: 22 },
     'BTG ABONO PJ': { esteira: 'BTG ABONO PJ', contratados: 6, tmoAlvoSegundos: 1560, horasTrabalhoDia: 8, metaDiaria: 50, diasUteisMes: 22 },
@@ -642,6 +702,32 @@ export const useStore = create<AppState>((set, get) => ({
       }
     });
   },
+  setEsteiraMetric: (esteira, metric) => {
+    const current = get().esteirasMetrics;
+    const existing: EsteiraMetric = current[esteira] || {
+      esteira,
+      contratados: 0,
+      tmo: 0,
+      capacidadeDia: 0,
+      produzidoFila: 0,
+      produzidoPrioridade: 0,
+      totalProduzido: 0
+    };
+    const nextItem = { ...existing, ...metric };
+    if (metric.produzidoFila !== undefined || metric.produzidoPrioridade !== undefined) {
+      nextItem.totalProduzido = (nextItem.produzidoFila || 0) + (nextItem.produzidoPrioridade || 0);
+    }
+    set({
+      esteirasMetrics: {
+        ...current,
+        [esteira]: nextItem
+      }
+    });
+  },
+
+  setTmoMode: (mode) => set({ tmoMode: mode }),
+  setDailyWorkingHours: (hours) => set({ dailyWorkingHours: hours }),
+
   setColumnMapping: (mapping) => set({ columnMapping: mapping }),
   setProductivityMapping: (mapping) => set({ productivityMapping: mapping }),
   
@@ -723,6 +809,12 @@ export const useStore = create<AppState>((set, get) => ({
     set({ productivityData: [], productivityLastProcessed: null });
   },
 
+  loadFakeData: () => {
+    const initialTs = new Date().toLocaleString('pt-BR');
+    const { setData, setProductivityData } = get();
+    setData(initialSampleData, initialTs);
+    setProductivityData(initialSampleProductivityData, initialTs);
+  },
   resetToCurrentMonth: () => {
     const range = getCurrentMonthRange();
     set({
@@ -730,8 +822,9 @@ export const useStore = create<AppState>((set, get) => ({
       endDate: range.end,
       selectedTag: 'TODAS',
       selectedMacro: 'TODOS',
-      selectedEsteira: 'TODAS',
-      selectedForma: 'TODAS'
+      selectedEsteira: ['TODAS'],
+      selectedForma: ['TODAS'],
+      selectedSupervisor: ['TODOS']
     });
   }
 }));

@@ -246,6 +246,8 @@ export const ImportPage = () => {
           const idxErro = colLetterToIndex(localMapping.AH);
           const idxEsteira = colLetterToIndex(localMapping.R);
           const idxFeedback = colLetterToIndex(localMapping.BT);
+          const idxPlano = colLetterToIndex(localMapping.BQ || 'BQ');
+          const idxDataPlano = colLetterToIndex(localMapping.BT_Plano || 'BT');
 
           const items: MonitoringItem[] = [];
 
@@ -287,6 +289,8 @@ export const ImportPage = () => {
             const rawEsteira = idxEsteira >= 0 && row[idxEsteira] ? String(row[idxEsteira]).trim() : defaultEsteira;
             const esteiraVal = getCanonicalEsteiraName(rawEsteira, esteiraMappings);
             const feedbackVal = idxFeedback >= 0 && row[idxFeedback] ? parseDateValue(row[idxFeedback]) : '';
+            const planoVal = idxPlano >= 0 && row[idxPlano] ? String(row[idxPlano]).trim() : '';
+            const dataPlanoVal = idxDataPlano >= 0 && row[idxDataPlano] ? parseDateValue(row[idxDataPlano]) : '';
 
             items.push({
               id: `${i}-${Date.now()}`,
@@ -300,7 +304,9 @@ export const ImportPage = () => {
               MotivoMacro: macroVal,
               Erro: erroVal,
               Esteira: esteiraVal || defaultEsteira,
-              DataFeedback: feedbackVal === dataVal ? '' : feedbackVal
+              DataFeedback: feedbackVal === dataVal ? '' : feedbackVal,
+              Plano: planoVal,
+              DataPlano: dataPlanoVal
             });
           }
 
@@ -588,7 +594,7 @@ export const ImportPage = () => {
   ).size;
 
   return (
-    <div className="w-full p-4 sm:p-6 md:p-8 bg-black text-zinc-100 space-y-8">
+    <div className="w-full p-4 sm:p-6 md:p-8 bg-gray-50 text-gray-900 space-y-8">
       <CustomModal
         isOpen={modalConfig.isOpen}
         onClose={closeModal}
@@ -603,10 +609,10 @@ export const ImportPage = () => {
       {/* Top Header Row */}
       <div className="flex items-center justify-end gap-4">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-4 py-2 rounded-md text-xs font-medium text-zinc-300">
-            <RefreshCw size={14} className="text-amber-500" />
+          <div className="flex items-center gap-2 bg-white border border-gray-200 px-4 py-2 rounded-md text-xs font-medium text-gray-700">
+            <RefreshCw size={14} className="text-brand-blue" />
             <span>ÚLTIMA MONITORIA</span>
-            <span className="font-bold text-white ml-1">{lastProcessed || 'Nenhum'}</span>
+            <span className="font-bold text-gray-900 ml-1">{lastProcessed || 'Nenhum'}</span>
           </div>
         </div>
       </div>
@@ -614,8 +620,8 @@ export const ImportPage = () => {
       {statusMessage && (
         <div className={`p-4 rounded-md border flex items-center gap-3 text-sm font-medium ${
           statusMessage.type === 'success' 
-            ? 'bg-zinc-900 border-amber-600/60 text-amber-500' 
-            : 'bg-red-950/50 border-red-800 text-red-400'
+            ? 'bg-white border-brand-blue-dark/60 text-brand-blue' 
+            : 'bg-red-50 border-red-300 text-red-700'
         }`}>
           {statusMessage.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
           <span>{statusMessage.text}</span>
@@ -623,15 +629,15 @@ export const ImportPage = () => {
       )}
 
       {/* SECTION 1: MAPEAMENTO DE ESTEIRAS (MONITORA ↔ TABULADOR) */}
-      <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-lg space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-4 border-b border-zinc-800 pb-4">
+      <div className="bg-white border border-gray-200 p-6 rounded-lg space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-4 border-b border-gray-200 pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-md bg-black border border-zinc-800 text-amber-500">
+            <div className="p-2.5 rounded-md bg-gray-50 border border-gray-200 text-brand-blue">
               <ArrowRightLeft size={22} />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">Relacionamento de Esteiras (MonitorA ↔ Tabulador)</h2>
-              <p className="text-xs text-zinc-400">
+              <h2 className="text-lg font-bold text-brand-blue">Relacionamento de Esteiras (MonitorA ↔ Tabulador)</h2>
+              <p className="text-xs text-gray-500">
                 Produtividade e Monitoria dos analistas
               </p>
             </div>
@@ -640,14 +646,14 @@ export const ImportPage = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => addEsteiraMapping()}
-              className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-white px-3.5 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer border border-zinc-700"
+              className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-900 px-3.5 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer border border-gray-300"
             >
-              <Plus size={15} className="text-amber-500" />
+              <Plus size={15} className="text-brand-blue" />
               <span>Adicionar Relação</span>
             </button>
             <button
               onClick={() => resetEsteiraMappings()}
-              className="flex items-center gap-1.5 bg-black hover:bg-zinc-800 text-zinc-400 hover:text-white px-3.5 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer border border-zinc-800"
+              className="flex items-center gap-1.5 bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-gray-900 px-3.5 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer border border-gray-200"
               title="Restaurar lista padrão fixada"
             >
               <RotateCcw size={14} />
@@ -657,26 +663,26 @@ export const ImportPage = () => {
         </div>
 
         {/* Esteira Mapping Grid */}
-        <div className="bg-black border border-zinc-800/90 rounded-md p-4 overflow-x-auto space-y-3">
-          <div className="grid grid-cols-12 gap-4 text-xs font-bold text-zinc-400 uppercase px-2 pb-1 border-b border-zinc-800/80">
+        <div className="bg-gray-50 border border-gray-200/90 rounded-md p-4 overflow-x-auto space-y-3">
+          <div className="grid grid-cols-12 gap-4 text-xs font-bold text-gray-500 uppercase px-2 pb-1 border-b border-gray-200/80">
             <div className="col-span-5 flex items-center gap-1.5">
-              <span className="text-amber-500">1.</span> Esteira MonitorA (Monitoria)
+              <span className="text-brand-blue">1.</span> Esteira MonitorA (Monitoria)
             </div>
             <div className="col-span-6 flex items-center gap-1.5">
-              <span className="text-amber-500">2.</span> Tabulador (Produtividade)
+              <span className="text-brand-blue">2.</span> Tabulador (Produtividade)
             </div>
             <div className="col-span-1 text-center">Ações</div>
           </div>
 
           <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1 custom-scrollbar">
             {esteiraMappings.map((mapItem, idx) => (
-              <div key={idx} className="grid grid-cols-12 gap-3 items-center bg-zinc-900/80 border border-zinc-800/60 p-2.5 rounded-md hover:border-zinc-700 transition-colors">
+              <div key={idx} className="grid grid-cols-12 gap-3 items-center bg-white/80 border border-gray-200/60 p-2.5 rounded-md hover:border-gray-300 transition-colors">
                 <div className="col-span-5">
                   <input
                     type="text"
                     value={mapItem.monitora}
                     onChange={(e) => updateEsteiraMapping(idx, 'monitora', e.target.value.toUpperCase())}
-                    className="w-full bg-black border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-md px-3 py-1.5 text-xs text-gray-900 font-mono uppercase focus:border-brand-blue-dark outline-none"
                     placeholder="Ex: BTG ONBOARDING PJ"
                   />
                 </div>
@@ -685,14 +691,14 @@ export const ImportPage = () => {
                     type="text"
                     value={mapItem.tabulador}
                     onChange={(e) => updateEsteiraMapping(idx, 'tabulador', e.target.value.toUpperCase())}
-                    className="w-full bg-black border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-md px-3 py-1.5 text-xs text-gray-900 font-mono uppercase focus:border-brand-blue-dark outline-none"
                     placeholder="Ex: ABERTURA PJ"
                   />
                 </div>
                 <div className="col-span-1 text-center">
                   <button
                     onClick={() => removeEsteiraMapping(idx)}
-                    className="text-zinc-500 hover:text-red-400 p-1 rounded transition-colors cursor-pointer"
+                    className="text-gray-400 hover:text-red-600 p-1 rounded transition-colors cursor-pointer"
                     title="Remover linha"
                   >
                     <Trash2 size={16} />
@@ -702,28 +708,28 @@ export const ImportPage = () => {
             ))}
           </div>
 
-          <p className="text-[11px] text-zinc-500 pt-1 px-1">
+          <p className="text-[11px] text-gray-400 pt-1 px-1">
             * Ao importar a base de produtividade do Tabulador, o sistema traduzirá automaticamente os nomes da coluna de esteira para a esteira correspondente do MonitorA.
           </p>
         </div>
       </div>
 
       {/* SECTION 2: IMPORTAR PRODUTIVIDADE DOS ANALISTAS */}
-      <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-lg space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-4 border-b border-zinc-800 pb-4">
+      <div className="bg-white border border-gray-200 p-6 rounded-lg space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-4 border-b border-gray-200 pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-md bg-black border border-zinc-800 text-amber-500">
+            <div className="p-2.5 rounded-md bg-gray-50 border border-gray-200 text-brand-blue">
               <Briefcase size={22} />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">Importação de produtividade</h2>
-              <p className="text-xs text-zinc-400">Configure o mapeamento das colunas de produtividade</p>
+              <h2 className="text-lg font-bold text-brand-blue">Importação de produtividade</h2>
+              <p className="text-xs text-gray-500">Configure o mapeamento das colunas de produtividade</p>
             </div>
           </div>
           
           <div className="flex items-center gap-4 text-xs font-semibold">
-            <span className="text-zinc-400">Total de Produtividade Carregada:</span>
-            <span className="text-lg font-bold text-amber-500">
+            <span className="text-gray-500">Total de Produtividade Carregada:</span>
+            <span className="text-lg font-bold text-brand-blue">
               {productivityData.reduce((acc, curr) => acc + (curr.Quantidade || 1), 0).toLocaleString('pt-BR')} itens
             </span>
           </div>
@@ -731,165 +737,165 @@ export const ImportPage = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Mapeamento de Colunas de Produtividade */}
-          <div className="lg:col-span-5 bg-black border border-zinc-800/80 p-5 rounded-md space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
-              <Sliders size={16} className="text-amber-500" />
+          <div className="lg:col-span-5 bg-gray-50 border border-gray-200/80 p-5 rounded-md space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
+              <Sliders size={16} className="text-brand-blue" />
               Configuração de Colunas de Produtividade
             </h3>
 
             <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
               <div>
-                <label className="text-xs text-zinc-300 font-semibold block mb-1">
+                <label className="text-xs text-gray-700 font-semibold block mb-1">
                   1. Analista
                 </label>
                 <input
                   type="text"
                   value={localProdMapping.A || 'A'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, A: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
+                  className="w-full bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs text-gray-900 font-mono uppercase focus:border-brand-blue-dark outline-none"
                   placeholder="A"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-zinc-300 font-semibold block mb-1">
+                <label className="text-xs text-gray-700 font-semibold block mb-1">
                   2. Data
                 </label>
                 <input
                   type="text"
                   value={localProdMapping.B || 'B'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, B: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
+                  className="w-full bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs text-gray-900 font-mono uppercase focus:border-brand-blue-dark outline-none"
                   placeholder="B"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-zinc-300 font-semibold block mb-1">
+                <label className="text-xs text-gray-700 font-semibold block mb-1">
                   3. Apuração
                 </label>
                 <input
                   type="text"
                   value={localProdMapping.C || 'C'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, C: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
+                  className="w-full bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs text-gray-900 font-mono uppercase focus:border-brand-blue-dark outline-none"
                   placeholder="C"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-zinc-300 font-semibold block mb-1">
+                <label className="text-xs text-gray-700 font-semibold block mb-1">
                   4. Esteira
                 </label>
                 <input
                   type="text"
                   value={localProdMapping.D || 'D'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, D: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
+                  className="w-full bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs text-gray-900 font-mono uppercase focus:border-brand-blue-dark outline-none"
                   placeholder="D"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-zinc-300 font-semibold block mb-1">
+                <label className="text-xs text-gray-700 font-semibold block mb-1">
                   5. Tipo de Demanda
                 </label>
                 <input
                   type="text"
                   value={localProdMapping.E || 'E'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, E: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
+                  className="w-full bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs text-gray-900 font-mono uppercase focus:border-brand-blue-dark outline-none"
                   placeholder="E"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-zinc-300 font-semibold block mb-1">
+                <label className="text-xs text-gray-700 font-semibold block mb-1">
                   6. Complexidade
                 </label>
                 <input
                   type="text"
                   value={localProdMapping.F || 'F'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, F: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
+                  className="w-full bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs text-gray-900 font-mono uppercase focus:border-brand-blue-dark outline-none"
                   placeholder="F"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-zinc-300 font-semibold block mb-1">
+                <label className="text-xs text-gray-700 font-semibold block mb-1">
                   7. Motivo de Reprovação
                 </label>
                 <input
                   type="text"
                   value={localProdMapping.G || 'G'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, G: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
+                  className="w-full bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs text-gray-900 font-mono uppercase focus:border-brand-blue-dark outline-none"
                   placeholder="G"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-zinc-300 font-semibold block mb-1">
+                <label className="text-xs text-gray-700 font-semibold block mb-1">
                   8. Prioridade
                 </label>
                 <input
                   type="text"
                   value={localProdMapping.H || 'H'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, H: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
+                  className="w-full bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs text-gray-900 font-mono uppercase focus:border-brand-blue-dark outline-none"
                   placeholder="H"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-zinc-300 font-semibold block mb-1">
+                <label className="text-xs text-gray-700 font-semibold block mb-1">
                   9. Reprovação
                 </label>
                 <input
                   type="text"
                   value={localProdMapping.I || 'I'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, I: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
+                  className="w-full bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs text-gray-900 font-mono uppercase focus:border-brand-blue-dark outline-none"
                   placeholder="I"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-zinc-300 font-semibold block mb-1">
+                <label className="text-xs text-gray-700 font-semibold block mb-1">
                   10. Segmento
                 </label>
                 <input
                   type="text"
                   value={localProdMapping.J || 'J'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, J: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
+                  className="w-full bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs text-gray-900 font-mono uppercase focus:border-brand-blue-dark outline-none"
                   placeholder="J"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-zinc-300 font-semibold block mb-1">
+                <label className="text-xs text-gray-700 font-semibold block mb-1">
                   11. Co Segmento
                 </label>
                 <input
                   type="text"
                   value={localProdMapping.K || 'K'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, K: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
+                  className="w-full bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs text-gray-900 font-mono uppercase focus:border-brand-blue-dark outline-none"
                   placeholder="K"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-zinc-300 font-semibold block mb-1">
+                <label className="text-xs text-gray-700 font-semibold block mb-1">
                   12. Tipo Societário
                 </label>
                 <input
                   type="text"
                   value={localProdMapping.L || 'L'}
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, L: e.target.value.toUpperCase() })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none"
+                  className="w-full bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs text-gray-900 font-mono uppercase focus:border-brand-blue-dark outline-none"
                   placeholder="L"
                 />
               </div>
@@ -898,7 +904,7 @@ export const ImportPage = () => {
             <button
               onClick={handleConsolidateProductivity}
               disabled={isProdProcessing || selectedProdFiles.length === 0}
-              className="w-full bg-amber-600 text-zinc-950 font-bold py-3 rounded-md hover:bg-amber-500 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-xs cursor-pointer shadow-md uppercase tracking-wider"
+              className="w-full bg-white text-brand-blue border border-brand-blue font-bold py-3 rounded-md hover:bg-brand-blue active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-xs cursor-pointer shadow-md uppercase tracking-wider"
             >
               {isProdProcessing ? (
                 <>
@@ -920,29 +926,29 @@ export const ImportPage = () => {
               {...getProdRootProps()}
               className={`border-2 border-dashed rounded-md flex flex-col items-center justify-center p-6 text-center cursor-pointer transition-colors min-h-[180px] ${
                 isProdDragActive
-                  ? 'border-amber-600 bg-black'
+                  ? 'border-brand-blue-dark bg-gray-50'
                   : selectedProdFiles.length > 0
-                  ? 'border-amber-600/50 bg-black/60'
-                  : 'border-zinc-800 hover:border-zinc-700 bg-black/30'
+                  ? 'border-brand-blue-dark/50 bg-gray-50/60'
+                  : 'border-gray-200 hover:border-gray-300 bg-gray-50/30'
               }`}
             >
               <input {...getProdInputProps()} />
-              <Upload size={36} className={`mb-2 ${selectedProdFiles.length > 0 ? 'text-amber-500' : 'text-zinc-600'}`} />
-              <p className="text-xs font-bold text-white">
-                Clique ou arraste a <span className="text-amber-500">planilha de Produtividade</span> aqui
+              <Upload size={36} className={`mb-2 ${selectedProdFiles.length > 0 ? 'text-brand-blue' : 'text-gray-400'}`} />
+              <p className="text-xs font-bold text-gray-900">
+                Clique ou arraste a <span className="text-brand-blue">planilha de Produtividade</span> aqui
               </p>
-              <p className="text-[11px] text-zinc-500 mt-1">
+              <p className="text-[11px] text-gray-400 mt-1">
                 Formatos aceitos: .xlsx, .xls e .csv
               </p>
             </div>
 
             {selectedProdFiles.length > 0 && (
-              <div className="space-y-2 bg-black border border-zinc-800 p-3 rounded-md">
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Arquivos de Produtividade Selecionados:</p>
+              <div className="space-y-2 bg-gray-50 border border-gray-200 p-3 rounded-md">
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Arquivos de Produtividade Selecionados:</p>
                 {selectedProdFiles.map((file, idx) => (
-                  <div key={idx} className="flex items-center justify-between text-xs text-white">
+                  <div key={idx} className="flex items-center justify-between text-xs text-gray-900">
                     <span className="truncate">{file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
-                    <button onClick={() => removeProdFile(idx)} className="text-zinc-500 hover:text-red-400 cursor-pointer">
+                    <button onClick={() => removeProdFile(idx)} className="text-gray-400 hover:text-red-600 cursor-pointer">
                       <X size={16} />
                     </button>
                   </div>
@@ -951,23 +957,23 @@ export const ImportPage = () => {
             )}
 
             {/* Base Carregada Summary Box */}
-            <div className="bg-black border border-zinc-800 p-5 rounded-md flex items-center justify-between flex-wrap gap-4">
+            <div className="bg-gray-50 border border-gray-200 p-5 rounded-md flex items-center justify-between flex-wrap gap-4">
               <div>
-                <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">Base Carregada (Produtividade)</p>
-                <h4 className="text-xl font-bold text-white mt-0.5">{productivityData.length} Produções Registradas</h4>
-                <p className="text-[11px] text-zinc-500 mt-0.5">Última atualização: {productivityLastProcessed || 'N/D'}</p>
+                <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Base Carregada (Produtividade)</p>
+                <h4 className="text-xl font-bold text-gray-900 mt-0.5">{productivityData.length} Produções Registradas</h4>
+                <p className="text-[11px] text-gray-400 mt-0.5">Última atualização: {productivityLastProcessed || 'N/D'}</p>
               </div>
 
               <div className="flex items-center gap-4">
                 <div className="text-right">
-                  <p className="text-[10px] text-zinc-500 font-semibold uppercase">Analistas Cadastrados</p>
-                  <p className="text-lg font-bold text-amber-500">{uniqueProdAnalystsCount} Analistas</p>
+                  <p className="text-[10px] text-gray-400 font-semibold uppercase">Analistas Cadastrados</p>
+                  <p className="text-lg font-bold text-brand-blue">{uniqueProdAnalystsCount} Analistas</p>
                 </div>
 
                 {productivityData.length > 0 && (
                   <button
                     onClick={handleClearProdData}
-                    className="flex items-center gap-1.5 border border-red-900/60 bg-red-950/30 text-red-400 hover:bg-red-950 px-3 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer"
+                    className="flex items-center gap-1.5 border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 px-3 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer"
                   >
                     <Trash2 size={14} />
                     <span>Excluir Base</span>
@@ -980,21 +986,21 @@ export const ImportPage = () => {
       </div>
 
       {/* SECTION 3: MAPEAMENTO FIXO DE MONITORIAS */}
-      <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-lg space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-4 border-b border-zinc-800 pb-4">
+      <div className="bg-white border border-gray-200 p-6 rounded-lg space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-4 border-b border-gray-200 pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-md bg-black border border-zinc-800 text-amber-500">
+            <div className="p-2.5 rounded-md bg-gray-50 border border-gray-200 text-brand-blue">
               <FileText size={22} />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">Importação de Monitorias</h2>
-              <p className="text-xs text-zinc-400">Importe aqui a base do tabulador</p>
+              <h2 className="text-lg font-bold text-brand-blue">Importação de Monitorias</h2>
+              <p className="text-xs text-gray-500">Importe aqui a base do tabulador</p>
             </div>
           </div>
 
           <div className="flex items-center gap-4 text-xs font-semibold">
-            <span className="text-zinc-400">Total de Monitorias Carregadas:</span>
-            <span className="text-lg font-bold text-amber-500">
+            <span className="text-gray-500">Total de Monitorias Carregadas:</span>
+            <span className="text-lg font-bold text-brand-blue">
               {data.length.toLocaleString('pt-BR')} itens
             </span>
           </div>
@@ -1002,23 +1008,23 @@ export const ImportPage = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Mapeamento de Colunas de Monitorias */}
-          <div className="lg:col-span-5 bg-black border border-zinc-800/80 p-5 rounded-md space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
-              <Sliders size={16} className="text-amber-500" />
+          <div className="lg:col-span-5 bg-gray-50 border border-gray-200/80 p-5 rounded-md space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
+              <Sliders size={16} className="text-brand-blue" />
               Configuração de Colunas de Monitoria
             </h3>
 
             <div className="space-y-3.5 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
               {fieldsList.map((field) => (
                 <div key={field.key} className="space-y-1">
-                  <label className="text-xs text-zinc-300 font-medium block">
+                  <label className="text-xs text-gray-700 font-medium block">
                     {field.label}
                   </label>
                   <input
                     type="text"
                     value={localMapping[field.key] || field.defaultLetter}
                     onChange={(e) => setLocalMapping({ ...localMapping, [field.key]: e.target.value.toUpperCase() })}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white font-mono uppercase focus:border-amber-600 outline-none transition-colors"
+                    className="w-full bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs text-gray-900 font-mono uppercase focus:border-brand-blue-dark outline-none transition-colors"
                   />
                 </div>
               ))}
@@ -1027,7 +1033,7 @@ export const ImportPage = () => {
             <button
               onClick={handleConsolidate}
               disabled={isProcessing || selectedFiles.length === 0}
-              className="w-full bg-amber-600 text-zinc-950 font-bold py-3 rounded-md hover:bg-amber-500 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-50 text-xs cursor-pointer uppercase tracking-wider"
+              className="w-full bg-white text-brand-blue border border-brand-blue font-bold py-3 rounded-md hover:bg-brand-blue active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-50 text-xs cursor-pointer uppercase tracking-wider"
             >
               {isProcessing ? (
                 <>
@@ -1049,29 +1055,29 @@ export const ImportPage = () => {
               {...getRootProps()}
               className={`border-2 border-dashed rounded-md flex flex-col items-center justify-center p-6 text-center cursor-pointer transition-colors min-h-[180px] ${
                 isDragActive
-                  ? 'border-amber-600 bg-black'
+                  ? 'border-brand-blue-dark bg-gray-50'
                   : selectedFiles.length > 0
-                  ? 'border-amber-600/50 bg-black/60'
-                  : 'border-zinc-800 hover:border-zinc-700 bg-black/30'
+                  ? 'border-brand-blue-dark/50 bg-gray-50/60'
+                  : 'border-gray-200 hover:border-gray-300 bg-gray-50/30'
               }`}
             >
               <input {...getInputProps()} />
-              <Upload size={36} className={`mb-2 ${selectedFiles.length > 0 ? 'text-amber-500' : 'text-zinc-600'}`} />
-              <p className="text-xs font-bold text-white">
-                Clique ou arraste o <span className="text-amber-500">arquivo de monitorias</span> aqui
+              <Upload size={36} className={`mb-2 ${selectedFiles.length > 0 ? 'text-brand-blue' : 'text-gray-400'}`} />
+              <p className="text-xs font-bold text-gray-900">
+                Clique ou arraste o <span className="text-brand-blue">arquivo de monitorias</span> aqui
               </p>
-              <p className="text-[11px] text-zinc-500 mt-1">
+              <p className="text-[11px] text-gray-400 mt-1">
                 Suporta formatos .xlsx, .xls e .csv
               </p>
             </div>
 
             {selectedFiles.length > 0 && (
-              <div className="space-y-2 bg-black border border-zinc-800 p-3 rounded-md">
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Arquivos Selecionados:</p>
+              <div className="space-y-2 bg-gray-50 border border-gray-200 p-3 rounded-md">
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Arquivos Selecionados:</p>
                 {selectedFiles.map((file, idx) => (
-                  <div key={idx} className="flex items-center justify-between text-xs text-white">
+                  <div key={idx} className="flex items-center justify-between text-xs text-gray-900">
                     <span className="truncate">{file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
-                    <button onClick={() => removeFile(idx)} className="text-zinc-500 hover:text-red-400 cursor-pointer">
+                    <button onClick={() => removeFile(idx)} className="text-gray-400 hover:text-red-600 cursor-pointer">
                       <X size={16} />
                     </button>
                   </div>
@@ -1080,23 +1086,23 @@ export const ImportPage = () => {
             )}
 
             {/* Base Carregada Summary Box */}
-            <div className="bg-black border border-zinc-800 p-5 rounded-md flex items-center justify-between flex-wrap gap-4">
+            <div className="bg-gray-50 border border-gray-200 p-5 rounded-md flex items-center justify-between flex-wrap gap-4">
               <div>
-                <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">Base Carregada (Monitoria)</p>
-                <h4 className="text-xl font-bold text-white mt-0.5">{data.length} Monitorias Registradas</h4>
-                <p className="text-[11px] text-zinc-500 mt-0.5">Última atualização: {lastProcessed || 'N/D'}</p>
+                <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Base Carregada (Monitoria)</p>
+                <h4 className="text-xl font-bold text-gray-900 mt-0.5">{data.length} Monitorias Registradas</h4>
+                <p className="text-[11px] text-gray-400 mt-0.5">Última atualização: {lastProcessed || 'N/D'}</p>
               </div>
 
               <div className="flex items-center gap-4">
                 <div className="text-right">
-                  <p className="text-[10px] text-zinc-500 font-semibold uppercase">Analistas Cadastrados</p>
-                  <p className="text-lg font-bold text-amber-500">{uniqueMonAnalystsCount} Analistas</p>
+                  <p className="text-[10px] text-gray-400 font-semibold uppercase">Analistas Cadastrados</p>
+                  <p className="text-lg font-bold text-brand-blue">{uniqueMonAnalystsCount} Analistas</p>
                 </div>
 
                 {data.length > 0 && (
                   <button
                     onClick={handleClearData}
-                    className="flex items-center gap-1.5 border border-red-900/60 bg-red-950/30 text-red-400 hover:bg-red-950 px-3 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer"
+                    className="flex items-center gap-1.5 border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 px-3 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer"
                   >
                     <Trash2 size={14} />
                     <span>Excluir Base</span>

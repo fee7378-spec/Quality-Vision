@@ -51,23 +51,23 @@ export const ParametrosPage = () => {
   };
 
   return (
-    <div className="w-full p-4 sm:p-6 md:p-8 bg-black text-zinc-100 space-y-6">
+    <div className="w-full p-4 sm:p-6 md:p-8 bg-gray-50 text-gray-900 space-y-6">
       {/* Main Parameters Table */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden shadow-xl">
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="bg-slate-900 text-white font-bold border-b border-zinc-700">
+              <tr className="bg-slate-900 text-gray-900 font-bold border-b border-gray-300">
                 <th className="py-3.5 px-4 font-extrabold uppercase tracking-wider">Esteiras</th>
                 <th className="py-3.5 px-4 font-extrabold uppercase tracking-wider text-center">
                   <div className="flex items-center justify-center gap-1.5">
-                    <Users size={14} className="text-amber-500" />
+                    <Users size={14} className="text-brand-blue" />
                     Contratados
                   </div>
                 </th>
                 <th className="py-3.5 px-4 font-extrabold uppercase tracking-wider text-center">
                   <div className="flex items-center justify-center gap-1.5">
-                    <Clock size={14} className="text-amber-500" />
+                    <Clock size={14} className="text-brand-blue" />
                     TMO (HH:MM:SS)
                   </div>
                 </th>
@@ -75,12 +75,12 @@ export const ParametrosPage = () => {
                 <th className="py-3.5 px-4 font-extrabold uppercase tracking-wider text-center">Meta Diária/Analista</th>
                 <th className="py-3.5 px-4 font-extrabold uppercase tracking-wider text-center">
                   <div className="flex items-center justify-center gap-1.5">
-                    <Calendar size={14} className="text-amber-500" />
+                    <Calendar size={14} className="text-brand-blue" />
                     Dias Úteis/Mês
                   </div>
                 </th>
-                <th className="py-3.5 px-4 font-extrabold uppercase tracking-wider text-right bg-zinc-950 text-amber-500">Capacidade Dia</th>
-                <th className="py-3.5 px-4 font-extrabold uppercase tracking-wider text-right bg-zinc-950 text-emerald-400">Capacidade Mês</th>
+                <th className="py-3.5 px-4 font-extrabold uppercase tracking-wider text-right bg-white text-brand-blue">Capacidade Dia</th>
+                <th className="py-3.5 px-4 font-extrabold uppercase tracking-wider text-right bg-white text-emerald-600">Capacidade Mês</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/80">
@@ -106,15 +106,15 @@ export const ParametrosPage = () => {
                 const capMes = capDia * diasUteis;
 
                 return (
-                  <tr key={esteira} className={idx % 2 === 0 ? 'bg-zinc-900/60 hover:bg-zinc-800/50' : 'bg-black/40 hover:bg-zinc-800/50'}>
-                    <td className="py-3 px-4 font-bold text-white max-w-[200px] truncate">{esteira}</td>
+                  <tr key={esteira} className={idx % 2 === 0 ? 'bg-white/60 hover:bg-gray-100/50' : 'bg-gray-50/40 hover:bg-gray-100/50'}>
+                    <td className="py-3 px-4 font-bold text-gray-900 max-w-[200px] truncate">{esteira}</td>
                     <td className="py-3 px-4 text-center">
                       <input 
                         type="number"
                         min="0"
                         value={contratados}
                         onChange={(e) => handleContratadosChange(esteira, e.target.value)}
-                        className="w-20 bg-black border border-zinc-700 rounded px-2 py-1 text-center font-bold text-white outline-none focus:border-amber-600"
+                        className="w-20 bg-gray-50 border border-gray-300 rounded px-2 py-1 text-center font-bold text-gray-900 outline-none focus:border-brand-blue-dark"
                       />
                     </td>
                     <td className="py-3 px-4 text-center">
@@ -123,7 +123,7 @@ export const ParametrosPage = () => {
                         placeholder="HH:MM:SS"
                         value={formatSecondsToHHMMSS(tmoSegs)}
                         onChange={(e) => handleTmoChange(esteira, e.target.value)}
-                        className="w-24 bg-black border border-zinc-700 rounded px-2 py-1 text-center font-bold text-amber-500 outline-none focus:border-amber-600"
+                        className="w-24 bg-gray-50 border border-gray-300 rounded px-2 py-1 text-center font-bold text-brand-blue outline-none focus:border-brand-blue-dark"
                       />
                     </td>
                     <td className="py-3 px-4 text-center">
@@ -133,7 +133,7 @@ export const ParametrosPage = () => {
                         max="24"
                         value={horasDia}
                         onChange={(e) => handleHorasChange(esteira, e.target.value)}
-                        className="w-16 bg-black border border-zinc-700 rounded px-2 py-1 text-center font-semibold text-zinc-300 outline-none focus:border-amber-600"
+                        className="w-16 bg-gray-50 border border-gray-300 rounded px-2 py-1 text-center font-semibold text-gray-700 outline-none focus:border-brand-blue-dark"
                       />
                     </td>
                     <td className="py-3 px-4 text-center">
@@ -142,7 +142,7 @@ export const ParametrosPage = () => {
                         min="1"
                         value={metaDiaria}
                         onChange={(e) => handleMetaChange(esteira, e.target.value)}
-                        className="w-20 bg-black border border-zinc-700 rounded px-2 py-1 text-center font-semibold text-zinc-300 outline-none focus:border-amber-600"
+                        className="w-20 bg-gray-50 border border-gray-300 rounded px-2 py-1 text-center font-semibold text-gray-700 outline-none focus:border-brand-blue-dark"
                       />
                     </td>
                     <td className="py-3 px-4 text-center">
@@ -152,13 +152,13 @@ export const ParametrosPage = () => {
                         max="31"
                         value={diasUteis}
                         onChange={(e) => handleDiasUteisChange(esteira, e.target.value)}
-                        className="w-16 bg-black border border-zinc-700 rounded px-2 py-1 text-center font-semibold text-zinc-300 outline-none focus:border-amber-600"
+                        className="w-16 bg-gray-50 border border-gray-300 rounded px-2 py-1 text-center font-semibold text-gray-700 outline-none focus:border-brand-blue-dark"
                       />
                     </td>
-                    <td className="py-3 px-4 text-right font-extrabold text-amber-500 bg-zinc-950/80">
+                    <td className="py-3 px-4 text-right font-extrabold text-brand-blue bg-white/80">
                       {capDia.toLocaleString('pt-BR')}
                     </td>
-                    <td className="py-3 px-4 text-right font-extrabold text-emerald-400 bg-zinc-950/80">
+                    <td className="py-3 px-4 text-right font-extrabold text-emerald-600 bg-white/80">
                       {capMes.toLocaleString('pt-BR')}
                     </td>
                   </tr>

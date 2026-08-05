@@ -1,19 +1,18 @@
 @import "tailwindcss";
 
 @theme {
-  --color-amber-400: #FFFF00;
-  --color-amber-500: #FFFF00;
-  --color-amber-600: #e6e600;
-  --color-amber-700: #cccc00;
-  --color-amber-800: #b3b300;
-  --color-amber-900: #666600;
-  --color-amber-950: #333300;
+  --color-brand-blue: #001E62;
+  --color-brand-blue-light: #002c91;
+  --color-brand-blue-dark: #001138;
+  --color-blue-50: #e6f0ff;
+  --color-blue-100: #cce0ff;
 }
 
 @layer base {
   :root {
-    color-scheme: dark;
+    color-scheme: light;
   }
+  
   html, body, #root {
     width: 100%;
     height: 100%;
@@ -21,31 +20,43 @@
     padding: 0;
     overflow: hidden;
   }
+
   body {
-    background-color: #000000;
-    color: #f4f4f5;
+    background-color: #FFFFFF;
+    color: #1f2937;
     font-family: 'Montserrat', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   }
 }
 
-/* Custom dark scrollbar */
+/* Custom light scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #000000;
+  background: #f9fafb;
 }
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
+  background: #d1d5db;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: #9ca3af;
 }
 
-/* Ensure date inputs have dark background and yellow accent */
+/* Ensure date inputs & calendar popup styling */
+input[type="date"] {
+  accent-color: #001E62;
+  color-scheme: light;
+}
+
 input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(1) sepia(1) saturate(5) hue-rotate(15deg);
   cursor: pointer;
+  filter: opacity(0.75);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  filter: opacity(1);
+  transform: scale(1.1);
 }
