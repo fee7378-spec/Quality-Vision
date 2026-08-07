@@ -1,105 +1,117 @@
-import React from 'react';
-import { X, AlertTriangle, CheckCircle, Info, HelpCircle } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { LayoutDashboard, Database, Users, LineChart, Layers, TrendingUp, Settings, Sliders, History } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 
-interface CustomModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  title: string;
-  description?: string;
-  type?: 'confirm' | 'alert' | 'success' | 'error' | 'info';
-  onConfirm?: () => void;
-  confirmText?: string;
-  cancelText?: string;
-}
+const menuItems = [
+  { path: '/', label: 'Visão Geral', icon: LayoutDashboard },
+  { path: '/operacao', label: 'Operação', icon: Layers },
+  { path: '/capacidade', label: 'Capacidade', icon: TrendingUp },
+  { path: '/metricas', label: 'Métricas', icon: Sliders },
+  { path: '/analise', label: 'Qualidade', icon: LineChart },
+  { path: '/analistas', label: 'Analistas', icon: Users },
+  { path: '/history', label: 'Histórico', icon: History },
+  { path: '/import', label: 'Data Hub', icon: Database },
+];
 
-export const CustomModal: React.FC<CustomModalProps> = ({
-  isOpen,
-  onClose,
-  title,
-  description,
-  type = 'info',
-  onConfirm,
-  confirmText = 'Confirmar',
-  cancelText = 'Cancelar',
-}) => {
-  if (!isOpen) return null;
+export const Sidebar = () => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const getIcon = () => {
-    switch (type) {
-      case 'confirm':
-        return <HelpCircle className="text-amber-400" size={28} />;
-      case 'error':
-        return <AlertTriangle className="text-red-400" size={28} />;
-      case 'success':
-        return <CheckCircle className="text-emerald-400" size={28} />;
-      case 'alert':
-        return <AlertTriangle className="text-amber-400" size={28} />;
-      case 'info':
-      default:
-        return <Info className="text-blue-400" size={28} />;
-    }
+  const handleMouseEnter = () => {
+    timeoutRef.current = setTimeout(() => {
+      setIsExpanded(true);
+    }, 100);
+  };
+
+  const handleMouseLeave = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setIsExpanded(false);
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-all animate-in fade-in duration-200">
-      <div className="bg-zinc-950 border border-zinc-800 w-full max-w-md rounded-lg p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200 text-zinc-100">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-black border border-zinc-800 rounded-md shrink-0">
-              {getIcon()}
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-white leading-tight">{title}</h3>
-              {type === 'confirm' && (
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-amber-400">
-                  Confirmação
-                </span>
-              )}
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-zinc-400 hover:text-white bg-black border border-zinc-800 rounded-md hover:border-zinc-700 transition-colors"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {description && (
-          <p className="text-xs text-zinc-300 leading-relaxed bg-black/50 border border-zinc-900 p-3.5 rounded-md font-normal">
-            {description}
-          </p>
-        )}
-
-        <div className="flex items-center justify-end gap-3 pt-2">
-          {type === 'confirm' ? (
-            <>
-              <button
-                onClick={onClose}
-                className="px-4 py-2 text-xs font-semibold text-zinc-400 bg-black border border-zinc-800 rounded-md hover:text-white hover:border-zinc-700 transition-all cursor-pointer"
-              >
-                {cancelText}
-              </button>
-              <button
-                onClick={() => {
-                  if (onConfirm) onConfirm();
-                  onClose();
-                }}
-                className="px-4 py-2 text-xs font-bold text-zinc-950 bg-amber-400 rounded-md hover:bg-amber-300 active:scale-95 transition-all shadow-md cursor-pointer"
-              >
-                {confirmText}
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={onClose}
-              className="px-5 py-2 text-xs font-bold text-zinc-950 bg-amber-400 rounded-md hover:bg-amber-300 active:scale-95 transition-all shadow-md cursor-pointer"
+    <motion.div
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      initial={{ width: 72 }}
+      animate={{ width: isExpanded ? 240 : 72 }}
+      transition={{ type: "spring", stiffness: 350, damping: 32 }}
+      className="bg-gray-50 border-r border-gray-200 h-full flex flex-col text-gray-500 z-50 overflow-hidden flex-shrink-0 select-none"
+    >
+      {/* Brand Header */}
+      <div className="px-4 flex items-center h-16 border-b border-gray-200 gap-3 overflow-hidden">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#001E62" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+        </svg>
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.span 
+              initial={{ opacity: 0, x: -10 }} 
+              animate={{ opacity: 1, x: 0 }} 
+              exit={{ opacity: 0, x: -10 }}
+              transition={{ duration: 0.15 }}
+              className="font-extrabold text-base text-gray-900 tracking-tight whitespace-nowrap overflow-hidden"
             >
-              Entendido
-            </button>
+              Analytics
+            </motion.span>
           )}
-        </div>
+        </AnimatePresence>
       </div>
-    </div>
+
+      {/* Navigation Items */}
+      <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
+        {menuItems.map((item) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            className={({ isActive }) => 
+              `flex items-center gap-3.5 px-3 py-2.5 rounded-md transition-all ${
+                isActive 
+                  ? 'bg-white text-[#001E62] font-bold border-l-2 border-[#001E62]' 
+                  : 'hover:bg-white/80 hover:text-gray-900'
+              }`
+            }
+          >
+            <item.icon size={19} className="flex-shrink-0 text-brand-blue" />
+            <AnimatePresence>
+              {isExpanded && (
+                <motion.span 
+                  initial={{ opacity: 0 }} 
+                  animate={{ opacity: 1 }} 
+                  exit={{ opacity: 0 }}
+                  className="text-xs font-semibold uppercase tracking-wider whitespace-nowrap overflow-hidden truncate"
+                >
+                  {item.label}
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* Settings Button at bottom */}
+      <div className="p-3 border-t border-gray-200">
+        <button
+          onClick={() => {}}
+          className="w-full flex items-center gap-3.5 px-3 py-2.5 rounded-md transition-all hover:bg-white text-gray-500 hover:text-gray-900 cursor-pointer"
+          title="Configurações"
+        >
+          <Settings size={19} className="flex-shrink-0 text-brand-blue" />
+          <AnimatePresence>
+            {isExpanded && (
+              <motion.span 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }}
+                className="text-xs font-semibold uppercase tracking-wider whitespace-nowrap overflow-hidden truncate"
+              >
+                Configurações
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </button>
+      </div>
+    </motion.div>
   );
 };
+
