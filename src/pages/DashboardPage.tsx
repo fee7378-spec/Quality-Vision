@@ -252,7 +252,7 @@ export const DashboardPage = () => {
       .filter(item => {
         if (startDate && item.DataProdutividade && item.DataProdutividade < startDate) return false;
         if (endDate && item.DataProdutividade && item.DataProdutividade > endDate) return false;
-        if (selectedEsteira !== 'TODAS' && item.Esteira !== selectedEsteira) return false;
+        if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
         return true;
       })
       .forEach(p => {
@@ -323,10 +323,10 @@ export const DashboardPage = () => {
             <h3 className={`text-3xl font-black tracking-tight ${getQualityColor(qualidadeNum)}`}>{qualidade}</h3>
           </div>
           <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-            <span className="text-gray-500 font-medium text-[11px]">Meta: <strong className="text-gray-800 font-bold">95,0%</strong></span>
+            <span className="text-gray-500 font-medium text-[11px]">Qualidade operacional</span>
             <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[#001E62] font-bold text-[11px]">
               <Target size={12} className="text-[#001E62]" />
-              <span>{((qualidadeNum / 95) * 100).toFixed(1)}% da Meta</span>
+              <span>Meta: 95,0%</span>
             </div>
           </div>
         </div>

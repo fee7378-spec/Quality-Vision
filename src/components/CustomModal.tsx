@@ -53,7 +53,7 @@ export const CustomModal: React.FC<CustomModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-gray-50/80 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-all animate-in fade-in duration-200">
-      <div className="bg-white border border-gray-200 w-full max-w-md rounded-lg p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200 text-gray-900">
+      <div className="bg-white w-full max-w-md rounded-lg p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200 text-gray-900">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-md shrink-0">

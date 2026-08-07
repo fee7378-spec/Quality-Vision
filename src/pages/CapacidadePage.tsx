@@ -11,7 +11,8 @@ import {
   useStore, 
   isValidAnalystName, 
   formatSecondsToHHMMSS, 
-  parseHHMMSSToSeconds 
+  parseHHMMSSToSeconds,
+  matchesFilter
 } from '../store/useStore';
 
 export const CapacidadePage: React.FC = () => {
@@ -33,9 +34,7 @@ export const CapacidadePage: React.FC = () => {
     Object.keys(esteiraParams).forEach(e => { if (e !== 'Geral') setE.add(e); });
     
     let esteiraList = Array.from(setE).sort();
-    if (selectedEsteira !== 'TODAS') {
-      esteiraList = esteiraList.filter(e => e === selectedEsteira);
-    }
+    esteiraList = esteiraList.filter(e => matchesFilter(selectedEsteira, e, 'TODAS'));
 
     let totalCapDia = 0;
     let totalProdFila = 0;
@@ -121,7 +120,7 @@ export const CapacidadePage: React.FC = () => {
     productivityData.forEach(item => {
       const dateStr = item.DataProdutividade;
       if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return;
-      if (selectedEsteira !== 'TODAS' && item.Esteira !== selectedEsteira) return;
+      if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return;
 
       const [year, month] = dateStr.split('-');
       const key = `${year}-${month}`;
@@ -149,7 +148,10 @@ export const CapacidadePage: React.FC = () => {
       const daysWorked = entry.daysCount.size || 1;
       const avgDailyRate = entry.volume / daysWorked;
       
-      const esteiraParam = selectedEsteira !== 'TODAS' ? esteiraParams[selectedEsteira] : null;
+      const selectedKey = Array.isArray(selectedEsteira) 
+        ? (selectedEsteira.length === 1 ? selectedEsteira[0] : 'TODAS') 
+        : selectedEsteira;
+      const esteiraParam = selectedKey !== 'TODAS' ? esteiraParams[selectedKey] : null;
       const daysInMonth = esteiraParam?.diasUteisMes || workingDaysInMonth;
       const projectedVolume = Math.round(avgDailyRate * daysInMonth);
 
@@ -172,6 +174,20 @@ export const CapacidadePage: React.FC = () => {
 
   return (
     <div className="w-full p-4 sm:p-6 md:p-8 bg-gray-50 text-gray-900 space-y-8">
+      {productivityData.length === 0 && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-900 px-5 py-4 rounded-xl flex items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="text-amber-600 shrink-0" size={22} />
+            <div>
+              <p className="font-bold text-sm">Nenhuma base de produtividade importada</p>
+              <p className="text-xs text-amber-800 mt-0.5">
+                Os indicadores e gráficos desta aba são medidos ao carregar o arquivo de produtividade. Acesse a aba <strong>Importar</strong> para carregar a base.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* KPI Cards Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {/* KPI 1: Volume Realizado x MoM */}

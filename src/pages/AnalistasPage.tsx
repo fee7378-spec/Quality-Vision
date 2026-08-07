@@ -169,8 +169,6 @@ export const AnalistasPage = () => {
     endDate, 
     selectedEsteira, 
     selectedForma,
-    selectedSupervisor,
-    setSelectedSupervisor,
     analystSearchQuery,
     setAnalystSearchQuery,
     esteiraParams
@@ -189,7 +187,7 @@ export const AnalistasPage = () => {
   useEffect(() => {
     setDisplayLimit(15);
     setRankingLimit(10);
-  }, [startDate, endDate, selectedEsteira, selectedForma, selectedSupervisor, analystSearchQuery]);
+  }, [startDate, endDate, selectedEsteira, selectedForma, analystSearchQuery]);
 
   // Global Escape key handler to close popups
   useEffect(() => {
@@ -223,7 +221,7 @@ export const AnalistasPage = () => {
       errStr === 'nok';
 
     if (!isErr) return false;
-    if (selectedForma !== 'TODAS' && item.FormaMonitoria !== selectedForma) return false;
+    if (!matchesFilter(selectedForma, item.FormaMonitoria, 'TODAS')) return false;
     return true;
   };
 
@@ -232,7 +230,7 @@ export const AnalistasPage = () => {
     return data.filter(item => {
       if (startDate && item.DataMonitoria && item.DataMonitoria < startDate) return false;
       if (endDate && item.DataMonitoria && item.DataMonitoria > endDate) return false;
-      if (selectedEsteira !== 'TODAS' && item.Esteira !== selectedEsteira) return false;
+      if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
       return true;
     });
   }, [data, startDate, endDate, selectedEsteira]);
@@ -242,7 +240,7 @@ export const AnalistasPage = () => {
     return productivityData.filter(item => {
       if (startDate && item.DataProdutividade && item.DataProdutividade < startDate) return false;
       if (endDate && item.DataProdutividade && item.DataProdutividade > endDate) return false;
-      if (selectedEsteira !== 'TODAS' && item.Esteira !== selectedEsteira) return false;
+      if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
       return true;
     });
   }, [productivityData, startDate, endDate, selectedEsteira]);
@@ -474,9 +472,6 @@ export const AnalistasPage = () => {
 
   const filteredAnalysts = useMemo(() => {
     return analystsList.filter(a => {
-      if (selectedSupervisor !== 'TODOS' && normalizeName(a.supervisor) !== normalizeName(selectedSupervisor)) {
-        return false;
-      }
       if (!analystSearchQuery.trim()) return true;
       const term = analystSearchQuery.toLowerCase();
       return (
@@ -486,7 +481,7 @@ export const AnalistasPage = () => {
         a.esteiras.some(e => e.toLowerCase().includes(term))
       );
     });
-  }, [analystsList, analystSearchQuery, selectedSupervisor]);
+  }, [analystsList, analystSearchQuery]);
 
   // Calculate Polar Dispersal Data (Q1, Q2, Q3, Q4 Productivity based on Esteira Meta & Radial Quality)
   const dispersalData = useMemo(() => {
@@ -793,11 +788,7 @@ export const AnalistasPage = () => {
                     </radialGradient>
                     
                     <filter id="dotGlow" x="-50%" y="-50%" width="200%" height="200%">
-                      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-                      <feMerge>
-                        <feMergeNode in="coloredBlur"/>
-                        <feMergeNode in="SourceGraphic"/>
-                      </feMerge>
+                      <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" floodColor="#0f172a" floodOpacity="0.3" />
                     </filter>
 
                     <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -895,14 +886,24 @@ export const AnalistasPage = () => {
                           </>
                         )}
 
+                        {/* Outer thin black ring */}
                         <circle 
                           cx={item.x} 
                           cy={item.y} 
-                          r={isSelected || isSearched ? "11" : "8"} 
+                          r={isSelected || isSearched ? "12" : "9.5"} 
+                          fill="none"
+                          stroke="#000000" 
+                          strokeWidth="1"
+                        />
+                        {/* Inner circle with thin white border */}
+                        <circle 
+                          cx={item.x} 
+                          cy={item.y} 
+                          r={isSelected || isSearched ? "11" : "8.5"} 
                           fill={isSearched ? "#001E62" : item.prodQuadrantColor} 
                           stroke="#ffffff" 
-                          strokeWidth={isSelected || isSearched ? "3" : "2"}
-                          className="transition-all duration-150 group-hover:stroke-[#001E62] group-hover:stroke-[3.5]"
+                          strokeWidth="1.2"
+                          className="transition-all duration-150 group-hover:scale-105"
                           filter="url(#dotGlow)"
                         />
                       </g>
@@ -976,7 +977,6 @@ export const AnalistasPage = () => {
                     <button
                       onClick={() => {
                         setSelectedAnalyst(selectedDiagramAnalyst);
-                        setActiveTab('individual');
                       }}
                       className="w-full py-2.5 px-4 bg-white text-brand-blue border border-brand-blue hover:bg-brand-blue hover:text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
                     >
@@ -1125,7 +1125,6 @@ export const AnalistasPage = () => {
                     <button
                       onClick={() => {
                         setSelectedAnalyst(analyst);
-                        setActiveTab('individual');
                       }}
                       className="w-full md:w-auto px-4 py-2 bg-white hover:bg-gray-100 text-brand-blue border border-gray-300 hover:border-brand-blue-dark/60 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
                     >
@@ -1327,7 +1326,7 @@ export const AnalistasPage = () => {
                   }}
                   className={`w-[150px] h-9 rounded-xl text-xs font-bold border inline-flex items-center justify-center gap-2 transition-all duration-200 hover:scale-[1.02] active:scale-95 cursor-pointer shadow-lg shrink-0 ${analyst.maxQuadrante.colorClass}`}
                 >
-                  <span className="w-5 h-5 rounded-full bg-gray-50/50 border border-white/20 flex items-center justify-center text-[10px] font-black shrink-0">
+                  <span className="w-5.5 h-5.5 rounded-full bg-slate-900 text-white border border-slate-700 flex items-center justify-center text-[10px] font-black shrink-0 shadow-xs">
                     {analyst.maxTagErrorCount}
                   </span>
                   <span className="font-extrabold text-xs">
@@ -1513,7 +1512,7 @@ export const AnalistasPage = () => {
                             cursor={{ fill: 'transparent' }}
                           />
                           <Bar dataKey="count" name="Quantidade" fill="#001E62" radius={[6, 6, 0, 0]}>
-                            <LabelList dataKey="count" position="top" fill="#ffffff" fontSize={11} fontWeight="bold" />
+                            <LabelList dataKey="count" position="top" offset={6} fill="#001E62" fontSize={11} fontWeight="bold" />
                           </Bar>
                         </BarChart>
                       </ResponsiveContainer>
@@ -1548,8 +1547,9 @@ export const AnalistasPage = () => {
                             ))}
                           </Pie>
                           <Tooltip 
-                            contentStyle={{ backgroundColor: '#ffffff', borderColor: '#001E62', borderRadius: '8px', color: '#001E62', fontWeight: 'bold' }} itemStyle={{ color: '#001E62', fontWeight: 'bold' }} labelStyle={{ color: '#001E62', fontWeight: 'bold' }} 
-                            itemStyle={{ color: '#001E62' }}
+                            contentStyle={{ backgroundColor: '#ffffff', borderColor: '#001E62', borderRadius: '8px', color: '#001E62', fontWeight: 'bold' }} 
+                            itemStyle={{ color: '#001E62', fontWeight: 'bold' }} 
+                            labelStyle={{ color: '#001E62', fontWeight: 'bold' }} 
                           />
                           <Legend wrapperStyle={{ fontSize: '11px', color: '#a1a1aa', paddingTop: '8px' }} />
                         </PieChart>
@@ -1606,7 +1606,7 @@ export const AnalistasPage = () => {
       {/* POP-UP MODAL: Erros e Reincidências */}
       {popupAnalyst && (
         <div className="fixed inset-0 bg-gray-50/80 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-all">
-          <div className="w-full max-w-2xl bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 space-y-6 animate-in zoom-in-95 duration-200 text-gray-900 max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
+          <div className="w-full max-w-2xl bg-white rounded-2xl p-6 sm:p-8 space-y-6 animate-in zoom-in-95 duration-200 text-gray-900 max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
             {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-gray-200 pb-4">
               <div>
@@ -1649,7 +1649,7 @@ export const AnalistasPage = () => {
                     />
                     
                     <Bar dataKey="count" name="Erros na TAG" fill="#001E62" radius={[6, 6, 0, 0]} barSize={32}>
-                      <LabelList dataKey="count" position="top" fill="#ffffff" fontSize={11} fontWeight="bold" />
+                      <LabelList dataKey="count" position="top" offset={6} fill="#001E62" fontSize={11} fontWeight="bold" />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>

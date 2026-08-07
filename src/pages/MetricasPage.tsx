@@ -32,10 +32,11 @@ export const MetricasPage = () => {
     productivityData.forEach(item => {
       const eName = item.Esteira;
       if (!eName) return;
+      if (item.TmoMinutos === undefined || item.TmoMinutos <= 0) return; // Ignore if column has no time data
       if (!countMap[eName]) countMap[eName] = { totalItems: 0, totalMinutes: 0 };
       const qty = item.Quantidade || 1;
       countMap[eName].totalItems += qty;
-      countMap[eName].totalMinutes += (item.TempoMinutos || 25) * qty;
+      countMap[eName].totalMinutes += item.TmoMinutos * qty;
     });
 
     Object.keys(countMap).forEach(e => {

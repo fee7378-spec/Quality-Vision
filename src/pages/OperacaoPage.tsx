@@ -71,9 +71,10 @@ export const OperacaoPage: React.FC = () => {
     const pendReprovTotal = pendentesCount + reprovadosCount;
     const pendReprovPercent = totalVolume > 0 ? ((pendReprovTotal / totalVolume) * 100).toFixed(1) : '0';
 
-    // Average TMO per analyst / item
-    const tmoSum = filteredProd.reduce((acc, curr) => acc + (curr.TmoMinutos || 15), 0);
-    const tmoAvg = filteredProd.length > 0 ? (tmoSum / filteredProd.length).toFixed(1) : '0.0';
+    // Average TMO per analyst / item (only count items with time data in Apuração column)
+    const itemsWithTmo = filteredProd.filter(p => p.TmoMinutos !== undefined && p.TmoMinutos > 0);
+    const tmoSum = itemsWithTmo.reduce((acc, curr) => acc + (curr.TmoMinutos || 0), 0);
+    const tmoAvg = itemsWithTmo.length > 0 ? (tmoSum / itemsWithTmo.length).toFixed(1) : '0.0';
 
     // Peak day calculated strictly by the day with highest tabulated demands
     const dayMap: Record<string, number> = {};
@@ -117,9 +118,10 @@ export const OperacaoPage: React.FC = () => {
         map[e] = { esteira: e, sim: 0, nao: 0, total: 0 };
       }
       const qty = p.Quantidade || 1;
-      if (p.Prioridade === 'Sim') {
+      const prio = (p.Prioridade || '').trim().toLowerCase();
+      if (prio === 'sim' || prio === 's' || prio === 'true' || prio === '1') {
         map[e].sim += qty;
-      } else {
+      } else if (prio === 'não' || prio === 'nao' || prio === 'n' || prio === 'false' || prio === '0') {
         map[e].nao += qty;
       }
       map[e].total += qty;
@@ -153,8 +155,10 @@ export const OperacaoPage: React.FC = () => {
     const map: Record<string, number> = {};
     filteredProd.forEach(p => {
       if (p.PendenciaReprova === 'Pendência' || p.PendenciaReprova === 'Reprovado') {
-        const mot = p.MotivoPendencia && p.MotivoPendencia !== 'Nenhum' ? p.MotivoPendencia : 'Outros / Não Especificado';
-        map[mot] = (map[mot] || 0) + 1;
+        const mot = (p.MotivoPendencia || p.DocumentoPendenciado || p.Pendencia || '').trim();
+        if (mot && mot.toLowerCase() !== 'nenhum' && mot.toLowerCase() !== 'outros / não especificado') {
+          map[mot] = (map[mot] || 0) + 1;
+        }
       }
     });
 
@@ -164,11 +168,13 @@ export const OperacaoPage: React.FC = () => {
       .slice(0, 5);
   }, [filteredProd]);
 
-  // 4. Atividades com maior volume por Esteira (Tipo de Demanda - Todas as demandas)
+  // 4. Atividades com maior volume por Esteira (Tipo de Demanda - apenas preenchidos)
   const atividadeVolume = useMemo(() => {
     const map: Record<string, number> = {};
     filteredProd.forEach(p => {
-      const key = `${p.TipoDemanda || 'Geral'} (${p.Esteira || 'Geral'})`;
+      const demanda = (p.TipoDemanda || '').trim();
+      if (!demanda) return; // Não contabiliza se não tiver dados
+      const key = `${demanda} (${p.Esteira || 'Geral'})`;
       map[key] = (map[key] || 0) + (p.Quantidade || 1);
     });
 
@@ -177,21 +183,22 @@ export const OperacaoPage: React.FC = () => {
       .sort((a, b) => b.volume - a.volume);
   }, [filteredProd]);
 
-  // 5. TMO por Esteira (Vertical Bars, Descending Order)
+  // 5. TMO por Esteira (Vertical Bars, Descending Order - apenas com tempo apurado)
   const tmoPorEsteira = useMemo(() => {
     const map: Record<string, { count: number; sum: number }> = {};
     filteredProd.forEach(p => {
+      if (p.TmoMinutos === undefined || p.TmoMinutos <= 0) return; // Não contabiliza se sem tempo apurado
       const e = p.Esteira || 'Geral';
       if (!map[e]) map[e] = { count: 0, sum: 0 };
       map[e].count += 1;
-      map[e].sum += (p.TmoMinutos || 15);
+      map[e].sum += p.TmoMinutos;
     });
 
     // Descending order of TMO with 1 decimal place
     return Object.entries(map).map(([esteira, val]) => ({
       esteira,
-      tmoMedio: parseFloat((val.sum / val.count).toFixed(1))
-    })).sort((a, b) => b.tmoMedio - a.tmoMedio);
+      tmoMedio: val.count > 0 ? parseFloat((val.sum / val.count).toFixed(1)) : 0
+    })).filter(item => item.tmoMedio > 0).sort((a, b) => b.tmoMedio - a.tmoMedio);
   }, [filteredProd]);
 
   // 6. Evolução Diária e Destaque do Dia de Maior Volume
@@ -216,6 +223,19 @@ export const OperacaoPage: React.FC = () => {
 
   return (
     <div className="w-full p-4 sm:p-6 md:p-8 bg-gray-50 text-gray-900 space-y-8">
+      {productivityData.length === 0 && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-900 px-5 py-4 rounded-xl flex items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="text-amber-600 shrink-0" size={22} />
+            <div>
+              <p className="font-bold text-sm">Nenhuma base de produtividade importada</p>
+              <p className="text-xs text-amber-800 mt-0.5">
+                Aguardando importação da base de produtividade para exibir os dados e gráficos da Operação. Acesse a aba <strong>Importar</strong> para carregar a base.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">

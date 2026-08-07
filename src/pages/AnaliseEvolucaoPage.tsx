@@ -3,10 +3,11 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   AreaChart, Area, LabelList, Legend, BarChart, Bar, PieChart, Pie, Cell
 } from 'recharts';
-import { TrendingUp, Grid, PieChart as PieIcon } from 'lucide-react';
-import { useStore } from '../store/useStore';
+import { TrendingUp, Grid, PieChart as PieIcon, AlertTriangle } from 'lucide-react';
+import { useStore, matchesFilter } from '../store/useStore';
+import { AnalystModal } from '../components/AnalystModal';
 
-const MACRO_COLORS = ['#001E62', '#001E62', '#10b981', '#a855f7', '#06b6d4', '#f97316', '#ec4899', '#001E62'];
+const MACRO_COLORS = ['#001E62', '#10b981', '#a855f7', '#06b6d4', '#f97316', '#ec4899', '#3b82f6', '#eab308'];
 
 const CustomXAxisTick = (props: any) => {
   const { x, y, payload } = props;
@@ -51,23 +52,38 @@ export const AnaliseEvolucaoPage = () => {
   } = useStore();
 
   const [heatmapViewMode, setHeatmapViewMode] = useState<'esteira' | 'analista'>('esteira');
+  const [selectedAnalystForModal, setSelectedAnalystForModal] = useState<{ name: string } | null>(null);
 
   // Filter dataset by date and controls
   const filteredData = useMemo(() => {
     return data.filter(item => {
       if (startDate && item.DataMonitoria && item.DataMonitoria < startDate) return false;
       if (endDate && item.DataMonitoria && item.DataMonitoria > endDate) return false;
-      if (selectedTag !== 'TODAS' && item.Tag !== selectedTag) return false;
-      if (selectedMacro !== 'TODOS' && item.MotivoMacro !== selectedMacro) return false;
-      if (selectedEsteira !== 'TODAS' && item.Esteira !== selectedEsteira) return false;
+      if (!matchesFilter(selectedTag, item.Tag, 'TODAS')) return false;
+      if (!matchesFilter(selectedMacro, item.MotivoMacro, 'TODOS')) return false;
+      if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
       return true;
     });
   }, [data, startDate, endDate, selectedTag, selectedMacro, selectedEsteira]);
 
   // Helper to check if item is an error considering selectedForma filter
   const isErrorItem = (item: typeof data[0]) => {
-    if (item.Erro !== '0') return false;
-    if (selectedForma !== 'TODAS' && item.FormaMonitoria !== selectedForma) return false;
+    const errStr = String(item.Erro ?? '').trim().toLowerCase();
+    const isErr = 
+      errStr === '0' || 
+      errStr === '0.0' || 
+      errStr.startsWith('0') || 
+      errStr.includes('erro') || 
+      errStr.includes('não conforme') || 
+      errStr.includes('nao conforme') || 
+      errStr.includes('falha') || 
+      errStr.includes('reprovad') || 
+      errStr === 'nc' || 
+      errStr === 'n/c' || 
+      errStr === 'nok';
+
+    if (!isErr) return false;
+    if (!matchesFilter(selectedForma, item.FormaMonitoria, 'TODAS')) return false;
     return true;
   };
 
@@ -223,6 +239,20 @@ export const AnaliseEvolucaoPage = () => {
 
   return (
     <div className="w-full bg-gray-50 p-4 sm:p-6 md:p-8 space-y-8 text-gray-900">
+      {data.length === 0 && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-900 px-5 py-4 rounded-xl flex items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="text-amber-600 shrink-0" size={22} />
+            <div>
+              <p className="font-bold text-sm">Nenhuma base de monitoria (qualidade) importada</p>
+              <p className="text-xs text-amber-800 mt-0.5">
+                Aguardando importação da base de monitoria para calcular o Índice de Evolução, Erros por TAG, Motivo Macro e Heatmap. Acesse a aba <strong>Importar</strong> para carregar a planilha de monitoria.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Section 1: Índice de Evolução e Tendência */}
       <div className="bg-white border border-gray-200 p-6 rounded-md space-y-4 w-full">
         <div className="flex items-center justify-between">
@@ -245,7 +275,7 @@ export const AnaliseEvolucaoPage = () => {
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             <XAxis dataKey="label" stroke="#6b7280" tick={{ fontSize: 11 }} padding={{ left: 35, right: 35 }} />
-            <YAxis stroke="#6b7280" domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
+            <YAxis stroke="#6b7280" domain={[70, 100]} tick={{ fontSize: 11 }} unit="%" />
             <Tooltip 
               cursor={{ stroke: '#001E62', strokeDasharray: '3 3' }}
               contentStyle={{ backgroundColor: '#ffffff', borderColor: '#001E62', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', color: '#001E62', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }} 
@@ -281,7 +311,7 @@ export const AnaliseEvolucaoPage = () => {
                     labelStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
                   />
                   <Bar dataKey="count" name="Quantidade de Erros" fill="#001E62" radius={[4, 4, 0, 0]} barSize={36}>
-                    <LabelList dataKey="count" position="top" fill="#ffffff" fontSize={11} fontWeight="bold" />
+                    <LabelList dataKey="count" position="top" offset={6} fill="#001E62" fontSize={11} fontWeight="bold" />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -387,7 +417,19 @@ export const AnaliseEvolucaoPage = () => {
               {heatmapData.categories.length > 0 ? (
                 heatmapData.categories.map(cat => (
                   <tr key={cat} className="border-b border-gray-200/40 hover:bg-gray-100/20 transition-colors">
-                    <td className="p-3 text-left font-semibold text-gray-900 truncate max-w-[220px]" title={cat}>{cat}</td>
+                    <td 
+                      className={`p-3 text-left font-semibold text-gray-900 truncate max-w-[220px] ${
+                        !heatmapData.isEsteiraMode ? 'cursor-pointer text-[#001E62] hover:underline' : ''
+                      }`} 
+                      title={!heatmapData.isEsteiraMode ? `Clique para ver erros e reincidências de ${cat}` : cat}
+                      onClick={() => {
+                        if (!heatmapData.isEsteiraMode) {
+                          setSelectedAnalystForModal({ name: cat });
+                        }
+                      }}
+                    >
+                      {cat}
+                    </td>
                     {heatmapData.columns.map(col => {
                       const count = heatmapData.matrix[cat]?.[col] || 0;
                       return (
@@ -418,6 +460,15 @@ export const AnaliseEvolucaoPage = () => {
           <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded-sm bg-brand-blue-dark/20 border border-brand-blue-dark text-brand-blue"></span> 3+ Erros</span>
         </div>
       </div>
+
+      {/* Analyst Erros & Reincidências Modal */}
+      {selectedAnalystForModal && (
+        <AnalystModal
+          analystCode={null}
+          analystName={selectedAnalystForModal.name}
+          onClose={() => setSelectedAnalystForModal(null)}
+        />
+      )}
     </div>
   );
 };

@@ -21,8 +21,6 @@ export const Header = () => {
     setSelectedEsteira,
     selectedForma,
     setSelectedForma,
-    selectedSupervisor,
-    setSelectedSupervisor,
     analystSearchQuery,
     setAnalystSearchQuery,
     resetToCurrentMonth 
@@ -67,16 +65,6 @@ export const Header = () => {
     return ['TODAS', ...Array.from(setE).sort()];
   }, [data, productivityData]);
 
-  // Unique list of Supervisors
-  const availableSupervisors = useMemo(() => {
-    const setS = new Set<string>();
-    data.forEach(item => {
-      const sup = item.NomeSupervisor || item.Supervisor;
-      if (sup && String(sup).trim()) setS.add(String(sup).trim().toUpperCase());
-    });
-    return ['TODOS', ...Array.from(setS).sort()];
-  }, [data]);
-
   // Interdependent (Cascading) dropdown filters
   const availableFormas = useMemo(() => {
     let items = data.filter(i => matchesFilter(selectedEsteira, i.Esteira, 'TODAS'));
@@ -111,7 +99,8 @@ export const Header = () => {
   const showFormaFilter = path === '/' || path === '/analise' || path === '/history';
   const showEsteiraFilter = path === '/' || path === '/operacao' || path === '/capacidade' || path === '/parametros' || path === '/analise' || path === '/analistas' || path === '/history';
   const showSearchAnalyst = path === '/analistas' || path === '/history';
-  const showSupervisorFilter = path === '/' || path === '/analistas' || path === '/analise' || path === '/history';
+
+  const hasAnyFilter = showPeriodFilter || showFormaFilter || showEsteiraFilter || showSearchAnalyst;
 
   return (
     <header className="bg-white border-b border-gray-200 min-h-16 py-2 px-6 flex flex-wrap items-center justify-between gap-3 text-gray-800 z-40">
@@ -122,7 +111,7 @@ export const Header = () => {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        {showFilters && (
+        {showFilters && hasAnyFilter && (
           <div className="flex flex-wrap items-center gap-2.5 bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs text-gray-800">
             {/* Search Input for Gestão de Analistas / Histórico */}
             {showSearchAnalyst && (
@@ -197,21 +186,6 @@ export const Header = () => {
                 selected={selectedEsteira}
                 onChange={setSelectedEsteira}
                 defaultOption="TODAS"
-              />
-            )}
-
-            {showEsteiraFilter && showSupervisorFilter && (
-              <div className="h-4 w-px bg-gray-100 hidden md:block mx-1" />
-            )}
-
-            {/* Supervisor Filter */}
-            {showSupervisorFilter && (
-              <MultiSelectDropdown
-                label="Supervisor"
-                options={availableSupervisors}
-                selected={selectedSupervisor}
-                onChange={setSelectedSupervisor}
-                defaultOption="TODOS"
               />
             )}
           </div>

@@ -60,19 +60,25 @@ export interface EsteiraMetric {
 
 export interface ProductivityItem {
   id?: string;
-  NomeAnalista: string;      // Coluna A (ANALISTA)
-  DataProdutividade: string; // Coluna B (DATA - YYYY-MM-DD)
-  Apuracao?: string;         // Coluna C (APURAÇÃO)
-  Esteira: string;           // Coluna D (ESTEIRA)
-  TipoDemanda?: string;      // Coluna E (TIPO DE DEMANDA)
-  Complexidade?: string;     // Coluna F (Complexidade)
-  MotivoPendencia?: string;  // Coluna G (MOTIVO DE REPROVAÇÃO)
-  Prioridade?: string;       // Coluna H (PRIORIDADE)
-  PendenciaReprova?: string; // Coluna I (REPROVAÇÃO)
-  Segmento?: string;         // Coluna J (SEGMENTO)
-  CoSegmento?: string;       // Coluna K (CO SEGMENTO)
-  TipoSocietario?: string;   // Coluna L (TIPO SOCIETÁRIO)
-  Quantidade: number;        // Quantidade (1)
+  NomeAnalista: string;           // Coluna A (ANALISTA)
+  DataProdutividade: string;      // Coluna B (DATA - YYYY-MM-DD)
+  Apuracao?: string;              // Coluna C (APURAÇÃO TEMPO)
+  Esteira: string;                // Coluna D (ESTEIRA)
+  Complexidade?: string;          // Coluna E (COMPLEXIDADE)
+  TipoDemanda?: string;           // Coluna F (TIPO DE DEMANDA)
+  Pendencia?: string;             // Coluna G (PENDÊNCIA)
+  Prioridade?: string;            // Coluna H (PRIORIDADE)
+  Reprova?: string;               // Coluna I (REPROVA)
+  Segmento?: string;              // Coluna J (SEGMENTO)
+  Status?: string;                // Coluna K (STATUS)
+  CoSegmento?: string;            // Coluna L (CO-SEGMENTO)
+  DocumentoPendenciado?: string;  // Coluna M (DOCUMENTO PENDENCIADO)
+  Pendenciado?: string;           // Coluna N (PENDENCIADO)
+  // Additional calculated properties for system widgets
+  MotivoPendencia?: string;
+  PendenciaReprova?: string;
+  TipoSocietario?: string;
+  Quantidade: number;             // Quantidade (1)
   TmoMinutos?: number;
   [key: string]: any;
 }
@@ -80,16 +86,18 @@ export interface ProductivityItem {
 export interface ProductivityColumnMapping {
   A: string; // ANALISTA
   B: string; // DATA
-  C: string; // APURAÇÃO
+  C: string; // APURAÇÃO TEMPO
   D: string; // ESTEIRA
-  E: string; // TIPO DE DEMANDA
-  F: string; // Complexidade
-  G: string; // MOTIVO DE REPROVAÇÃO
+  E: string; // COMPLEXIDADE
+  F: string; // TIPO DE DEMANDA
+  G: string; // PENDÊNCIA
   H: string; // PRIORIDADE
-  I: string; // REPROVAÇÃO
+  I: string; // REPROVA
   J: string; // SEGMENTO
-  K: string; // CO SEGMENTO
-  L: string; // TIPO SOCIETÁRIO
+  K: string; // STATUS
+  L: string; // CO-SEGMENTO
+  M: string; // DOCUMENTO PENDENCIADO
+  N: string; // PENDENCIADO
 }
 
 export const getCurrentMonthRange = () => {
@@ -451,10 +459,10 @@ const loadInitialData = (): {
   prodLastProcessed: string | null;
   esteiraMappings: EsteiraMapping[];
 } => {
-  let data = sanitizeItems(initialSampleData);
-  let lastProcessed: string | null = '28/07/2026, 09:31';
-  let prodData = initialSampleProductivityData;
-  let prodLastProcessed: string | null = '28/07/2026, 09:31';
+  let data: MonitoringItem[] = [];
+  let lastProcessed: string | null = null;
+  let prodData: ProductivityItem[] = [];
+  let prodLastProcessed: string | null = null;
   let esteiraMappings = defaultEsteiraMappings;
 
   try {
@@ -504,20 +512,20 @@ const initialStored = loadInitialData();
 const currentMonthRange = getCurrentMonthRange();
 
 const initialEsteirasMetrics: Record<string, EsteiraMetric> = {
-  'BTG ABONO PJ': { esteira: 'BTG ABONO PJ', contratados: 6, tmo: 26, capacidadeDia: 50, produzidoFila: 220, produzidoPrioridade: 80, totalProduzido: 300 },
-  'BTG BKO ABERTURA PJ': { esteira: 'BTG BKO ABERTURA PJ', contratados: 3, tmo: 25, capacidadeDia: 40, produzidoFila: 110, produzidoPrioridade: 40, totalProduzido: 150 },
-  'BTG BKO MANUTENÇÃOPJ': { esteira: 'BTG BKO MANUTENÇÃOPJ', contratados: 30, tmo: 39, capacidadeDia: 45, produzidoFila: 950, produzidoPrioridade: 400, totalProduzido: 1350 },
-  'BTG CORPORATE': { esteira: 'BTG CORPORATE', contratados: 10, tmo: 60, capacidadeDia: 30, produzidoFila: 210, produzidoPrioridade: 90, totalProduzido: 300 },
-  'BTG EXTRANET PJ': { esteira: 'BTG EXTRANET PJ', contratados: 4, tmo: 55, capacidadeDia: 45, produzidoFila: 140, produzidoPrioridade: 40, totalProduzido: 180 },
-  'BTG FATCA PJ': { esteira: 'BTG FATCA PJ', contratados: 5, tmo: 30, capacidadeDia: 50, produzidoFila: 180, produzidoPrioridade: 70, totalProduzido: 250 },
-  'BTG MANUTENÇÃO PJ': { esteira: 'BTG MANUTENÇÃO PJ', contratados: 24, tmo: 34, capacidadeDia: 45, produzidoFila: 780, produzidoPrioridade: 300, totalProduzido: 1080 },
-  'BTG ONBOARDING PJ': { esteira: 'BTG ONBOARDING PJ', contratados: 24, tmo: 21, capacidadeDia: 40, produzidoFila: 690, produzidoPrioridade: 270, totalProduzido: 960 },
-  'BTG PREMIUM PJ': { esteira: 'BTG PREMIUM PJ', contratados: 5, tmo: 59, capacidadeDia: 35, produzidoFila: 130, produzidoPrioridade: 45, totalProduzido: 175 },
-  'BTG VINTAGE PJ': { esteira: 'BTG VINTAGE PJ', contratados: 5, tmo: 59, capacidadeDia: 40, produzidoFila: 140, produzidoPrioridade: 60, totalProduzido: 200 },
-  'MANUTENÇÃO PF': { esteira: 'MANUTENÇÃO PF', contratados: 15, tmo: 25, capacidadeDia: 50, produzidoFila: 520, produzidoPrioridade: 230, totalProduzido: 750 },
-  'PARAMETRIZAÇÃO': { esteira: 'PARAMETRIZAÇÃO', contratados: 31, tmo: 40, capacidadeDia: 40, produzidoFila: 860, produzidoPrioridade: 380, totalProduzido: 1240 },
-  'SH-PME': { esteira: 'SH-PME', contratados: 3, tmo: 28, capacidadeDia: 45, produzidoFila: 90, produzidoPrioridade: 45, totalProduzido: 135 },
-  'WM': { esteira: 'WM', contratados: 3, tmo: 55, capacidadeDia: 35, produzidoFila: 70, produzidoPrioridade: 35, totalProduzido: 105 }
+  'BTG ABONO PJ': { esteira: 'BTG ABONO PJ', contratados: 6, tmo: 26, capacidadeDia: 50, produzidoFila: 0, produzidoPrioridade: 0, totalProduzido: 0 },
+  'BTG BKO ABERTURA PJ': { esteira: 'BTG BKO ABERTURA PJ', contratados: 3, tmo: 25, capacidadeDia: 40, produzidoFila: 0, produzidoPrioridade: 0, totalProduzido: 0 },
+  'BTG BKO MANUTENÇÃOPJ': { esteira: 'BTG BKO MANUTENÇÃOPJ', contratados: 30, tmo: 39, capacidadeDia: 45, produzidoFila: 0, produzidoPrioridade: 0, totalProduzido: 0 },
+  'BTG CORPORATE': { esteira: 'BTG CORPORATE', contratados: 10, tmo: 60, capacidadeDia: 30, produzidoFila: 0, produzidoPrioridade: 0, totalProduzido: 0 },
+  'BTG EXTRANET PJ': { esteira: 'BTG EXTRANET PJ', contratados: 4, tmo: 55, capacidadeDia: 45, produzidoFila: 0, produzidoPrioridade: 0, totalProduzido: 0 },
+  'BTG FATCA PJ': { esteira: 'BTG FATCA PJ', contratados: 5, tmo: 30, capacidadeDia: 50, produzidoFila: 0, produzidoPrioridade: 0, totalProduzido: 0 },
+  'BTG MANUTENÇÃO PJ': { esteira: 'BTG MANUTENÇÃO PJ', contratados: 24, tmo: 34, capacidadeDia: 45, produzidoFila: 0, produzidoPrioridade: 0, totalProduzido: 0 },
+  'BTG ONBOARDING PJ': { esteira: 'BTG ONBOARDING PJ', contratados: 24, tmo: 21, capacidadeDia: 40, produzidoFila: 0, produzidoPrioridade: 0, totalProduzido: 0 },
+  'BTG PREMIUM PJ': { esteira: 'BTG PREMIUM PJ', contratados: 5, tmo: 59, capacidadeDia: 35, produzidoFila: 0, produzidoPrioridade: 0, totalProduzido: 0 },
+  'BTG VINTAGE PJ': { esteira: 'BTG VINTAGE PJ', contratados: 5, tmo: 59, capacidadeDia: 40, produzidoFila: 0, produzidoPrioridade: 0, totalProduzido: 0 },
+  'MANUTENÇÃO PF': { esteira: 'MANUTENÇÃO PF', contratados: 15, tmo: 25, capacidadeDia: 50, produzidoFila: 0, produzidoPrioridade: 0, totalProduzido: 0 },
+  'PARAMETRIZAÇÃO': { esteira: 'PARAMETRIZAÇÃO', contratados: 31, tmo: 40, capacidadeDia: 40, produzidoFila: 0, produzidoPrioridade: 0, totalProduzido: 0 },
+  'SH-PME': { esteira: 'SH-PME', contratados: 3, tmo: 28, capacidadeDia: 45, produzidoFila: 0, produzidoPrioridade: 0, totalProduzido: 0 },
+  'WM': { esteira: 'WM', contratados: 3, tmo: 55, capacidadeDia: 35, produzidoFila: 0, produzidoPrioridade: 0, totalProduzido: 0 }
 };
 
 export const useStore = create<AppState>((set, get) => ({
@@ -580,7 +588,9 @@ export const useStore = create<AppState>((set, get) => ({
     I: 'I',
     J: 'J',
     K: 'K',
-    L: 'L'
+    L: 'L',
+    M: 'M',
+    N: 'N'
   },
   
   setData: (newData, timestamp) => {

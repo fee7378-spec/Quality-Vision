@@ -157,19 +157,19 @@ export const ImportPage = () => {
     return normalizeDateStr(str);
   };
 
-  const parseApuracaoToMinutes = (rawVal: any): number => {
-    if (rawVal === undefined || rawVal === null) return 15;
+  const parseApuracaoToMinutes = (rawVal: any): number | undefined => {
+    if (rawVal === undefined || rawVal === null) return undefined;
     const str = String(rawVal).trim();
-    if (!str) return 15;
+    if (!str) return undefined;
 
     if (str.includes(':')) {
       const parts = str.split(':').map(p => parseFloat(p) || 0);
       if (parts.length === 3) {
         const mins = parts[0] * 60 + parts[1] + parts[2] / 60;
-        return mins > 0 ? Math.round(mins * 10) / 10 : 15;
+        return mins > 0 ? Math.round(mins * 10) / 10 : undefined;
       } else if (parts.length === 2) {
         const mins = parts[0] + parts[1] / 60;
-        return mins > 0 ? Math.round(mins * 10) / 10 : 15;
+        return mins > 0 ? Math.round(mins * 10) / 10 : undefined;
       }
     }
 
@@ -183,7 +183,7 @@ export const ImportPage = () => {
       return Math.round(num * 10) / 10;
     }
 
-    return 15;
+    return undefined;
   };
 
   const parseErroValue = (rawVal: any): string => {
@@ -235,54 +235,92 @@ export const ImportPage = () => {
             return;
           }
 
-          const idxCode = colLetterToIndex(localMapping.S);
-          const idxName = colLetterToIndex(localMapping.T);
-          const idxMonitor = colLetterToIndex(localMapping.V);
-          const idxSupervisor = colLetterToIndex(localMapping.Y);
-          const idxForma = colLetterToIndex(localMapping.AA);
-          const idxData = colLetterToIndex(localMapping.AB);
-          const idxTag = colLetterToIndex(localMapping.AE);
-          const idxMacro = colLetterToIndex(localMapping.AF);
-          const idxErro = colLetterToIndex(localMapping.AH);
-          const idxEsteira = colLetterToIndex(localMapping.R);
-          const idxFeedback = colLetterToIndex(localMapping.BT);
-          const idxPlano = colLetterToIndex(localMapping.BQ || 'BQ');
-          const idxDataPlano = colLetterToIndex(localMapping.BT_Plano || 'BT');
-
-          const items: MonitoringItem[] = [];
+          let idxCode = colLetterToIndex(localMapping.S);
+          let idxName = colLetterToIndex(localMapping.T);
+          let idxMonitor = colLetterToIndex(localMapping.V);
+          let idxSupervisor = colLetterToIndex(localMapping.Y);
+          let idxForma = colLetterToIndex(localMapping.AA);
+          let idxData = colLetterToIndex(localMapping.AB);
+          let idxTag = colLetterToIndex(localMapping.AE);
+          let idxMacro = colLetterToIndex(localMapping.AF);
+          let idxErro = colLetterToIndex(localMapping.AH);
+          let idxEsteira = colLetterToIndex(localMapping.R);
+          let idxFeedback = colLetterToIndex(localMapping.BT);
+          let idxPlano = colLetterToIndex(localMapping.BQ || 'BQ');
+          let idxDataPlano = colLetterToIndex(localMapping.BT_Plano || 'BT');
 
           let startRow = 0;
-          if (rawRows[0]) {
-            const row0Name = idxName >= 0 && rawRows[0][idxName] ? String(rawRows[0][idxName]).toLowerCase() : '';
-            const row0Code = idxCode >= 0 && rawRows[0][idxCode] ? String(rawRows[0][idxCode]).toLowerCase() : '';
-            const row0Data = idxData >= 0 && rawRows[0][idxData] ? String(rawRows[0][idxData]).toLowerCase() : '';
-            
-            if (
-              row0Name.includes('nome') || 
-              row0Name.includes('analista') || 
-              row0Code.includes('código') || 
-              row0Code.includes('codigo') || 
-              row0Code.includes('matrícula') || 
-              row0Data.includes('data')
-            ) {
-              startRow = 1;
+          for (let r = 0; r < Math.min(3, rawRows.length); r++) {
+            const rowHeader = rawRows[r];
+            if (!rowHeader) continue;
+            let foundHeaderInRow = false;
+
+            rowHeader.forEach((cellVal: any, colIdx: number) => {
+              if (!cellVal) return;
+              const h = String(cellVal).trim().toLowerCase();
+              if (/analista|nome.*analista|operador/i.test(h)) { idxName = colIdx; foundHeaderInRow = true; }
+              else if (/código|codigo|matrícula|matricula/i.test(h)) { idxCode = colIdx; foundHeaderInRow = true; }
+              else if (/monitor|avaliador/i.test(h)) { idxMonitor = colIdx; foundHeaderInRow = true; }
+              else if (/supervisor|gestor|lider/i.test(h)) { idxSupervisor = colIdx; foundHeaderInRow = true; }
+              else if (/forma|tipo.*monitoria|origem/i.test(h)) { idxForma = colIdx; foundHeaderInRow = true; }
+              else if (/data.*monitoria|dt_monitoria|data$/i.test(h)) { idxData = colIdx; foundHeaderInRow = true; }
+              else if (/tag|inconsist/i.test(h)) { idxTag = colIdx; foundHeaderInRow = true; }
+              else if (/macro|motivo|causa/i.test(h)) { idxMacro = colIdx; foundHeaderInRow = true; }
+              else if (/erro|status|resultado|nota|conforme/i.test(h)) { idxErro = colIdx; foundHeaderInRow = true; }
+              else if (/esteira|tabulador|processo|fila/i.test(h)) { idxEsteira = colIdx; foundHeaderInRow = true; }
+              else if (/feedback/i.test(h)) { idxFeedback = colIdx; foundHeaderInRow = true; }
+              else if (/plano.*ação|plano.*acao|plano$/i.test(h)) { idxPlano = colIdx; foundHeaderInRow = true; }
+              else if (/data.*plano|dt.*plano/i.test(h)) { idxDataPlano = colIdx; foundHeaderInRow = true; }
+            });
+
+            if (foundHeaderInRow && startRow === 0) {
+              startRow = r + 1;
             }
           }
+
+          const items: MonitoringItem[] = [];
 
           for (let i = startRow; i < rawRows.length; i++) {
             const row = rawRows[i];
             if (!row || row.length === 0) continue;
 
-            const nameVal = idxName >= 0 && row[idxName] ? String(row[idxName]).trim() : '';
-            const codeVal = idxCode >= 0 && row[idxCode] ? String(row[idxCode]).trim() : '';
+            let nameVal = idxName >= 0 && row[idxName] ? String(row[idxName]).trim() : '';
+            let codeVal = idxCode >= 0 && row[idxCode] ? String(row[idxCode]).trim() : '';
             
+            if (!isValidAnalystName(nameVal)) {
+              nameVal = '';
+              for (const cell of row) {
+                if (!cell) continue;
+                const strCell = String(cell).trim();
+                if (isValidAnalystName(strCell)) {
+                  nameVal = strCell;
+                  break;
+                }
+              }
+            }
+
             if (!nameVal && !codeVal) continue;
             if (!isValidAnalystName(nameVal)) continue;
 
             const monitorVal = idxMonitor >= 0 && row[idxMonitor] ? String(row[idxMonitor]).trim() : 'MONITOR';
             const supervisorVal = idxSupervisor >= 0 && row[idxSupervisor] ? String(row[idxSupervisor]).trim() : 'SUPERVISOR';
             const formaVal = idxForma >= 0 ? parseFormaMonitoria(row[idxForma]) : 'Estudo';
-            const dataVal = idxData >= 0 ? parseDateValue(row[idxData]) : new Date().toISOString().split('T')[0];
+            
+            let dataVal = idxData >= 0 && row[idxData] !== undefined ? parseDateValue(row[idxData]) : '';
+            if (!dataVal || !/^\d{4}-\d{2}-\d{2}$/.test(dataVal)) {
+              dataVal = '';
+              for (const cell of row) {
+                if (cell && !isValidAnalystName(cell)) {
+                  const parsed = parseDateValue(cell);
+                  if (parsed && /^\d{4}-\d{2}-\d{2}$/.test(parsed)) {
+                    dataVal = parsed;
+                    break;
+                  }
+                }
+              }
+              if (!dataVal) dataVal = new Date().toISOString().split('T')[0];
+            }
+
             const tagVal = idxTag >= 0 && row[idxTag] ? String(row[idxTag]).trim() : 'Geral';
             const macroVal = idxMacro >= 0 && row[idxMacro] ? String(row[idxMacro]).trim() : 'Geral';
             const erroVal = idxErro >= 0 ? parseErroValue(row[idxErro]) : '100';
@@ -336,18 +374,20 @@ export const ImportPage = () => {
             return;
           }
 
-          const idxAnalista   = colLetterToIndex(localProdMapping.A || 'A');
-          const idxData       = colLetterToIndex(localProdMapping.B || 'B');
-          const idxApuracao   = colLetterToIndex(localProdMapping.C || 'C');
-          const idxEsteira    = colLetterToIndex(localProdMapping.D || 'D');
-          const idxDemanda    = colLetterToIndex(localProdMapping.E || 'E');
-          const idxComplexi   = colLetterToIndex(localProdMapping.F || 'F');
-          const idxMotivo     = colLetterToIndex(localProdMapping.G || 'G');
-          const idxPrio       = colLetterToIndex(localProdMapping.H || 'H');
-          const idxStatus     = colLetterToIndex(localProdMapping.I || 'I');
-          const idxSegmento   = colLetterToIndex(localProdMapping.J || 'J');
-          const idxCoSegmento = colLetterToIndex(localProdMapping.K || 'K');
-          const idxSocietario = colLetterToIndex(localProdMapping.L || 'L');
+          const idxAnalista       = colLetterToIndex(localProdMapping.A || 'A');
+          const idxData           = colLetterToIndex(localProdMapping.B || 'B');
+          const idxApuracao       = colLetterToIndex(localProdMapping.C || 'C');
+          const idxEsteira        = colLetterToIndex(localProdMapping.D || 'D');
+          const idxComplexidade   = colLetterToIndex(localProdMapping.E || 'E');
+          const idxTipoDemanda    = colLetterToIndex(localProdMapping.F || 'F');
+          const idxPendencia      = colLetterToIndex(localProdMapping.G || 'G');
+          const idxPrioridade     = colLetterToIndex(localProdMapping.H || 'H');
+          const idxReprova        = colLetterToIndex(localProdMapping.I || 'I');
+          const idxSegmento       = colLetterToIndex(localProdMapping.J || 'J');
+          const idxStatus         = colLetterToIndex(localProdMapping.K || 'K');
+          const idxCoSegmento     = colLetterToIndex(localProdMapping.L || 'L');
+          const idxDocPendenciad  = colLetterToIndex(localProdMapping.M || 'M');
+          const idxPendenciado    = colLetterToIndex(localProdMapping.N || 'N');
 
           const prodItems: ProductivityItem[] = [];
 
@@ -406,12 +446,11 @@ export const ImportPage = () => {
             const rawEsteira = idxEsteira >= 0 && row[idxEsteira] ? String(row[idxEsteira]).trim() : 'Geral';
             const esteiraVal = getCanonicalEsteiraName(rawEsteira, esteiraMappings);
 
-            // If empty/blank, do NOT count / leave as empty string
-            const demandaVal = idxDemanda >= 0 && row[idxDemanda] ? String(row[idxDemanda]).trim() : '';
-            const complexidadeVal = idxComplexi >= 0 && row[idxComplexi] ? String(row[idxComplexi]).trim() : '';
-            const motivoVal = idxMotivo >= 0 && row[idxMotivo] ? String(row[idxMotivo]).trim() : '';
+            const complexidadeVal = idxComplexidade >= 0 && row[idxComplexidade] ? String(row[idxComplexidade]).trim() : '';
+            const demandaVal = idxTipoDemanda >= 0 && row[idxTipoDemanda] ? String(row[idxTipoDemanda]).trim() : '';
+            const pendenciaVal = idxPendencia >= 0 && row[idxPendencia] ? String(row[idxPendencia]).trim() : '';
 
-            const prioRaw = idxPrio >= 0 && row[idxPrio] ? String(row[idxPrio]).trim() : '';
+            const prioRaw = idxPrioridade >= 0 && row[idxPrioridade] ? String(row[idxPrioridade]).trim() : '';
             let prioVal = '';
             if (prioRaw) {
               if (/sim|s|yes|true|1|priorit/i.test(prioRaw)) prioVal = 'Sim';
@@ -419,18 +458,31 @@ export const ImportPage = () => {
               else prioVal = prioRaw;
             }
 
+            const reprovaVal = idxReprova >= 0 && row[idxReprova] ? String(row[idxReprova]).trim() : '';
+            const segmentoVal = idxSegmento >= 0 && row[idxSegmento] ? String(row[idxSegmento]).trim() : '';
             const statusRaw = idxStatus >= 0 && row[idxStatus] ? String(row[idxStatus]).trim() : '';
-            let statusVal = '';
+            const coSegmentoVal = idxCoSegmento >= 0 && row[idxCoSegmento] ? String(row[idxCoSegmento]).trim() : '';
+            const docPendenciadVal = idxDocPendenciad >= 0 && row[idxDocPendenciad] ? String(row[idxDocPendenciad]).trim() : '';
+            const pendenciadoVal = idxPendenciado >= 0 && row[idxPendenciado] ? String(row[idxPendenciado]).trim() : '';
+
+            // Calculated status for system calculations
+            let statusCalculated = '';
             if (statusRaw) {
-              if (/reprov|rejeit|nc|nok/i.test(statusRaw)) statusVal = 'Reprovado';
-              else if (/pend|aguard|atraso/i.test(statusRaw)) statusVal = 'Pendência';
-              else if (/aprov|ok|sim|s/i.test(statusRaw)) statusVal = 'Aprovado';
-              else statusVal = statusRaw;
+              if (/reprov|rejeit|nc|nok/i.test(statusRaw)) statusCalculated = 'Reprovado';
+              else if (/pend|aguard|atraso/i.test(statusRaw)) statusCalculated = 'Pendência';
+              else if (/aprov|ok|sim|s/i.test(statusRaw)) statusCalculated = 'Aprovado';
+              else statusCalculated = statusRaw;
+            } else {
+              if (/sim|s|true|1/i.test(reprovaVal) || (reprovaVal && !/não|nao|n|0/i.test(reprovaVal))) {
+                statusCalculated = 'Reprovado';
+              } else if (/sim|s|true|1/i.test(pendenciaVal) || /sim|s|true|1/i.test(pendenciadoVal) || docPendenciadVal) {
+                statusCalculated = 'Pendência';
+              } else {
+                statusCalculated = 'Aprovado';
+              }
             }
 
-            const segmentoVal = idxSegmento >= 0 && row[idxSegmento] ? String(row[idxSegmento]).trim() : '';
-            const coSegmentoVal = idxCoSegmento >= 0 && row[idxCoSegmento] ? String(row[idxCoSegmento]).trim() : '';
-            const tipoSocietarioVal = idxSocietario >= 0 && row[idxSocietario] ? String(row[idxSocietario]).trim() : '';
+            const motivoCalculated = docPendenciadVal || pendenciaVal || reprovaVal || pendenciadoVal || '';
 
             prodItems.push({
               id: `prod-${i}-${Date.now()}`,
@@ -438,14 +490,18 @@ export const ImportPage = () => {
               DataProdutividade: dataVal,
               Apuracao: apuracaoVal,
               Esteira: esteiraVal || 'Geral',
-              TipoDemanda: demandaVal,
               Complexidade: complexidadeVal,
-              MotivoPendencia: motivoVal,
+              TipoDemanda: demandaVal,
+              Pendencia: pendenciaVal,
               Prioridade: prioVal,
-              PendenciaReprova: statusVal,
+              Reprova: reprovaVal,
               Segmento: segmentoVal,
+              Status: statusRaw,
               CoSegmento: coSegmentoVal,
-              TipoSocietario: tipoSocietarioVal,
+              DocumentoPendenciado: docPendenciadVal,
+              Pendenciado: pendenciadoVal,
+              MotivoPendencia: motivoCalculated,
+              PendenciaReprova: statusCalculated,
               Quantidade: 1,
               TmoMinutos: parseApuracaoToMinutes(apuracaoVal)
             });
@@ -743,10 +799,10 @@ export const ImportPage = () => {
               Configuração de Colunas de Produtividade
             </h3>
 
-            <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
+            <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1 custom-scrollbar">
               <div>
                 <label className="text-xs text-gray-700 font-semibold block mb-1">
-                  1. Analista
+                  1. ANALISTA (A)
                 </label>
                 <input
                   type="text"
@@ -759,7 +815,7 @@ export const ImportPage = () => {
 
               <div>
                 <label className="text-xs text-gray-700 font-semibold block mb-1">
-                  2. Data
+                  2. DATA (B)
                 </label>
                 <input
                   type="text"
@@ -772,7 +828,7 @@ export const ImportPage = () => {
 
               <div>
                 <label className="text-xs text-gray-700 font-semibold block mb-1">
-                  3. Apuração
+                  3. APURAÇÃO TEMPO (C)
                 </label>
                 <input
                   type="text"
@@ -785,7 +841,7 @@ export const ImportPage = () => {
 
               <div>
                 <label className="text-xs text-gray-700 font-semibold block mb-1">
-                  4. Esteira
+                  4. ESTEIRA (D)
                 </label>
                 <input
                   type="text"
@@ -798,7 +854,7 @@ export const ImportPage = () => {
 
               <div>
                 <label className="text-xs text-gray-700 font-semibold block mb-1">
-                  5. Tipo de Demanda
+                  5. COMPLEXIDADE (E)
                 </label>
                 <input
                   type="text"
@@ -811,7 +867,7 @@ export const ImportPage = () => {
 
               <div>
                 <label className="text-xs text-gray-700 font-semibold block mb-1">
-                  6. Complexidade
+                  6. TIPO DE DEMANDA (F)
                 </label>
                 <input
                   type="text"
@@ -824,7 +880,7 @@ export const ImportPage = () => {
 
               <div>
                 <label className="text-xs text-gray-700 font-semibold block mb-1">
-                  7. Motivo de Reprovação
+                  7. PENDÊNCIA (G)
                 </label>
                 <input
                   type="text"
@@ -837,7 +893,7 @@ export const ImportPage = () => {
 
               <div>
                 <label className="text-xs text-gray-700 font-semibold block mb-1">
-                  8. Prioridade
+                  8. PRIORIDADE (H)
                 </label>
                 <input
                   type="text"
@@ -850,7 +906,7 @@ export const ImportPage = () => {
 
               <div>
                 <label className="text-xs text-gray-700 font-semibold block mb-1">
-                  9. Reprovação
+                  9. REPROVA (I)
                 </label>
                 <input
                   type="text"
@@ -863,7 +919,7 @@ export const ImportPage = () => {
 
               <div>
                 <label className="text-xs text-gray-700 font-semibold block mb-1">
-                  10. Segmento
+                  10. SEGMENTO (J)
                 </label>
                 <input
                   type="text"
@@ -876,7 +932,7 @@ export const ImportPage = () => {
 
               <div>
                 <label className="text-xs text-gray-700 font-semibold block mb-1">
-                  11. Co Segmento
+                  11. STATUS (K)
                 </label>
                 <input
                   type="text"
@@ -889,7 +945,7 @@ export const ImportPage = () => {
 
               <div>
                 <label className="text-xs text-gray-700 font-semibold block mb-1">
-                  12. Tipo Societário
+                  12. CO-SEGMENTO (L)
                 </label>
                 <input
                   type="text"
@@ -897,6 +953,32 @@ export const ImportPage = () => {
                   onChange={(e) => setLocalProdMapping({ ...localProdMapping, L: e.target.value.toUpperCase() })}
                   className="w-full bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs text-gray-900 font-mono uppercase focus:border-brand-blue-dark outline-none"
                   placeholder="L"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-700 font-semibold block mb-1">
+                  13. DOCUMENTO PENDENCIADO (M)
+                </label>
+                <input
+                  type="text"
+                  value={localProdMapping.M || 'M'}
+                  onChange={(e) => setLocalProdMapping({ ...localProdMapping, M: e.target.value.toUpperCase() })}
+                  className="w-full bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs text-gray-900 font-mono uppercase focus:border-brand-blue-dark outline-none"
+                  placeholder="M"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-700 font-semibold block mb-1">
+                  14. PENDENCIADO (N)
+                </label>
+                <input
+                  type="text"
+                  value={localProdMapping.N || 'N'}
+                  onChange={(e) => setLocalProdMapping({ ...localProdMapping, N: e.target.value.toUpperCase() })}
+                  className="w-full bg-white border border-gray-200 rounded-md px-3 py-1.5 text-xs text-gray-900 font-mono uppercase focus:border-brand-blue-dark outline-none"
+                  placeholder="N"
                 />
               </div>
             </div>
