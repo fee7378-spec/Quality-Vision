@@ -250,19 +250,7 @@ export const AnaliseEvolucaoPage = () => {
 
   return (
     <div className="w-full bg-gray-50 p-4 sm:p-6 md:p-8 space-y-8 text-gray-900">
-      {data.length === 0 && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-900 px-5 py-4 rounded-xl flex items-center justify-between gap-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="text-amber-600 shrink-0" size={22} />
-            <div>
-              <p className="font-bold text-sm">Nenhuma base de monitoria (qualidade) importada</p>
-              <p className="text-xs text-amber-800 mt-0.5">
-                Aguardando importação da base de monitoria para calcular o Índice de Evolução, Erros por TAG, Motivo Macro e Heatmap. 
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* Section 1: Índice de Evolução e Tendência */}
       <div className="bg-white border border-gray-200 p-6 rounded-md space-y-4 w-full">

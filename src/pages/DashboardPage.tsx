@@ -40,10 +40,18 @@ const CustomXAxisTick = (props: any) => {
   );
 };
 
+
+const getVal = (obj: any, key: string) => {
+  if (!obj) return undefined;
+  const found = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
+  return found ? obj[found] : undefined;
+};
+
 export const DashboardPage = () => {
   const { 
     data, 
     productivityData,
+    volumetria,
     startDate, 
     endDate, 
     selectedTag, 
@@ -78,17 +86,19 @@ export const DashboardPage = () => {
     });
   }, [baseDateData, selectedEsteira, selectedForma, selectedTag, selectedMacro]);
 
-  // Total Produtividade calculation
+// Total Produtividade calculation
   const totalProdutividade = useMemo(() => {
-    return productivityData
+    return volumetria
       .filter(item => {
-        if (startDate && item.DataProdutividade && item.DataProdutividade < startDate) return false;
-        if (endDate && item.DataProdutividade && item.DataProdutividade < endDate) return false;
-        if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        if (!matchesFilter(selectedEsteira, getVal(item, 'esteira'), 'TODAS')) return false;
         return true;
       })
-      .reduce((sum, item) => sum + (Number(item.Quantidade) || 1), 0);
-  }, [productivityData, startDate, endDate, selectedEsteira]);
+      .reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || 0), 0);
+  }, [volumetria, startDate, endDate, selectedEsteira]);
 
   // Helper to test if item is an error
   const isErrorItem = (item: typeof data[0]) => {
@@ -211,32 +221,66 @@ export const DashboardPage = () => {
     return { list, isDaily };
   }, [filteredData]);
 
-  // Evolução Diária da Produtividade
+// Evolução da Produtividade
   const evolucaoDiaria = useMemo(() => {
-    const map: Record<string, number> = {};
-    productivityData
+    const map = new Map<string, { key: string, label: string, volume: number }>();
+    let mode: 'month' | 'week' | 'day' = 'month';
+
+    if (startDate && endDate) {
+      const d1 = new Date(startDate);
+      const d2 = new Date(endDate);
+      const diffDays = (d2.getTime() - d1.getTime()) / (1000 * 3600 * 24);
+      if (diffDays <= 7) mode = 'day';
+      else if (diffDays <= 31) mode = 'week';
+    }
+
+    const getGroup = (dateStr: string) => {
+      const [y, m, d] = dateStr.split('-');
+      if (mode === 'day') return { key: dateStr, label: `${d}/${m}/${y}` };
+      if (mode === 'week') {
+        const dateObj = new Date(Number(y), Number(m)-1, Number(d));
+        const day = dateObj.getDay();
+        const diff = dateObj.getDate() - day + (day === 0 ? -6 : 1);
+        const weekStart = new Date(Number(y), Number(m)-1, diff);
+        const wsY = weekStart.getFullYear();
+        const wsM = String(weekStart.getMonth()+1).padStart(2, '0');
+        const wsD = String(weekStart.getDate()).padStart(2, '0');
+        return { key: `${wsY}-${wsM}-${wsD}`, label: `Sem. ${wsD}/${wsM}` };
+      }
+      const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+      return { key: `${y}-${m}`, label: `${months[Number(m)-1]}/${y}` };
+    };
+
+    volumetria
       .filter(item => {
-        if (startDate && item.DataProdutividade && item.DataProdutividade < startDate) return false;
-        if (endDate && item.DataProdutividade && item.DataProdutividade > endDate) return false;
-        if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        if (!matchesFilter(selectedEsteira, getVal(item, 'esteira'), 'TODAS')) return false;
         return true;
       })
       .forEach(p => {
-        const d = p.DataProdutividade;
-        if (d) {
-          map[d] = (map[d] || 0) + (p.Quantidade || 1);
+        const d = getVal(p, 'data');
+        if (d && typeof d === 'string') {
+          const group = getGroup(d);
+          const qty = Number(getVal(p, 'quantidade')) || 0;
+          
+          if (!map.has(group.key)) {
+            map.set(group.key, { ...group, volume: 0 });
+          }
+          const entry = map.get(group.key)!;
+          entry.volume += qty;
         }
       });
 
-    return Object.keys(map).sort().map(d => {
-      const [y, m, day] = d.split('-');
-      return {
-        dataRaw: d,
-        label: `${day}/${m}`,
-        volume: map[d]
-      };
-    });
-  }, [productivityData, startDate, endDate, selectedEsteira]);
+    return Array.from(map.values())
+      .sort((a, b) => a.key.localeCompare(b.key))
+      .map(item => ({
+        label: item.label,
+        volume: item.volume
+      }));
+  }, [volumetria, startDate, endDate, selectedEsteira]);
 
   return (
     <div className="w-full bg-gray-50 p-4 sm:p-6 md:p-8 space-y-8 text-gray-900">
@@ -322,7 +366,7 @@ export const DashboardPage = () => {
           <div>
             <h3 className="text-brand-blue font-bold text-base flex items-center gap-2 uppercase">
               <Calendar size={18} className="text-brand-blue" />
-              EVOLUÇÃO DA PRODUTIVIDADE DIÁRIA
+              EVOLUÇÃO DA PRODUTIVIDADE
             </h3>
           </div>
         </div>

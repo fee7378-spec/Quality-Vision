@@ -95,11 +95,8 @@ export const OperacaoPage: React.FC = () => {
     const filtVolumetria = filterSupabase(volumetria);
     const totalVolume = filtVolumetria.reduce((acc, curr) => acc + (Number(getVal(curr, 'quantidade')) || 0), 0);
     
-    const filtPrio = filterSupabase(volumetriaPrioridades);
-    const prioVolume = filtPrio.reduce((acc, curr) => {
-      const isSim = String(getVal(curr, 'prioridade') || '').trim().toLowerCase() === 'sim';
-      return isSim ? acc + (Number(getVal(curr, 'quantidade')) || 0) : acc;
-    }, 0);
+const filtPrio = filterSupabase(volumetriaPrioridades);
+    const prioVolume = filtPrio.reduce((acc, curr) => acc + (Number(getVal(curr, 'quantidade')) || 0), 0);
     const prioPercent = totalVolume > 0 ? ((prioVolume / totalVolume) * 100).toFixed(1).replace('.', ',') : '0,0';
 
     const totalMonitorias = filteredMonitoring.reduce((acc, curr) => acc + (Number(curr.Quantidade) || 1), 0);
@@ -116,6 +113,9 @@ export const OperacaoPage: React.FC = () => {
     const pendReprovTotal = pendentesCount + reprovadosCount;
     const pendReprovPercent = totalVolume > 0 
       ? ((pendReprovTotal / totalVolume) * 100).toFixed(1).replace('.', ',') 
+      : '0,0';
+    const reprovaPercent = totalVolume > 0 
+      ? ((reprovadosCount / totalVolume) * 100).toFixed(1).replace('.', ',') 
       : '0,0';
 
     const itemsWithTmo = filteredProd.filter(p => p.TmoMinutos !== undefined && p.TmoMinutos > 0);
@@ -145,65 +145,56 @@ export const OperacaoPage: React.FC = () => {
       }
     });
 
-    return { totalVolume, prioVolume, prioPercent, totalMonitorias, prioMonitoriaPercent, pendReprovTotal, pendReprovPercent, pendentesCount, reprovadosCount, tmoAvg, peakDay, peakVol };
+    return { totalVolume, prioVolume, prioPercent, totalMonitorias, prioMonitoriaPercent, pendReprovTotal, pendReprovPercent, reprovaPercent, pendentesCount, reprovadosCount, tmoAvg, peakDay, peakVol };
   }, [volumetria, volumetriaPrioridades, volumetriaPendencias, volumetriaReprovas, filteredProd, filteredMonitoring, startDate, endDate, selectedEsteira]);
 
-  const esteiraPrioData = useMemo(() => {
+const esteiraPrioData = useMemo(() => {
     const map: Record<string, { esteira: string; sim: number; nao: number; total: number }> = {};
     const filtPrio = filterSupabase(volumetriaPrioridades);
+    const filtVol = filterSupabase(volumetria);
 
+    // Primeiro preenche com o total de volumetria
+    filtVol.forEach(p => {
+      const e = getVal(p, 'esteira') || 'Geral';
+      if (!map[e]) map[e] = { esteira: e, sim: 0, nao: 0, total: 0 };
+      const qty = Number(getVal(p, 'quantidade')) || 0;
+      map[e].total += qty;
+    });
+
+    // Depois adiciona o que é prioridade (Sim)
     filtPrio.forEach(p => {
       const e = getVal(p, 'esteira') || 'Geral';
       if (!map[e]) map[e] = { esteira: e, sim: 0, nao: 0, total: 0 };
       const qty = Number(getVal(p, 'quantidade')) || 0;
-      const prio = String(getVal(p, 'prioridade') || '').trim().toLowerCase();
-      if (prio === 'sim' || prio === 's' || prio === 'true' || prio === '1') {
-        map[e].sim += qty;
-      } else {
-        map[e].nao += qty;
-      }
-      map[e].total += qty;
+      map[e].sim += qty;
+    });
+
+    // Calcula o que é Normal (Nao = Total - Sim) e previne números negativos se a base estiver inconsistente
+    Object.values(map).forEach(v => {
+      v.nao = Math.max(0, v.total - v.sim);
+      // Ajusta o total real apenas para ordenação, garantindo que seja pelo menos a soma (caso sim > total base)
+      v.total = v.sim + v.nao; 
     });
 
     return Object.values(map).sort((a, b) => b.total - a.total);
-  }, [volumetriaPrioridades, startDate, endDate, selectedEsteira]);
+  }, [volumetria, volumetriaPrioridades, startDate, endDate, selectedEsteira]);
 
   const statusDist = useMemo(() => {
-    let aprovados = 0;
-    let pendentes = 0;
-    let reprovados = 0;
-
-    const filtStatus = filterSupabase(volumetriaStatus);
-    filtStatus.forEach(p => {
-      const st = getVal(p, 'status') || 'Aprovado';
-      const qty = Number(getVal(p, 'quantidade')) || 0;
-      if (st === 'Pendência' || st === 'Pendencia') pendentes += qty;
-      else if (st === 'Reprovado' || st === 'Reprova') reprovados += qty;
-      else aprovados += qty;
-    });
-
+    const concluidos = Math.max(0, kpis.totalVolume - (kpis.pendentesCount + kpis.reprovadosCount));
     return [
-      { name: 'Aprovados', value: aprovados, color: '#14B8A6' },
-      { name: 'Pendências', value: pendentes, color: '#F59E0B' },
-      { name: 'Reprovados', value: reprovados, color: '#EF4444' }
+      { name: 'Concluídos', value: concluidos, color: '#14B8A6' },
+      { name: 'Pendências', value: kpis.pendentesCount, color: '#F59E0B' },
+      { name: 'Reprovas', value: kpis.reprovadosCount, color: '#EF4444' }
     ];
-  }, [volumetriaStatus, startDate, endDate, selectedEsteira]);
+  }, [kpis.totalVolume, kpis.pendentesCount, kpis.reprovadosCount]);
 
   const topMotivos = useMemo(() => {
     const map: Record<string, number> = {};
-    const filtPend = filterSupabase(volumetriaPendencias);
-    const filtRepr = filterSupabase(volumetriaReprovas);
+    const filtStatus = filterSupabase(volumetriaStatus);
 
-    filtPend.forEach(p => {
-      const mot = String(getVal(p, 'motivo') || '').trim();
-      if (mot && mot.toLowerCase() !== 'nenhum' && mot.toLowerCase() !== 'outros / não especificado') {
-        map[mot] = (map[mot] || 0) + (Number(getVal(p, 'quantidade')) || 0);
-      }
-    });
-
-    filtRepr.forEach(p => {
-      const mot = String(getVal(p, 'motivo') || '').trim();
-      if (mot && mot.toLowerCase() !== 'nenhum' && mot.toLowerCase() !== 'outros / não especificado') {
+    filtStatus.forEach(p => {
+      const mot = String(getVal(p, 'pendencia') || '').trim();
+      if (mot && mot.toLowerCase() !== 'null' && mot.toLowerCase() !== 'nenhum') {
         map[mot] = (map[mot] || 0) + (Number(getVal(p, 'quantidade')) || 0);
       }
     });
@@ -211,8 +202,8 @@ export const OperacaoPage: React.FC = () => {
     return Object.entries(map)
       .map(([motivo, count]) => ({ motivo, count }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-  }, [volumetriaPendencias, volumetriaReprovas, startDate, endDate, selectedEsteira]);
+      .slice(0, 10);
+  }, [volumetriaStatus, startDate, endDate, selectedEsteira]);
 
   const atividadeVolume = useMemo(() => {
     const map: Record<string, number> = {};
@@ -251,19 +242,7 @@ export const OperacaoPage: React.FC = () => {
 
   return (
     <div className="w-full p-4 sm:p-6 md:p-8 bg-gray-50 text-gray-900 space-y-8">
-      {productivityData.length === 0 && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-900 px-5 py-4 rounded-xl flex items-center justify-between gap-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="text-amber-600 shrink-0" size={22} />
-            <div>
-              <p className="font-bold text-sm">Nenhuma base de produtividade importada</p>
-              <p className="text-xs text-amber-800 mt-0.5">
-                Aguardando importação da base de produtividade para exibir os dados e gráficos da Operação. 
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* KPI Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -291,22 +270,18 @@ export const OperacaoPage: React.FC = () => {
 
         <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">PENDÊNCIAS & REPROVAS</span>
-            <div className="p-1.5 rounded-lg bg-amber-50 border border-amber-100">
-              <AlertTriangle size={18} className="text-amber-600" />
+            <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">REPROVAS</span>
+            <div className="p-1.5 rounded-lg bg-red-50 border border-red-100">
+              <AlertTriangle size={18} className="text-red-600" />
             </div>
           </div>
           <div>
-            <h3 className="text-3xl font-black text-[#001E62] tracking-tight">{kpis.pendReprovPercent}%</h3>
+            <h3 className="text-3xl font-black text-[#001E62] tracking-tight">{kpis.reprovaPercent}%</h3>
           </div>
           <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
             <span className="text-gray-500 font-medium text-[11px]">
-              <strong className="text-amber-700 font-bold">{kpis.pendentesCount}</strong> pend. / <strong className="text-red-600 font-bold">{kpis.reprovadosCount}</strong> repr.
+              Quantidade de reprovas: <strong className="text-red-600 font-bold">{kpis.reprovadosCount.toLocaleString('pt-BR')}</strong>
             </span>
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 font-bold text-[11px]">
-              <ShieldAlert size={12} className="text-amber-600" />
-              <span>{kpis.pendReprovTotal} Ocorrências</span>
-            </div>
           </div>
         </div>
 
@@ -403,62 +378,24 @@ export const OperacaoPage: React.FC = () => {
           <div>
             <h3 className="text-brand-blue font-bold text-base flex items-center gap-2 uppercase">
               <ShieldAlert size={18} className="text-brand-blue" />
-              STATUS DAS ANÁLISES
+              PRINCIPAIS MOTIVOS DE REPROVAS
             </h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-            <div className="h-44">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={statusDist}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={38}
-                    outerRadius={65}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {statusDist.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#001E62', borderRadius: '8px', color: '#001E62', fontWeight: 'bold' }} itemStyle={{ color: '#001E62', fontWeight: 'bold' }} labelStyle={{ color: '#001E62', fontWeight: 'bold' }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="space-y-1.5 text-xs">
-              <p className="font-bold text-gray-700 uppercase text-[10px] tracking-wider mb-2">Resumo de Qualidade:</p>
-              {statusDist.map((s) => (
-                <div key={s.name} className="flex items-center justify-between bg-gray-50/60 border border-gray-200 px-3 py-1.5 rounded">
-                  <span className="flex items-center gap-2 text-gray-700">
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.color }} />
-                    {s.name}
-                  </span>
-                  <span className="font-bold text-gray-900">{s.value}</span>
-                </div>
-              ))}
-            </div>
+            <p className="text-[11px] text-gray-400 mt-0.5">Top 10 motivos mais frequentes no período selecionado</p>
           </div>
 
-          <div className="border-t border-gray-200 pt-3 space-y-2">
-            <h4 className="text-xs font-bold text-brand-blue uppercase tracking-wider flex items-center gap-1.5">
-              <AlertTriangle size={14} /> PRINCIPAIS MOTIVOS DE PENDÊNCIA / REPROVA
-            </h4>
-            <div className="space-y-1.5 text-xs">
-              {topMotivos.length > 0 ? (
-                topMotivos.map((m, idx) => (
-                  <div key={idx} className="flex items-center justify-between bg-gray-50 border border-gray-200 px-3 py-1.5 rounded text-gray-700">
-                    <span className="truncate pr-2 font-medium">{idx + 1}. {m.motivo}</span>
-                    <span className="font-bold text-brand-blue bg-brand-blue-dark/10 px-2 py-0.5 rounded text-[11px] border border-brand-blue-dark/20">
-                      {m.count} ocorrência(s)
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-gray-400 italic">Nenhum motivo de pendência ou reprova registrado.</p>
-              )}
-            </div>
+          <div className="space-y-1.5 text-xs flex-1">
+            {topMotivos.length > 0 ? (
+              topMotivos.map((m, idx) => (
+                <div key={idx} className="flex items-center justify-between bg-gray-50 border border-gray-200 px-3 py-1.5 rounded text-gray-700 hover:border-brand-blue/30 transition-colors">
+                  <span className="truncate pr-2 font-medium">{idx + 1}. {m.motivo}</span>
+                  <span className="font-bold text-brand-blue bg-brand-blue-dark/10 px-2 py-0.5 rounded text-[11px] border border-brand-blue-dark/20 flex-shrink-0">
+                    {m.count.toLocaleString('pt-BR')} ocorrência(s)
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-gray-400 italic py-4">Nenhum motivo de reprova registrado.</p>
+            )}
           </div>
         </div>
       </div>

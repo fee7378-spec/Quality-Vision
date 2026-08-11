@@ -15,17 +15,82 @@ import {
   matchesFilter
 } from '../store/useStore';
 
+const getVal = (obj: any, key: string) => {
+  if (!obj) return undefined;
+  const found = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
+  return found ? obj[found] : undefined;
+};
+
 export const CapacidadePage: React.FC = () => {
   const { 
     productivityData, 
     esteiraParams, 
     selectedEsteira,
     startDate,
-    endDate
+    endDate,
+    volumetria,
+    volumetriaPrioridades
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<'projecao' | 'parametros'>('projecao');
   const [workingDaysInMonth, setWorkingDaysInMonth] = useState<number>(22);
+
+  const filteredVolumetria = useMemo(() => {
+    return (volumetria || []).filter(item => {
+      const itemDate = getVal(item, 'data');
+      if (itemDate && typeof itemDate === 'string' && itemDate.trim() !== '') {
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+      }
+      if (!matchesFilter(selectedEsteira, getVal(item, 'esteira'), 'TODAS')) return false;
+      return true;
+    });
+  }, [volumetria, startDate, endDate, selectedEsteira]);
+
+  const totalProdutividade = useMemo(() => {
+    return filteredVolumetria.reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || 0), 0);
+  }, [filteredVolumetria]);
+
+  const prioVolume = useMemo(() => {
+    return (volumetriaPrioridades || [])
+      .filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (itemDate && typeof itemDate === 'string' && itemDate.trim() !== '') {
+          if (startDate && itemDate < startDate) return false;
+          if (endDate && itemDate > endDate) return false;
+        }
+        if (!matchesFilter(selectedEsteira, getVal(item, 'esteira'), 'TODAS')) return false;
+        return true;
+      })
+      .reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || 0), 0);
+  }, [volumetriaPrioridades, startDate, endDate, selectedEsteira]);
+
+  const filaVolume = Math.max(0, totalProdutividade - prioVolume);
+
+  const diasUteisPassados = useMemo(() => {
+    const uniqueDates = Array.from(new Set(
+      filteredVolumetria
+        .map(item => getVal(item, 'data'))
+        .filter(d => d && typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d))
+    ));
+    const weekdays = uniqueDates.filter(dStr => {
+      const dt = new Date(dStr + 'T12:00:00');
+      const day = dt.getDay();
+      return day >= 1 && day <= 5;
+    });
+    return weekdays.length || 1;
+  }, [filteredVolumetria]);
+
+  const diasUteisCompleto = useMemo(() => {
+    const selectedKey = Array.isArray(selectedEsteira) 
+      ? (selectedEsteira.length === 1 ? selectedEsteira[0] : 'TODAS') 
+      : selectedEsteira;
+    const esteiraParam = selectedKey !== 'TODAS' ? esteiraParams[selectedKey] : null;
+    return esteiraParam?.diasUteisMes || workingDaysInMonth || 22;
+  }, [selectedEsteira, esteiraParams, workingDaysInMonth]);
+
+  const mediaDiariaUtil = totalProdutividade / (diasUteisPassados || 1);
+  const provisaoFechamento = Math.round(mediaDiariaUtil * diasUteisCompleto);
 
   // 1. Capacity Table matching user print
   const capacityTableData = useMemo(() => {
@@ -115,7 +180,15 @@ export const CapacidadePage: React.FC = () => {
   // 2. Month-over-Month Volume Comparison & Provisão calculation
   // Gráfico COMPARATIVO DE PRODUÇÃO MoM: Eixo X em Mês/Semana/Dia dependendo do período
   const momData = useMemo(() => {
-    const filteredProd = productivityData.filter(item => {
+    const rawProd = (volumetria && volumetria.length > 0)
+      ? volumetria.map(i => ({
+          DataProdutividade: getVal(i, 'data'),
+          Esteira: getVal(i, 'esteira'),
+          Quantidade: Number(getVal(i, 'quantidade')) || 0
+        }))
+      : productivityData;
+
+    const filteredProd = rawProd.filter(item => {
       const d = item.DataProdutividade;
       if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
       if (startDate && d < startDate) return false;
@@ -207,26 +280,15 @@ export const CapacidadePage: React.FC = () => {
         momGrowth
       };
     });
-  }, [productivityData, startDate, endDate, workingDaysInMonth, selectedEsteira, esteiraParams]);
+  }, [volumetria, productivityData, startDate, endDate, workingDaysInMonth, selectedEsteira, esteiraParams]);
 
   const latestMonth = momData[momData.length - 1] || { volumeRealizado: 0, provisaoProjetada: 0, momGrowth: '0', daysWorked: 1, avgDailyRate: 0 };
   const prevMonth = momData[momData.length - 2] || { volumeRealizado: 0 };
 
+  const capacidadeNominal = Math.round(capacityTableData.totals.capDia * diasUteisPassados);
+
   return (
     <div className="w-full p-4 sm:p-6 md:p-8 bg-gray-50 text-gray-900 space-y-8">
-      {productivityData.length === 0 && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-900 px-5 py-4 rounded-xl flex items-center justify-between gap-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="text-amber-600 shrink-0" size={22} />
-            <div>
-              <p className="font-bold text-sm">Nenhuma base de produtividade importada</p>
-              <p className="text-xs text-amber-800 mt-0.5">
-                Os indicadores e gráficos desta aba são medidos ao carregar o arquivo de produtividade. 
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* KPI Cards Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -239,10 +301,10 @@ export const CapacidadePage: React.FC = () => {
                 </div>
               </div>
               <div>
-                <h3 className="text-3xl font-black text-gray-900 tracking-tight">{capacityTableData.totals.totalProd.toLocaleString('pt-BR')}</h3>
+                <h3 className="text-3xl font-black text-gray-900 tracking-tight">{totalProdutividade.toLocaleString('pt-BR')}</h3>
               </div>
               <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-                <span className="text-gray-500 font-medium text-[11px]">Fila: {capacityTableData.totals.prodFila.toLocaleString('pt-BR')} | Prio: {capacityTableData.totals.prodPrio.toLocaleString('pt-BR')}</span>
+                <span className="text-gray-500 font-medium text-[11px]">Fila: {filaVolume.toLocaleString('pt-BR')} | Prio: {prioVolume.toLocaleString('pt-BR')}</span>
                 <div className={`flex items-center gap-1 px-2 py-0.5 rounded-md font-bold text-[11px] border ${
                   parseFloat(latestMonth.momGrowth) >= 0 
                     ? 'text-emerald-700 bg-emerald-50 border-emerald-300' 
@@ -254,45 +316,45 @@ export const CapacidadePage: React.FC = () => {
               </div>
             </div>
 
-            {/* KPI 2: Provisão de Fechamento */}
+            {/* KPI 2: Previsão de Fechamento */}
             <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">PROVISÃO DE FECHAMENTO</span>
+                <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">PREVISÃO DE FECHAMENTO</span>
                 <div className="p-1.5 rounded-lg bg-gray-50 border border-gray-100">
                   <Zap size={18} className="text-[#001E62]" />
                 </div>
               </div>
               <div>
-                <h3 className="text-3xl font-black text-[#001E62] tracking-tight">{latestMonth.provisaoProjetada.toLocaleString('pt-BR')}</h3>
+                <h3 className="text-3xl font-black text-[#001E62] tracking-tight">{provisaoFechamento.toLocaleString('pt-BR')}</h3>
               </div>
               <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-                <span className="text-gray-500 font-medium text-[11px]">Projeção ({latestMonth.daysWorked}d trabalhados)</span>
+                <span className="text-gray-500 font-medium text-[11px]">Projeção ({diasUteisPassados}d úteis passados / {diasUteisCompleto}d úteis)</span>
                 <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[#001E62] font-bold text-[11px]">
-                  <span>{latestMonth.avgDailyRate} / dia</span>
+                  <span>{Math.round(mediaDiariaUtil).toLocaleString('pt-BR')} / dia útil</span>
                 </div>
               </div>
             </div>
 
-            {/* KPI 3: Capacidade Dia Nominal */}
+            {/* KPI 3: Capacidade Nominal */}
             <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">CAPACIDADE DIA NOMINAL</span>
+                <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">CAPACIDADE NOMINAL</span>
                 <div className="p-1.5 rounded-lg bg-gray-50 border border-gray-100">
                   <Target size={18} className="text-[#001E62]" />
                 </div>
               </div>
               <div>
-                <h3 className="text-3xl font-black text-gray-900 tracking-tight">{capacityTableData.totals.capDia.toLocaleString('pt-BR')}</h3>
+                <h3 className="text-3xl font-black text-gray-900 tracking-tight">{capacidadeNominal.toLocaleString('pt-BR')}</h3>
               </div>
               <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-                <span className="text-gray-500 font-medium text-[11px]">Capacidade por TMO</span>
+                <span className="text-gray-500 font-medium text-[11px]">Capacidade no período ({capacityTableData.totals.capDia.toLocaleString('pt-BR')}/dia)</span>
                 <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-[#001E62] font-bold text-[11px]">
                   <span>{capacityTableData.totals.contratados} Contratados</span>
                 </div>
               </div>
             </div>
 
-            {/* KPI 4: Balanço de Capacidade */}
+            {/* KPI 4: Balanço Diário */}
             <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">BALANÇO DIÁRIO</span>
@@ -301,7 +363,7 @@ export const CapacidadePage: React.FC = () => {
                 </div>
               </div>
               {(() => {
-                const gap = capacityTableData.totals.totalProd - capacityTableData.totals.capDia;
+                const gap = totalProdutividade - capacidadeNominal;
                 const isPositive = gap >= 0;
                 return (
                   <>
@@ -311,7 +373,7 @@ export const CapacidadePage: React.FC = () => {
                       </h3>
                     </div>
                     <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-                      <span className="text-gray-500 font-medium text-[11px]">Saldo em relação à meta</span>
+                      <span className="text-gray-500 font-medium text-[11px]">Volume produzido - Cap. nominal</span>
                       <div className={`flex items-center gap-1 px-2 py-0.5 rounded-md font-bold text-[11px] border ${
                         isPositive ? 'text-emerald-700 bg-emerald-50 border-emerald-300' : 'text-red-700 bg-red-50 border-red-300'
                       }`}>
@@ -343,7 +405,7 @@ export const CapacidadePage: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-1.5 text-emerald-600">
                   <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" />
-                  <span>Provisão Projetada</span>
+                  <span>Previsão Projetada</span>
                 </div>
               </div>
             </div>
@@ -363,7 +425,7 @@ export const CapacidadePage: React.FC = () => {
                   <Bar dataKey="volumeRealizado" name="Volume Realizado" fill="#001E62" radius={[4, 4, 0, 0]}>
                     <LabelList dataKey="volumeRealizado" position="insideTop" offset={6} fill="#ffffff" fontSize={10} fontWeight="bold" />
                   </Bar>
-                  <Line type="monotone" dataKey="provisaoProjetada" name="Provisão (Projeção Fechamento)" stroke="#10b981" strokeWidth={3} strokeDasharray="4 4" dot={{ fill: '#10b981', r: 5 }}>
+                  <Line type="monotone" dataKey="provisaoProjetada" name="Previsão (Projeção Fechamento)" stroke="#10b981" strokeWidth={3} strokeDasharray="4 4" dot={{ fill: '#10b981', r: 5 }}>
                     <LabelList dataKey="provisaoProjetada" position="top" offset={14} fill="#10b981" fontSize={11} fontWeight="bold" />
                   </Line>
                 </ComposedChart>
