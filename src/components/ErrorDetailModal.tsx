@@ -1,9 +1,9 @@
 import React from 'react';
 import { AlertTriangle, X, Calendar, User, Shield, CheckCircle2 } from 'lucide-react';
-import { MonitoringItem, useStore, getTabuladorName } from '../store/useStore';
+import { useStore, getTabuladorName } from '../store/useStore';
 
 interface ErrorDetailModalProps {
-  item: MonitoringItem | null;
+  item: any;
   onClose: () => void;
 }
 
@@ -12,18 +12,45 @@ export const ErrorDetailModal: React.FC<ErrorDetailModalProps> = ({ item, onClos
 
   if (!item) return null;
 
-  const formatDateBR = (dateStr: string | undefined): string => {
-    if (!dateStr) return '-';
-    if (dateStr.includes('/')) return dateStr;
-    const parts = dateStr.split('-');
-    if (parts.length === 3) {
-      return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-    return dateStr;
+  const getVal = (obj: any, key: string) => {
+    if (!obj) return undefined;
+    const found = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
+    return found ? obj[found] : undefined;
   };
 
-  const isError = item.Erro === '0' || Number(item.Erro) === 0 || item.Erro === '0%';
-  const esteiraLabel = getTabuladorName(item.Esteira, esteiraMappings);
+  const formatDateBR = (dateStr: string | undefined): string => {
+    if (!dateStr || dateStr.trim() === '-' || dateStr.trim() === '' || dateStr.trim().toLowerCase() === 'null') return '-';
+    const str = dateStr.trim();
+    if (str.includes('-')) {
+      const parts = str.split('-');
+      if (parts.length === 3 && parts[0].length === 4) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+    } else if (str.includes('/')) {
+      const parts = str.split('/');
+      if (parts.length === 3) {
+        if (parts[2].length === 4) return str;
+        if (parts[0].length === 4) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+    }
+    return str;
+  };
+
+  const isError = true; // Modal is opened for registered errors
+  const rawEsteira = getVal(item, 'esteira') || item.Esteira || '';
+  const esteiraLabel = getTabuladorName(rawEsteira, esteiraMappings) || rawEsteira || '-';
+
+  const nomeAnalista = getVal(item, 'analista') || item.NomeAnalista || 'Analista';
+  const codAnalista = getVal(item, 'codAnalista') || item.CodigoAnalista || '-';
+  const supervisor = getVal(item, 'supervisor') || item.NomeSupervisor || '-';
+  const monitor = getVal(item, 'monitor') || item.NomeMonitor || '-';
+  const tag = getVal(item, 'tag') || item.Tag || 'Sem Tag';
+  const macroTag = getVal(item, 'macroTag') || item.MotivoMacro || '-';
+  const forma = getVal(item, 'forma') || item.FormaMonitoria || '-';
+  const dataMonitoria = getVal(item, 'data') || item.DataMonitoria || '-';
+  const dataFeedback = getVal(item, 'dataFeedback') || item.DataFeedback;
+  const planoDeAcao = getVal(item, 'planoDeAcao') || item.Plano || item.plano;
+  const dataPlano = getVal(item, 'dataPlano') || item.DataPlano;
 
   return (
     <div 
@@ -41,10 +68,10 @@ export const ErrorDetailModal: React.FC<ErrorDetailModalProps> = ({ item, onClos
               <AlertTriangle className={isError ? 'text-amber-400' : 'text-emerald-400'} size={20} />
             </div>
             <div>
-              <h3 className="text-sm font-bold uppercase tracking-wide">Detalhes do Registro</h3>
+              <h3 className="text-sm font-bold uppercase tracking-wide">Detalhes do Registro de Erro</h3>
               <p className="text-[11px] text-blue-200 flex items-center gap-1 mt-0.5">
                 <Calendar size={12} />
-                Monitoria em {formatDateBR(item.DataMonitoria)}
+                Monitoria em {formatDateBR(dataMonitoria)}
               </p>
             </div>
           </div>
@@ -63,58 +90,54 @@ export const ErrorDetailModal: React.FC<ErrorDetailModalProps> = ({ item, onClos
           <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 flex items-center justify-between gap-4">
             <div>
               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Analista Avaliado</p>
-              <p className="text-sm font-extrabold text-gray-900 mt-0.5">{item.NomeAnalista}</p>
-              <p className="text-[11px] font-mono text-gray-500">Matrícula/Código: {item.CodigoAnalista || '-'}</p>
+              <p className="text-sm font-extrabold text-gray-900 mt-0.5">{nomeAnalista}</p>
+              <p className="text-[11px] font-mono text-gray-500">Matrícula/Código: {codAnalista}</p>
             </div>
             <div className="text-right shrink-0">
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold shadow-xs whitespace-nowrap ${
-                isError 
-                  ? 'bg-red-100 text-red-700 border border-red-300' 
-                  : 'bg-emerald-100 text-emerald-700 border border-emerald-300'
-              }`}>
-                {isError ? '0% (Inconformidade / Erro)' : '100% (Conforme / OK)'}
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold shadow-xs whitespace-nowrap bg-red-100 text-red-700 border border-red-300">
+                Inconformidade / Erro
               </span>
             </div>
           </div>
 
-          {/* Grid Metadata */}
+          {/* Grid Metadata: Supervisor, Monitor, Esteira */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="bg-white border border-gray-200 p-3 rounded-xl">
-              <p className="text-[10px] text-gray-400 font-bold uppercase">Supervisor / Gestor</p>
-              <p className="font-bold text-gray-800 mt-0.5">{item.NomeSupervisor || '-'}</p>
+              <p className="text-[10px] text-gray-400 font-bold uppercase">Supervisor</p>
+              <p className="font-bold text-gray-800 mt-0.5">{supervisor}</p>
             </div>
             <div className="bg-white border border-gray-200 p-3 rounded-xl">
-              <p className="text-[10px] text-gray-400 font-bold uppercase">Monitor / Avaliador</p>
-              <p className="font-bold text-gray-800 mt-0.5">{item.NomeMonitor || '-'}</p>
+              <p className="text-[10px] text-gray-400 font-bold uppercase">Monitor</p>
+              <p className="font-bold text-gray-800 mt-0.5">{monitor}</p>
             </div>
             <div className="bg-white border border-gray-200 p-3 rounded-xl">
-              <p className="text-[10px] text-gray-400 font-bold uppercase">Esteira / Processo</p>
+              <p className="text-[10px] text-gray-400 font-bold uppercase">Esteira</p>
               <p className="font-bold text-gray-800 mt-0.5">{esteiraLabel}</p>
             </div>
           </div>
 
-          {/* Inconsistência & Causa */}
+          {/* Inconsistência & Causa: Tag, Motivo Macro, Forma */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="bg-blue-50/60 border border-blue-200 p-3 rounded-xl">
               <p className="text-[10px] text-[#001E62] font-extrabold uppercase">Inconsistência / TAG</p>
-              <p className="font-extrabold text-[#001E62] text-xs mt-1">{item.Tag || 'Sem Tag'}</p>
+              <p className="font-extrabold text-[#001E62] text-xs mt-1">{tag}</p>
             </div>
             <div className="bg-gray-50 border border-gray-200 p-3 rounded-xl">
               <p className="text-[10px] text-gray-500 font-bold uppercase">Motivo Causa / Macro</p>
-              <p className="font-semibold text-gray-800 text-xs mt-1">{item.MotivoMacro || '-'}</p>
+              <p className="font-semibold text-gray-800 text-xs mt-1">{macroTag}</p>
             </div>
             <div className="bg-gray-50 border border-gray-200 p-3 rounded-xl">
               <p className="text-[10px] text-gray-500 font-bold uppercase">Forma de Monitoria</p>
-              <p className="font-semibold text-gray-800 text-xs mt-1">{item.FormaMonitoria || '-'}</p>
+              <p className="font-semibold text-gray-800 text-xs mt-1">{forma}</p>
             </div>
           </div>
 
           {/* Data Feedback */}
-          {item.DataFeedback && (
+          {dataFeedback && String(dataFeedback).trim() !== '' && String(dataFeedback).toLowerCase() !== 'null' && (
             <div className="bg-emerald-50/60 border border-emerald-200 p-3 rounded-xl flex items-center justify-between">
               <div>
                 <p className="text-[10px] text-emerald-800 font-bold uppercase">Data do Feedback Aplicado</p>
-                <p className="text-xs font-bold text-emerald-900 mt-0.5">{formatDateBR(item.DataFeedback)}</p>
+                <p className="text-xs font-bold text-emerald-900 mt-0.5">{formatDateBR(dataFeedback)}</p>
               </div>
               <CheckCircle2 size={18} className="text-emerald-600" />
             </div>
@@ -126,14 +149,16 @@ export const ErrorDetailModal: React.FC<ErrorDetailModalProps> = ({ item, onClos
               <p className="text-amber-900 font-extrabold uppercase text-[10px] tracking-wider">
                 Plano de Ação Registrado
               </p>
-              {item.DataPlano && (
+              {dataPlano && String(dataPlano).trim() !== '' && (
                 <span className="text-[10px] text-amber-800 font-bold">
-                  Data do Plano: {formatDateBR(item.DataPlano)}
+                  Data do Plano: {formatDateBR(dataPlano)}
                 </span>
               )}
             </div>
             <p className="text-gray-800 text-xs leading-relaxed whitespace-pre-wrap font-medium">
-              {item.Plano || 'Nenhum plano de ação detalhado registrado para esta monitoria.'}
+              {planoDeAcao && String(planoDeAcao).trim() !== '' && String(planoDeAcao).toLowerCase() !== 'null'
+                ? planoDeAcao
+                : 'Nenhum plano de ação detalhado registrado para este erro.'}
             </p>
           </div>
         </div>

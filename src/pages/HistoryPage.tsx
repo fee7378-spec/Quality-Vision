@@ -6,6 +6,8 @@ import { ErrorDetailModal } from '../components/ErrorDetailModal';
 export const HistoryPage = () => {
   const { 
     data, 
+    monitorias,
+    monitoriaErros,
     startDate, 
     endDate, 
     selectedEsteira, 
@@ -15,6 +17,12 @@ export const HistoryPage = () => {
   } = useStore();
 
   const [selectedModalItem, setSelectedModalItem] = useState<typeof data[0] | null>(null);
+
+  const getVal = (obj: any, key: string) => {
+    if (!obj) return undefined;
+    const found = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
+    return found ? obj[found] : undefined;
+  };
 
   // Format Date to DD/MM/YYYY
   const formatDateBR = (dateStr?: string | null) => {
@@ -46,54 +54,44 @@ export const HistoryPage = () => {
     });
   }, [data, startDate, endDate, selectedEsteira, selectedForma]);
 
-  const totalMonitoriasGeral = baseFilteredData.length;
-  const totalErrosGeral = baseFilteredData.filter(item => {
-    const errStr = String(item.Erro ?? '').trim().toLowerCase();
-    return (
-      errStr === '0' || 
-      errStr === '0.0' || 
-      errStr.startsWith('0') || 
-      errStr.includes('erro') || 
-      errStr.includes('não conforme') || 
-      errStr.includes('nao conforme') || 
-      errStr.includes('falha') || 
-      errStr.includes('reprovad') || 
-      errStr === 'nc' || 
-      errStr === 'n/c' || 
-      errStr === 'nok'
-    );
-  }).length;
+  const totalMonitoriasGeral = useMemo(() => {
+    if (monitorias && monitorias.length > 0) {
+      return monitorias
+        .filter(item => {
+          const itemDate = getVal(item, 'data');
+          if (!itemDate || typeof itemDate !== 'string') return false;
+          if (startDate && itemDate < startDate) return false;
+          if (endDate && itemDate > endDate) return false;
+          const itemEsteira = getVal(item, 'esteira');
+          if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+          return true;
+        })
+        .reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || Number(item.quantidade) || 0), 0);
+    }
+    return baseFilteredData.length;
+  }, [monitorias, startDate, endDate, selectedEsteira, baseFilteredData]);
 
-  const qualidadeGeralNum = totalMonitoriasGeral > 0
-    ? Number((((totalMonitoriasGeral - totalErrosGeral) / totalMonitoriasGeral) * 100).toFixed(1))
-    : 100;
-  const qualidadeGeralStr = qualidadeGeralNum.toFixed(1) + '%';
+  const totalErrosGeral = useMemo(() => {
+    if (monitoriaErros && monitoriaErros.length > 0) {
+      return monitoriaErros.filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        const itemEsteira = getVal(item, 'esteira');
+        if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
 
-  // Filter error items based on active criteria
-  const filteredItems = useMemo(() => {
-    return data.filter(item => {
-      // Date range filter
-      if (startDate && item.DataMonitoria < startDate) return false;
-      if (endDate && item.DataMonitoria > endDate) return false;
+        const macroTag = getVal(item, 'macroTag');
+        if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
+          return false;
+        }
 
-      // Filter by Esteira, Forma
-      if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
-      if (!matchesFilter(selectedForma, item.FormaMonitoria, 'TODAS')) return false;
-
-      // Search Query
-      if (analystSearchQuery) {
-        const q = analystSearchQuery.toLowerCase();
-        const matchName = item.NomeAnalista?.toLowerCase().includes(q);
-        const matchCode = item.CodigoAnalista?.toLowerCase().includes(q);
-        const matchTag = item.Tag?.toLowerCase().includes(q);
-        const matchMacro = item.MotivoMacro?.toLowerCase().includes(q);
-        const matchPlano = item.Plano?.toLowerCase().includes(q);
-        if (!matchName && !matchCode && !matchTag && !matchMacro && !matchPlano) return false;
-      }
-
-      // Filter only errors (always true now)
+        return true;
+      }).length;
+    }
+    return baseFilteredData.filter(item => {
       const errStr = String(item.Erro ?? '').trim().toLowerCase();
-      const isErr = 
+      return (
         errStr === '0' || 
         errStr === '0.0' || 
         errStr.startsWith('0') || 
@@ -104,51 +102,153 @@ export const HistoryPage = () => {
         errStr.includes('reprovad') || 
         errStr === 'nc' || 
         errStr === 'n/c' || 
-        errStr === 'nok';
+        errStr === 'nok'
+      );
+    }).length;
+  }, [monitoriaErros, startDate, endDate, selectedEsteira, baseFilteredData]);
 
-      if (!isErr) return false;
+  const qualidadeGeralNum = totalMonitoriasGeral > 0
+    ? Number((((totalMonitoriasGeral - totalErrosGeral) / totalMonitoriasGeral) * 100).toFixed(1))
+    : 100;
+  const qualidadeGeralStr = qualidadeGeralNum.toFixed(1) + '%';
 
-      return true;
+  // Filter error items based on active criteria from monitoriaErros (with fallback)
+  const filteredErrosTable = useMemo(() => {
+    if (monitoriaErros && monitoriaErros.length > 0) {
+      return monitoriaErros
+        .filter(item => {
+          const itemDate = getVal(item, 'data');
+          if (!itemDate || typeof itemDate !== 'string') return false;
+          if (startDate && itemDate < startDate) return false;
+          if (endDate && itemDate > endDate) return false;
+
+          const itemEsteira = getVal(item, 'esteira');
+          if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+
+          const macroTag = getVal(item, 'macroTag');
+          if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
+            return false;
+          }
+
+          if (analystSearchQuery) {
+            const q = analystSearchQuery.toLowerCase();
+            const analista = String(getVal(item, 'analista') || '').toLowerCase();
+            const tag = String(getVal(item, 'tag') || '').toLowerCase();
+            const macro = String(getVal(item, 'macroTag') || '').toLowerCase();
+            const plano = String(getVal(item, 'planoDeAcao') || '').toLowerCase();
+            if (!analista.includes(q) && !tag.includes(q) && !macro.includes(q) && !plano.includes(q)) return false;
+          }
+
+          return true;
+        })
+        .sort((a, b) => String(getVal(b, 'data') || '').localeCompare(String(getVal(a, 'data') || '')));
+    }
+
+    return baseFilteredData.filter(item => {
+      if (startDate && item.DataMonitoria < startDate) return false;
+      if (endDate && item.DataMonitoria > endDate) return false;
+      if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
+      if (!matchesFilter(selectedForma, item.FormaMonitoria, 'TODAS')) return false;
+
+      if (analystSearchQuery) {
+        const q = analystSearchQuery.toLowerCase();
+        const matchName = item.NomeAnalista?.toLowerCase().includes(q);
+        const matchCode = item.CodigoAnalista?.toLowerCase().includes(q);
+        const matchTag = item.Tag?.toLowerCase().includes(q);
+        const matchMacro = item.MotivoMacro?.toLowerCase().includes(q);
+        const matchPlano = item.Plano?.toLowerCase().includes(q);
+        if (!matchName && !matchCode && !matchTag && !matchMacro && !matchPlano) return false;
+      }
+
+      const errStr = String(item.Erro ?? '').trim().toLowerCase();
+      return (
+        errStr === '0' || 
+        errStr === '0.0' || 
+        errStr.startsWith('0') || 
+        errStr.includes('erro') || 
+        errStr.includes('não conforme') || 
+        errStr.includes('nao conforme') || 
+        errStr.includes('falha') || 
+        errStr.includes('reprovad') || 
+        errStr === 'nc' || 
+        errStr === 'n/c' || 
+        errStr === 'nok'
+      );
     }).sort((a, b) => b.DataMonitoria.localeCompare(a.DataMonitoria));
-  }, [data, startDate, endDate, selectedEsteira, selectedForma, analystSearchQuery]);
+  }, [monitoriaErros, data, startDate, endDate, selectedEsteira, selectedForma, analystSearchQuery, baseFilteredData]);
 
-  // Feedbacks count based on filled feedback dates / rows
+  // Feedbacks count based on filled planoDeAcao in monitoriaErros
   const feedbackCount = useMemo(() => {
-    return filteredItems.filter(i => {
-      const fb = String(i.DataFeedback ?? '').trim();
+    if (monitoriaErros && monitoriaErros.length > 0) {
+      return monitoriaErros.filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+
+        const itemEsteira = getVal(item, 'esteira');
+        if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+
+        const macroTag = getVal(item, 'macroTag');
+        if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
+          return false;
+        }
+
+        const plano = getVal(item, 'planoDeAcao');
+        return plano !== null && plano !== undefined && String(plano).trim() !== '' && String(plano).toLowerCase() !== 'null';
+      }).length;
+    }
+
+    return filteredErrosTable.filter(i => {
+      const fb = String(i.DataFeedback ?? i.Plano ?? '').trim();
       return fb !== '' && fb !== '-' && fb !== 'null' && fb !== 'undefined';
     }).length;
-  }, [filteredItems]);
+  }, [monitoriaErros, startDate, endDate, selectedEsteira, filteredErrosTable]);
 
-  // Export to CSV (without Data Feedback)
+  // Export to CSV
   const handleExportCSV = () => {
-    if (filteredItems.length === 0) return;
-    const headers = ['Data', 'Código', 'Analista', 'Supervisor', 'Monitor', 'Esteira', 'Tag', 'Motivo Macro', 'Status', 'Plano de Ação', 'Data do Plano'];
-    const rows = filteredItems.map(i => [
-      i.DataMonitoria,
-      i.CodigoAnalista || '',
-      `"${i.NomeAnalista || ''}"`,
-      `"${i.NomeSupervisor || ''}"`,
-      `"${i.NomeMonitor || ''}"`,
-      `"${getTabuladorName(i.Esteira, esteiraMappings)}"`,
-      `"${i.Tag || ''}"`,
-      `"${i.MotivoMacro || ''}"`,
-      i.Erro === '0' || Number(i.Erro) === 0 ? '0%' : '100%',
-      `"${i.Plano || ''}"`,
-      i.DataPlano || ''
-    ]);
+    if (filteredErrosTable.length === 0) return;
+    const headers = ['Data', 'Código', 'Analista', 'Supervisor', 'Monitor', 'Esteira', 'Tag', 'Motivo Macro', 'Forma', 'Plano de Ação', 'Data Feedback'];
+    const rows = filteredErrosTable.map(i => {
+      const itemDate = getVal(i, 'data') || i.DataMonitoria || '';
+      const itemCode = getVal(i, 'codAnalista') || i.CodigoAnalista || '';
+      const itemAnalista = getVal(i, 'analista') || i.NomeAnalista || '';
+      const itemSup = getVal(i, 'supervisor') || i.NomeSupervisor || '';
+      const itemMon = getVal(i, 'monitor') || i.NomeMonitor || '';
+      const rawEst = getVal(i, 'esteira') || i.Esteira || '';
+      const itemEst = getTabuladorName(rawEst, esteiraMappings) || rawEst;
+      const itemTag = getVal(i, 'tag') || i.Tag || '';
+      const itemMacro = getVal(i, 'macroTag') || i.MotivoMacro || '';
+      const itemForma = getVal(i, 'forma') || i.FormaMonitoria || '';
+      const itemPlano = getVal(i, 'planoDeAcao') || i.Plano || '';
+      const itemFbDate = getVal(i, 'dataFeedback') || i.DataFeedback || '';
+
+      return [
+        itemDate,
+        itemCode,
+        `"${itemAnalista}"`,
+        `"${itemSup}"`,
+        `"${itemMon}"`,
+        `"${itemEst}"`,
+        `"${itemTag}"`,
+        `"${itemMacro}"`,
+        `"${itemForma}"`,
+        `"${itemPlano}"`,
+        itemFbDate
+      ];
+    });
 
     const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(';'), ...rows.map(e => e.join(';'))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `historico_erros_${startDate}_ate_${endDate}.csv`);
+    link.setAttribute('download', `historico_erros_${startDate || 'todos'}_ate_${endDate || 'todos'}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const errorCount = filteredItems.length;
+  const errorCount = totalErrosGeral;
 
   return (
     <div className="p-3 sm:p-4 space-y-4 bg-gray-50 text-gray-900 w-full max-w-full text-xs">
@@ -230,17 +330,26 @@ export const HistoryPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 font-medium">
-              {filteredItems.length === 0 ? (
+              {filteredErrosTable.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="py-10 text-center text-gray-400 italic">
                     Nenhum registro encontrado para os filtros selecionados.
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((item, idx) => {
-                  const isError = item.Erro === '0' || Number(item.Erro) === 0;
-                  const esteiraLabel = getTabuladorName(item.Esteira, esteiraMappings);
-                  const rowId = item.id || `${item.CodigoAnalista}-${idx}-${item.DataMonitoria}`;
+                filteredErrosTable.map((item, idx) => {
+                  const itemDate = getVal(item, 'data') || item.DataMonitoria || '-';
+                  const itemAnalista = getVal(item, 'analista') || item.NomeAnalista || 'Analista';
+                  const itemCode = getVal(item, 'codAnalista') || item.CodigoAnalista || '-';
+                  const itemSup = getVal(item, 'supervisor') || item.NomeSupervisor || '-';
+                  const itemMon = getVal(item, 'monitor') || item.NomeMonitor || '-';
+                  const rawEst = getVal(item, 'esteira') || item.Esteira || '';
+                  const esteiraLabel = getTabuladorName(rawEst, esteiraMappings) || rawEst || '-';
+                  const itemTag = getVal(item, 'tag') || item.Tag || 'Sem Tag';
+                  const itemMacro = getVal(item, 'macroTag') || item.MotivoMacro || '-';
+                  const itemPlano = getVal(item, 'planoDeAcao') || item.Plano || '-';
+                  const itemFbDate = getVal(item, 'dataFeedback') || getVal(item, 'dataPlano') || item.DataPlano || '-';
+                  const rowId = item.id || `${itemCode}-${idx}-${itemDate}`;
 
                   return (
                     <tr 
@@ -255,36 +364,32 @@ export const HistoryPage = () => {
                       <td className="py-2 px-2.5 text-gray-900 font-semibold whitespace-nowrap">
                         <div className="flex items-center gap-1">
                           <Calendar size={12} className="text-[#001E62] shrink-0" />
-                          <span>{formatDateBR(item.DataMonitoria)}</span>
+                          <span>{formatDateBR(itemDate)}</span>
                         </div>
                       </td>
-                      <td className="py-2 px-2.5 font-bold text-gray-900 whitespace-nowrap max-w-[150px] truncate" title={item.NomeAnalista}>
-                        {item.NomeAnalista}
-                        <span className="block text-[9px] text-gray-400 font-mono font-normal truncate">{item.CodigoAnalista}</span>
+                      <td className="py-2 px-2.5 font-bold text-gray-900 whitespace-nowrap max-w-[150px] truncate" title={itemAnalista}>
+                        {itemAnalista}
+                        <span className="block text-[9px] text-gray-400 font-mono font-normal truncate">{itemCode}</span>
                       </td>
-                      <td className="py-2 px-2.5 text-gray-700 whitespace-nowrap max-w-[120px] truncate" title={item.NomeSupervisor || '-'}>{item.NomeSupervisor || '-'}</td>
-                      <td className="py-2 px-2.5 text-gray-500 whitespace-nowrap max-w-[110px] truncate" title={item.NomeMonitor || '-'}>{item.NomeMonitor || '-'}</td>
+                      <td className="py-2 px-2.5 text-gray-700 whitespace-nowrap max-w-[120px] truncate" title={itemSup}>{itemSup}</td>
+                      <td className="py-2 px-2.5 text-gray-500 whitespace-nowrap max-w-[110px] truncate" title={itemMon}>{itemMon}</td>
                       <td className="py-2 px-2.5 text-gray-800 font-medium whitespace-nowrap max-w-[130px] truncate" title={esteiraLabel}>{esteiraLabel}</td>
                       <td className="py-2 px-2.5 max-w-[140px] truncate">
                         <span className="inline-block px-1.5 py-0.5 rounded bg-gray-100 text-gray-800 text-[10px] font-semibold truncate max-w-[130px]">
-                          {item.Tag || 'Sem Tag'}
+                          {itemTag}
                         </span>
                       </td>
-                      <td className="py-2 px-2.5 text-gray-600 max-w-[130px] truncate" title={item.MotivoMacro || '-'}>{item.MotivoMacro || '-'}</td>
+                      <td className="py-2 px-2.5 text-gray-600 max-w-[130px] truncate" title={itemMacro}>{itemMacro}</td>
                       <td className="py-2 px-2.5 text-center whitespace-nowrap">
-                        <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold whitespace-nowrap shadow-xs ${
-                          isError 
-                            ? 'bg-red-50 text-red-600 border border-red-200' 
-                            : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                        }`}>
-                          {isError ? '0% • Erro' : '100% • OK'}
+                        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold whitespace-nowrap shadow-xs bg-red-50 text-red-600 border border-red-200">
+                          0% • Erro
                         </span>
                       </td>
-                      <td className="py-2 px-2.5 text-gray-700 max-w-[200px] truncate" title={item.Plano || 'Sem plano registrado'}>
-                        {item.Plano || '-'}
+                      <td className="py-2 px-2.5 text-gray-700 max-w-[200px] truncate" title={itemPlano}>
+                        {itemPlano}
                       </td>
                       <td className="py-2 px-2.5 text-center text-gray-700 font-medium whitespace-nowrap">
-                        {formatDateBR(item.DataPlano)}
+                        {formatDateBR(itemFbDate)}
                       </td>
                     </tr>
                   );

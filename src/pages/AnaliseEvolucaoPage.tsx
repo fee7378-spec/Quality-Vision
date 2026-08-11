@@ -43,6 +43,8 @@ const CustomXAxisTick = (props: any) => {
 export const AnaliseEvolucaoPage = () => {
   const { 
     data, 
+    monitorias,
+    monitoriaErros,
     startDate, 
     endDate, 
     selectedTag, 
@@ -53,6 +55,12 @@ export const AnaliseEvolucaoPage = () => {
 
   const [heatmapViewMode, setHeatmapViewMode] = useState<'esteira' | 'analista'>('esteira');
   const [selectedAnalystForModal, setSelectedAnalystForModal] = useState<{ name: string } | null>(null);
+
+  const getVal = (obj: any, key: string) => {
+    if (!obj) return undefined;
+    const found = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
+    return found ? obj[found] : undefined;
+  };
 
   // Filter dataset by date and controls
   const filteredData = useMemo(() => {
@@ -89,6 +97,145 @@ export const AnaliseEvolucaoPage = () => {
 
   // 1. Índice de Evolução e Tendência (Mês / Semana / Dias)
   const tendenciaData = useMemo(() => {
+    if (monitoriaErros && monitoriaErros.length > 0 && monitorias && monitorias.length > 0) {
+      const filteredErros = monitoriaErros.filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        const itemEsteira = getVal(item, 'esteira');
+        if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+
+        const macroTag = getVal(item, 'macroTag');
+        if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
+          return false;
+        }
+
+        return true;
+      });
+
+      const filteredMonitorias = monitorias.filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        const itemEsteira = getVal(item, 'esteira');
+        if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+        return true;
+      });
+
+      const allDates = [
+        ...filteredErros.map(i => getVal(i, 'data')),
+        ...filteredMonitorias.map(i => getVal(i, 'data'))
+      ].filter(Boolean).sort();
+
+      let spanDays = 0;
+      if (allDates.length > 0) {
+        const minD = new Date(allDates[0]);
+        const maxD = new Date(allDates[allDates.length - 1]);
+        spanDays = Math.ceil((maxD.getTime() - minD.getTime()) / (1000 * 3600 * 24)) + 1;
+      }
+
+      if (spanDays > 0 && spanDays < 7) {
+        // Group by Days
+        const dayMap: Record<string, { label: string; total: number; erros: number }> = {};
+        
+        filteredMonitorias.forEach(item => {
+          const dStr = getVal(item, 'data');
+          if (!dStr) return;
+          const parts = dStr.split('-');
+          const label = parts.length === 3 ? `${parts[2]}/${parts[1]}` : dStr;
+          if (!dayMap[dStr]) dayMap[dStr] = { label, total: 0, erros: 0 };
+          dayMap[dStr].total += (Number(getVal(item, 'quantidade')) || Number(item.quantidade) || 0);
+        });
+
+        filteredErros.forEach(item => {
+          const dStr = getVal(item, 'data');
+          if (!dStr) return;
+          const parts = dStr.split('-');
+          const label = parts.length === 3 ? `${parts[2]}/${parts[1]}` : dStr;
+          if (!dayMap[dStr]) dayMap[dStr] = { label, total: 0, erros: 0 };
+          dayMap[dStr].erros += 1;
+        });
+
+        return Object.keys(dayMap).sort().map(dKey => {
+          const vals = dayMap[dKey];
+          const qualidade = vals.total > 0 ? Number((((vals.total - vals.erros) / vals.total) * 100).toFixed(1)) : 100;
+          return { label: vals.label, qualidade, erros: vals.erros, total: vals.total };
+        });
+      } else if (spanDays >= 7 && spanDays < 30) {
+        // Group by Weeks
+        const weekMap: Record<string, { label: string; total: number; erros: number }> = {};
+
+        const getWeekKeyAndLabel = (dStr: string) => {
+          const parts = dStr.split('-');
+          const dayNum = parseInt(parts[2] || '1', 10);
+          let weekKey = 'Semana 1';
+          if (dayNum >= 1 && dayNum <= 7) weekKey = 'Semana 1';
+          else if (dayNum >= 8 && dayNum <= 14) weekKey = 'Semana 2';
+          else if (dayNum >= 15 && dayNum <= 21) weekKey = 'Semana 3';
+          else if (dayNum >= 22) weekKey = 'Semana 4';
+          return weekKey;
+        };
+
+        filteredMonitorias.forEach(item => {
+          const dStr = getVal(item, 'data');
+          if (!dStr) return;
+          const weekKey = getWeekKeyAndLabel(dStr);
+          if (!weekMap[weekKey]) weekMap[weekKey] = { label: weekKey, total: 0, erros: 0 };
+          weekMap[weekKey].total += (Number(getVal(item, 'quantidade')) || Number(item.quantidade) || 0);
+        });
+
+        filteredErros.forEach(item => {
+          const dStr = getVal(item, 'data');
+          if (!dStr) return;
+          const weekKey = getWeekKeyAndLabel(dStr);
+          if (!weekMap[weekKey]) weekMap[weekKey] = { label: weekKey, total: 0, erros: 0 };
+          weekMap[weekKey].erros += 1;
+        });
+
+        return Object.entries(weekMap).sort(([a], [b]) => a.localeCompare(b)).map(([week, vals]) => {
+          const qualidade = vals.total > 0 ? Number((((vals.total - vals.erros) / vals.total) * 100).toFixed(1)) : 100;
+          return { label: vals.label, qualidade, erros: vals.erros, total: vals.total };
+        });
+      } else {
+        // Group by Months
+        const monthMap: Record<string, { label: string; total: number; erros: number }> = {};
+
+        const getMonthKeyAndLabel = (dStr: string) => {
+          const monthStr = dStr.slice(0, 7);
+          const [y, m] = monthStr.split('-');
+          const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+          const mIdx = parseInt(m, 10) - 1;
+          const label = monthNames[mIdx] ? `${monthNames[mIdx]}/${y?.slice(2) || ''}` : monthStr;
+          return { key: monthStr, label };
+        };
+
+        filteredMonitorias.forEach(item => {
+          const dStr = getVal(item, 'data');
+          if (!dStr) return;
+          const { key, label } = getMonthKeyAndLabel(dStr);
+          if (!monthMap[key]) monthMap[key] = { label, total: 0, erros: 0 };
+          monthMap[key].total += (Number(getVal(item, 'quantidade')) || Number(item.quantidade) || 0);
+        });
+
+        filteredErros.forEach(item => {
+          const dStr = getVal(item, 'data');
+          if (!dStr) return;
+          const { key, label } = getMonthKeyAndLabel(dStr);
+          if (!monthMap[key]) monthMap[key] = { label, total: 0, erros: 0 };
+          monthMap[key].erros += 1;
+        });
+
+        return Object.entries(monthMap)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([mes, vals]) => {
+            const qualidade = vals.total > 0 ? Number((((vals.total - vals.erros) / vals.total) * 100).toFixed(1)) : 100;
+            return { label: vals.label, qualidade, erros: vals.erros, total: vals.total };
+          });
+      }
+    }
+
     if (filteredData.length === 0) return [];
 
     const dates = filteredData.map(d => d.DataMonitoria).filter(Boolean).sort();
@@ -171,11 +318,63 @@ export const AnaliseEvolucaoPage = () => {
           return { label: vals.label, qualidade, erros: vals.erros, total: vals.total };
         });
     }
-  }, [filteredData, selectedForma]);
+  }, [monitoriaErros, monitorias, startDate, endDate, selectedEsteira, filteredData, selectedForma]);
 
   // 2. Heatmap de Reincidência de Erros
   const heatmapData = useMemo(() => {
     const isEsteiraMode = heatmapViewMode === 'esteira';
+
+    if (monitoriaErros && monitoriaErros.length > 0) {
+      const filteredErros = monitoriaErros.filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        const itemEsteira = getVal(item, 'esteira');
+        if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+
+        const macroTag = getVal(item, 'macroTag');
+        if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
+          return false;
+        }
+
+        return true;
+      });
+
+      const catField = isEsteiraMode ? 'esteira' : 'analista';
+
+      const categories = Array.from(new Set(filteredErros.map(d => {
+        const val = getVal(d, catField);
+        return (val && String(val).trim()) ? String(val).trim() : 'Outros';
+      }))).sort((a, b) => a.localeCompare(b));
+
+      const columns = Array.from(new Set(filteredErros.map(d => {
+        const dStr = getVal(d, 'data');
+        return dStr ? String(dStr).slice(0, 7) : '2026-01';
+      }))).sort() as string[];
+
+      const matrix: Record<string, Record<string, number>> = {};
+
+      categories.forEach(cat => {
+        matrix[cat] = {};
+        columns.forEach(col => {
+          matrix[cat][col] = 0;
+        });
+      });
+
+      filteredErros.forEach(item => {
+        const rawCat = getVal(item, catField);
+        const catKey = (rawCat && String(rawCat).trim()) ? String(rawCat).trim() : 'Outros';
+        const dStr = getVal(item, 'data');
+        const colKey = dStr ? String(dStr).slice(0, 7) : '2026-01';
+
+        if (matrix[catKey] && matrix[catKey][colKey] !== undefined) {
+          matrix[catKey][colKey] += 1;
+        }
+      });
+
+      return { categories, columns, matrix, isEsteiraMode };
+    }
 
     const categories = isEsteiraMode
       ? (Array.from(new Set(filteredData.map(d => d.Esteira))).filter(Boolean) as string[]).sort((a, b) => a.localeCompare(b))
@@ -202,7 +401,7 @@ export const AnaliseEvolucaoPage = () => {
     });
 
     return { categories, columns, matrix, isEsteiraMode };
-  }, [filteredData, heatmapViewMode, selectedForma]);
+  }, [monitoriaErros, startDate, endDate, selectedEsteira, heatmapViewMode, filteredData, selectedForma]);
 
   const getHeatmapColor = (count: number) => {
     if (count === 0) return 'bg-white text-gray-400 border-gray-200';
@@ -213,6 +412,35 @@ export const AnaliseEvolucaoPage = () => {
 
   // Erros por TAG
   const errorsByTagData = useMemo(() => {
+    if (monitoriaErros && monitoriaErros.length > 0) {
+      const filteredErros = monitoriaErros.filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        const itemEsteira = getVal(item, 'esteira');
+        if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+
+        const macroTag = getVal(item, 'macroTag');
+        if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
+          return false;
+        }
+
+        return true;
+      });
+
+      const map: Record<string, number> = {};
+      filteredErros.forEach(item => {
+        const tagRaw = getVal(item, 'tag');
+        const tag = (tagRaw && String(tagRaw).trim()) ? String(tagRaw).trim() : 'Geral';
+        map[tag] = (map[tag] || 0) + 1;
+      });
+
+      return Object.entries(map)
+        .map(([tag, count]) => ({ tag, count }))
+        .sort((a, b) => b.count - a.count);
+    }
+
     const map: Record<string, number> = {};
     filteredData.filter(d => isErrorItem(d)).forEach(item => {
       const tag = item.Tag || 'Geral';
@@ -222,10 +450,49 @@ export const AnaliseEvolucaoPage = () => {
     return Object.entries(map)
       .map(([tag, count]) => ({ tag, count }))
       .sort((a, b) => b.count - a.count);
-  }, [filteredData]);
+  }, [monitoriaErros, startDate, endDate, selectedEsteira, filteredData]);
 
   // Erros por Motivo Macro (Enhanced & Intuitive)
   const errorsByMacroData = useMemo(() => {
+    if (monitoriaErros && monitoriaErros.length > 0) {
+      const filteredErros = monitoriaErros.filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        const itemEsteira = getVal(item, 'esteira');
+        if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+
+        const macroTag = getVal(item, 'macroTag');
+        if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
+          return false;
+        }
+
+        return true;
+      });
+
+      const totalMacroErros = filteredErros.length;
+      const map: Record<string, number> = {};
+
+      filteredErros.forEach(item => {
+        const rawMacro = getVal(item, 'macroTag');
+        const macro = (rawMacro && String(rawMacro).trim()) ? String(rawMacro).trim() : 'Não Especificado';
+        map[macro] = (map[macro] || 0) + 1;
+      });
+
+      return Object.entries(map)
+        .map(([name, value], idx) => {
+          const percent = totalMacroErros > 0 ? Math.round((value / totalMacroErros) * 100) : 0;
+          return { 
+            name, 
+            value, 
+            percent,
+            color: MACRO_COLORS[idx % MACRO_COLORS.length]
+          };
+        })
+        .sort((a, b) => b.value - a.value);
+    }
+
     const map: Record<string, number> = {};
     const errItems = filteredData.filter(d => isErrorItem(d));
     const totalMacroErros = errItems.length;
@@ -246,7 +513,7 @@ export const AnaliseEvolucaoPage = () => {
         };
       })
       .sort((a, b) => b.value - a.value);
-  }, [filteredData]);
+  }, [monitoriaErros, startDate, endDate, selectedEsteira, filteredData]);
 
   return (
     <div className="w-full bg-gray-50 p-4 sm:p-6 md:p-8 space-y-8 text-gray-900">

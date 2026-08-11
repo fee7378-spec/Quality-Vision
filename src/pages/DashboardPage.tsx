@@ -50,6 +50,8 @@ const getVal = (obj: any, key: string) => {
 export const DashboardPage = () => {
   const { 
     data, 
+    monitorias,
+    monitoriaErros,
     productivityData,
     volumetria,
     startDate, 
@@ -114,20 +116,52 @@ export const DashboardPage = () => {
   };
 
   // Executive KPIs (Affected by date and esteira/active filters)
-  // Total Monitorias: sum of quantidade in table monitorias
+  // Total Monitorias: sum of quantidade in table monitorias filtered by date and esteira
   const totalMonitorias = useMemo(() => {
+    if (monitorias && monitorias.length > 0) {
+      return monitorias
+        .filter(item => {
+          const itemDate = getVal(item, 'data');
+          if (!itemDate || typeof itemDate !== 'string') return false;
+          if (startDate && itemDate < startDate) return false;
+          if (endDate && itemDate > endDate) return false;
+          const itemEsteira = getVal(item, 'esteira');
+          if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+          return true;
+        })
+        .reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || Number(item.quantidade) || 0), 0);
+    }
     return filteredData.reduce((sum, item) => sum + (Number(item.Quantidade) || 1), 0);
-  }, [filteredData]);
+  }, [monitorias, startDate, endDate, selectedEsteira, filteredData]);
 
-  // Total Erros: count of rows in table monitoriaErros
+  // Total Erros: count of rows in table monitoriaErros where macroTag is not null, filtered by date and esteira
   const totalErros = useMemo(() => {
+    if (monitoriaErros && monitoriaErros.length > 0) {
+      return monitoriaErros.filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        const itemEsteira = getVal(item, 'esteira');
+        if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+
+        const macroTag = getVal(item, 'macroTag');
+        if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
+          return false;
+        }
+
+        return true;
+      }).length;
+    }
     return filteredData.filter(d => isErrorItem(d)).length;
-  }, [filteredData]);
+  }, [monitoriaErros, startDate, endDate, selectedEsteira, filteredData]);
 
   // Qualidade: (Total Monitorias - Total Erros) / Total Monitorias * 100
-  const qualidadeNum = totalMonitorias > 0 
-    ? Number((((totalMonitorias - totalErros) / totalMonitorias) * 100).toFixed(1))
-    : 100;
+  const qualidadeNum = useMemo(() => {
+    if (totalMonitorias <= 0) return 100;
+    return Number((((totalMonitorias - totalErros) / totalMonitorias) * 100).toFixed(1));
+  }, [totalMonitorias, totalErros]);
+
   const qualidade = qualidadeNum.toFixed(1).replace('.', ',') + '%';
 
   const getQualityColor = (pct: number) => {
@@ -137,41 +171,168 @@ export const DashboardPage = () => {
     return 'text-red-600';
   };
 
-  // Ranking de Reincidentes (Contagem de linhas na tabela monitoriaErros agrupadas por coluna Tag)
+  // Ranking de Reincidentes (Calcula o analista mais reincidente e a tag em que ele é mais reincidente)
   const rankingReincidentes = useMemo(() => {
-    const tagStats: Record<string, { tag: string; count: number; analistas: Map<string, number> }> = {};
+    const analystStats: Record<string, { analista: string; totalErros: number; tagsMap: Record<string, number> }> = {};
+    const errorItems: Array<{ analista: string; tag: string }> = [];
 
-    filteredData.filter(d => isErrorItem(d)).forEach(item => {
-      const tag = (item.Tag && item.Tag.trim()) ? item.Tag.trim() : "Geral";
-      const name = item.NomeAnalista || "ANALISTA";
+    if (monitoriaErros && monitoriaErros.length > 0) {
+      const filteredErros = monitoriaErros.filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        const itemEsteira = getVal(item, 'esteira');
+        if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
 
-      if (!tagStats[tag]) {
-        tagStats[tag] = { tag, count: 0, analistas: new Map() };
+        const macroTag = getVal(item, 'macroTag');
+        if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
+          return false;
+        }
+
+        return true;
+      });
+
+      filteredErros.forEach(item => {
+        const name = getVal(item, 'analista') || "ANALISTA";
+        const rawTag = getVal(item, 'tag');
+        const tag = (rawTag && String(rawTag).trim()) ? String(rawTag).trim() : "Sem Tag";
+        errorItems.push({ analista: name, tag });
+      });
+    } else {
+      filteredData.filter(d => isErrorItem(d)).forEach(item => {
+        const name = item.NomeAnalista || "ANALISTA";
+        const tag = (item.Tag && item.Tag.trim()) ? item.Tag.trim() : "Sem Tag";
+        errorItems.push({ analista: name, tag });
+      });
+    }
+
+    errorItems.forEach(({ analista, tag }) => {
+      if (!analystStats[analista]) {
+        analystStats[analista] = { analista, totalErros: 0, tagsMap: {} };
       }
-      
-      tagStats[tag].count += 1; // Contagem de linhas na tabela monitoriaErros
-      const currentAnalystCount = tagStats[tag].analistas.get(name) || 0;
-      tagStats[tag].analistas.set(name, currentAnalystCount + 1);
+      analystStats[analista].totalErros += 1;
+      analystStats[analista].tagsMap[tag] = (analystStats[analista].tagsMap[tag] || 0) + 1;
     });
 
-    return Object.values(tagStats)
+    return Object.values(analystStats)
       .map(stat => {
-        const sortedAnalysts = Array.from(stat.analistas.entries()).sort((a, b) => b[1] - a[1]);
+        const sortedTags = Object.entries(stat.tagsMap).sort((a, b) => b[1] - a[1]);
+        const topTag = sortedTags[0]?.[0] || 'N/A';
+        const topTagCount = sortedTags[0]?.[1] || 0;
+
+        let reincidencias = 0;
+        Object.values(stat.tagsMap).forEach(cnt => {
+          if (cnt > 1) reincidencias += (cnt - 1);
+        });
+
         return {
-          tag: stat.tag,
-          count: stat.count, // Quantidade de linhas em monitoriaErros
-          analistasCount: stat.analistas.size,
-          topAnalista: sortedAnalysts[0]?.[0] || 'N/A',
-          topAnalistaErros: sortedAnalysts[0]?.[1] || 0
+          analista: stat.analista,
+          totalErros: stat.totalErros,
+          reincidencias,
+          topTag,
+          topTagCount
         };
       })
-      .filter(t => t.count > 0)
-      .sort((a, b) => b.count - a.count)
+      .filter(s => s.totalErros > 0)
+      .sort((a, b) => {
+        if (b.reincidencias !== a.reincidencias) return b.reincidencias - a.reincidencias;
+        return b.totalErros - a.totalErros;
+      })
       .slice(0, 15);
-  }, [filteredData]);
+  }, [monitoriaErros, startDate, endDate, selectedEsteira, filteredData]);
 
   // Timeline chart: Filtered Data
   const timelineData = useMemo(() => {
+    if (monitoriaErros && monitoriaErros.length > 0 && monitorias && monitorias.length > 0) {
+      const filteredErros = monitoriaErros.filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        const itemEsteira = getVal(item, 'esteira');
+        if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+
+        const macroTag = getVal(item, 'macroTag');
+        if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
+          return false;
+        }
+
+        return true;
+      });
+
+      const filteredMonitorias = monitorias.filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        const itemEsteira = getVal(item, 'esteira');
+        if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+        return true;
+      });
+
+      const allDates = [
+        ...filteredErros.map(i => getVal(i, 'data')),
+        ...filteredMonitorias.map(i => getVal(i, 'data'))
+      ].filter(Boolean).sort();
+
+      let daysDiff = 0;
+      if (allDates.length > 0) {
+        const minD = new Date(allDates[0]);
+        const maxD = new Date(allDates[allDates.length - 1]);
+        daysDiff = Math.ceil((maxD.getTime() - minD.getTime()) / (1000 * 3600 * 24));
+      }
+
+      const isDaily = daysDiff <= 31;
+      const map: Record<string, { fullKey: string; label: string; erros: number; total: number }> = {};
+
+      const getKeyAndLabel = (rawDate: string) => {
+        let key = rawDate;
+        let label = rawDate;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+          if (isDaily) {
+            key = rawDate;
+            const parts = rawDate.split('-');
+            label = `${parts[2]}/${parts[1]}`;
+          } else {
+            key = rawDate.slice(0, 7);
+            const [y, m] = key.split('-');
+            const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            const mIdx = parseInt(m, 10) - 1;
+            label = monthNames[mIdx] ? `${monthNames[mIdx]}/${y.slice(2)}` : key;
+          }
+        }
+        return { key, label };
+      };
+
+      filteredMonitorias.forEach(item => {
+        const rawDate = getVal(item, 'data');
+        if (!rawDate) return;
+        const { key, label } = getKeyAndLabel(rawDate);
+        if (!map[key]) {
+          map[key] = { fullKey: key, label, erros: 0, total: 0 };
+        }
+        const qty = Number(getVal(item, 'quantidade')) || Number(item.quantidade) || 0;
+        map[key].total += qty;
+      });
+
+      filteredErros.forEach(item => {
+        const rawDate = getVal(item, 'data');
+        if (!rawDate) return;
+        const { key, label } = getKeyAndLabel(rawDate);
+        if (!map[key]) {
+          map[key] = { fullKey: key, label, erros: 0, total: 0 };
+        }
+        map[key].erros += 1;
+      });
+
+      const list = Object.values(map)
+        .filter(item => item.total > 0 || item.erros > 0)
+        .sort((a, b) => a.fullKey.localeCompare(b.fullKey));
+
+      return { list, isDaily };
+    }
+
     if (filteredData.length === 0) return { list: [], isDaily: true };
 
     const sortedDates = filteredData
@@ -219,7 +380,7 @@ export const DashboardPage = () => {
       .filter(item => item.erros > 0)
       .sort((a, b) => a.fullKey.localeCompare(b.fullKey));
     return { list, isDaily };
-  }, [filteredData]);
+  }, [monitoriaErros, monitorias, startDate, endDate, selectedEsteira, filteredData]);
 
 // Evolução da Produtividade
   const evolucaoDiaria = useMemo(() => {
@@ -274,12 +435,18 @@ export const DashboardPage = () => {
         }
       });
 
-    return Array.from(map.values())
-      .sort((a, b) => a.key.localeCompare(b.key))
-      .map(item => ({
-        label: item.label,
-        volume: item.volume
-      }));
+    const list = Array.from(map.values()).sort((a, b) => a.key.localeCompare(b.key));
+    if (list.length === 0) return [];
+
+    const totalVolume = list.reduce((sum, item) => sum + item.volume, 0);
+    const avgVolume = list.length > 0 ? totalVolume / list.length : 0;
+    const targetMeta = Math.round((avgVolume * 1.05) / 10) * 10 || 100;
+
+    return list.map(item => ({
+      label: item.label,
+      volume: item.volume,
+      meta: targetMeta
+    }));
   }, [volumetria, startDate, endDate, selectedEsteira]);
 
   return (
@@ -299,7 +466,7 @@ export const DashboardPage = () => {
           <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
             <span className="text-gray-500 font-medium text-[11px]">Volume total no período</span>
             <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-[#001E62] font-bold text-[11px]">
-              <span>Itens Tratados</span>
+              <span>Casos tratados</span>
             </div>
           </div>
         </div>
@@ -369,6 +536,16 @@ export const DashboardPage = () => {
               EVOLUÇÃO DA PRODUTIVIDADE
             </h3>
           </div>
+          <div className="flex items-center gap-4 text-xs font-semibold">
+            <div className="flex items-center gap-1.5 text-brand-blue">
+              <span className="w-3 h-3 rounded-full bg-[#001E62] inline-block" />
+              <span>Casos Tratados</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-emerald-600">
+              <span className="w-3 h-0.5 border-t-2 border-dashed border-emerald-500 inline-block" />
+              <span>Meta de Produção</span>
+            </div>
+          </div>
         </div>
 
         <div className="h-64">
@@ -383,8 +560,11 @@ export const DashboardPage = () => {
                 itemStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
                 labelStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
               />
-              <Line type="monotone" dataKey="volume" name="Itens Tratados" stroke="#001E62" strokeWidth={3} dot={{ fill: '#001E62', r: 5 }}>
+              <Line type="monotone" dataKey="volume" name="Casos Tratados" stroke="#001E62" strokeWidth={3} dot={{ fill: '#001E62', r: 5 }}>
                 <LabelList dataKey="volume" position="top" offset={10} fill="#001E62" fontSize={11} fontWeight="bold" />
+              </Line>
+              <Line type="monotone" dataKey="meta" name="Meta de Produção" stroke="#10b981" strokeWidth={2} strokeDasharray="5 5" dot={{ fill: '#10b981', r: 3 }}>
+                <LabelList dataKey="meta" position="bottom" offset={8} fill="#10b981" fontSize={10} fontWeight="semibold" />
               </Line>
             </LineChart>
           </ResponsiveContainer>
@@ -406,7 +586,7 @@ export const DashboardPage = () => {
             {rankingReincidentes.length > 0 ? (
               rankingReincidentes.map((item, idx) => (
                 <div 
-                  key={item.tag + idx} 
+                  key={item.analista + idx} 
                   className="bg-gray-50 border border-gray-200 hover:border-brand-blue/60 p-3 rounded-md flex items-center justify-between gap-3 transition-all hover:bg-white group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -415,19 +595,19 @@ export const DashboardPage = () => {
                     </div>
                     <div className="truncate">
                       <p className="text-xs font-bold text-gray-900 group-hover:text-brand-blue-light truncate">
-                        {item.tag}
+                        {item.analista}
                       </p>
                       <p className="text-[10px] text-gray-500 truncate mt-0.5">
-                        Maior ofensor: <span className="font-semibold text-gray-700">{item.topAnalista}</span> ({item.topAnalistaErros}x)
+                        Tag mais reincidente: <span className="font-semibold text-red-600">{item.topTag}</span> ({item.topTagCount}x)
                       </p>
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <span className="bg-red-50 border border-red-300 text-red-700 px-2 py-0.5 rounded-md text-[11px] font-bold">
-                      {item.count} erro(s)
+                      {item.reincidencias > 0 ? `${item.reincidencias} reincidência(s)` : `${item.totalErros} erro(s)`}
                     </span>
                     <p className="text-[10px] text-gray-500 mt-1">
-                      {item.analistasCount} analista(s)
+                      {item.totalErros} erro(s) total
                     </p>
                   </div>
                 </div>

@@ -50,6 +50,7 @@ export const OperacaoPage: React.FC = () => {
   const { 
     productivityData, 
     data,
+    monitorias,
     startDate, 
     endDate, 
     selectedEsteira,
@@ -82,6 +83,15 @@ export const OperacaoPage: React.FC = () => {
   }, [productivityData, startDate, endDate, selectedEsteira]);
 
   const filteredMonitoring = useMemo(() => {
+    if (monitorias && monitorias.length > 0) {
+      return monitorias.filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (startDate && itemDate && itemDate < startDate) return false;
+        if (endDate && itemDate && itemDate > endDate) return false;
+        if (!matchesFilter(selectedEsteira, getVal(item, 'esteira'), 'TODAS')) return false;
+        return true;
+      });
+    }
     return data.filter(item => {
       const itemDate = item.DataMonitoria;
       if (startDate && itemDate && itemDate < startDate) return false;
@@ -89,7 +99,7 @@ export const OperacaoPage: React.FC = () => {
       if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
       return true;
     });
-  }, [data, startDate, endDate, selectedEsteira]);
+  }, [monitorias, data, startDate, endDate, selectedEsteira]);
 
   const kpis = useMemo(() => {
     const filtVolumetria = filterSupabase(volumetria);
@@ -99,7 +109,7 @@ const filtPrio = filterSupabase(volumetriaPrioridades);
     const prioVolume = filtPrio.reduce((acc, curr) => acc + (Number(getVal(curr, 'quantidade')) || 0), 0);
     const prioPercent = totalVolume > 0 ? ((prioVolume / totalVolume) * 100).toFixed(1).replace('.', ',') : '0,0';
 
-    const totalMonitorias = filteredMonitoring.reduce((acc, curr) => acc + (Number(curr.Quantidade) || 1), 0);
+    const totalMonitorias = filteredMonitoring.reduce((acc, curr) => acc + (Number(getVal(curr, 'quantidade')) || Number(curr.Quantidade) || 1), 0);
     const prioMonitoriaPercent = prioVolume > 0 
       ? ((totalMonitorias / prioVolume) * 100).toFixed(1).replace('.', ',') 
       : '0,0';
@@ -333,11 +343,11 @@ const esteiraPrioData = useMemo(() => {
             </div>
             <div className="flex items-center gap-4 bg-gray-50/70 border border-gray-200 px-3.5 py-1.5 rounded-md self-start sm:self-auto flex-shrink-0">
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-sm bg-brand-blue-dark inline-block" />
+                <span className="w-3 h-3 rounded-sm bg-[#001E62] inline-block" />
                 <span className="text-xs font-bold text-gray-900">Prioridade (SIM)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" />
+                <span className="w-3 h-3 rounded-sm bg-[#F8F8FF] border border-gray-200 inline-block" />
                 <span className="text-xs font-bold text-gray-900">Normal (NÃO)</span>
               </div>
             </div>
@@ -365,8 +375,8 @@ const esteiraPrioData = useMemo(() => {
                   <Bar dataKey="sim" name="Prioridade (SIM)" fill="#001E62" radius={[4, 4, 0, 0]} barSize={34}>
                     <LabelList dataKey="sim" position="top" offset={6} fill="#001E62" fontSize={11} fontWeight="bold" />
                   </Bar>
-                  <Bar dataKey="nao" name="Normal (NÃO)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={34}>
-                    <LabelList dataKey="nao" position="top" offset={6} fill="#10b981" fontSize={11} fontWeight="bold" />
+                  <Bar dataKey="nao" name="Normal (NÃO)" fill="#F8F8FF" stroke="#e5e7eb" strokeWidth={1} radius={[4, 4, 0, 0]} barSize={34}>
+                    <LabelList dataKey="nao" position="top" offset={6} fill="#001E62" fontSize={11} fontWeight="bold" />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
