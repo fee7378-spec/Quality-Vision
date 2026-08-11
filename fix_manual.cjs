@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+const fs = require('fs');
+let code = `import React, { useMemo } from 'react';
 import { 
   Layers, Clock, AlertTriangle, Calendar, CheckCircle2, 
   BarChart2, PieChart as PieIcon, ArrowUpRight, ShieldAlert, Activity, Filter, Target
@@ -28,7 +29,7 @@ const CustomXAxisTick = (props: any) => {
   if (currentLine) lines.push(currentLine);
 
   return (
-    <g transform={`translate(${x},${y})`}>
+    <g transform={\`translate(\${x},\${y})\`}>
       <text x={0} y={0} dy={4} textAnchor="middle" fill="#001E62" fontSize={11} fontWeight="600">
         {lines.slice(0, 3).map((line, index) => (
           <tspan x={0} dy={index === 0 ? 10 : 13} key={index}>
@@ -40,12 +41,6 @@ const CustomXAxisTick = (props: any) => {
   );
 };
 
-
-const getVal = (obj: any, key: string) => {
-  if (!obj) return undefined;
-  const found = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
-  return found ? obj[found] : undefined;
-};
 export const OperacaoPage: React.FC = () => {
   const { 
     productivityData, 
@@ -57,16 +52,12 @@ export const OperacaoPage: React.FC = () => {
     volumetriaTipoDeDemanda, volumetriaPrioridades, volumetriaPendencias, volumetriaReprovas, volumetria, volumetriaMediaTmo, volumetriaStatus
   } = useStore();
 
-
-
   const filterSupabase = (arr: any[]) => {
     return (arr || []).filter(item => {
-      const itemDate = getVal(item, 'data');
-      if (itemDate && typeof itemDate === 'string' && itemDate.trim() !== '') {
-        if (startDate && itemDate < startDate) return false;
-        if (endDate && itemDate > endDate) return false;
-      }
-      if (!matchesFilter(selectedEsteira, getVal(item, 'esteira'), 'TODAS')) return false;
+      const itemDate = item.data || item.Data;
+      if (startDate && itemDate && itemDate < startDate) return false;
+      if (endDate && itemDate && itemDate > endDate) return false;
+      if (!matchesFilter(selectedEsteira, item.esteira || item.Esteira, 'TODAS')) return false;
       return true;
     });
   };
@@ -93,12 +84,12 @@ export const OperacaoPage: React.FC = () => {
 
   const kpis = useMemo(() => {
     const filtVolumetria = filterSupabase(volumetria);
-    const totalVolume = filtVolumetria.reduce((acc, curr) => acc + (Number(getVal(curr, 'quantidade')) || 0), 0);
+    const totalVolume = filtVolumetria.reduce((acc, curr) => acc + (Number(curr.quantidade || curr.Quantidade) || 0), 0);
     
     const filtPrio = filterSupabase(volumetriaPrioridades);
     const prioVolume = filtPrio.reduce((acc, curr) => {
-      const isSim = String(getVal(curr, 'prioridade') || '').trim().toLowerCase() === 'sim';
-      return isSim ? acc + (Number(getVal(curr, 'quantidade')) || 0) : acc;
+      const isSim = (curr.prioridade || curr.Prioridade || '').trim().toLowerCase() === 'sim';
+      return isSim ? acc + (Number(curr.quantidade || curr.Quantidade) || 0) : acc;
     }, 0);
     const prioPercent = totalVolume > 0 ? ((prioVolume / totalVolume) * 100).toFixed(1).replace('.', ',') : '0,0';
 
@@ -108,10 +99,10 @@ export const OperacaoPage: React.FC = () => {
       : '0,0';
 
     const filtPend = filterSupabase(volumetriaPendencias);
-    const pendentesCount = filtPend.reduce((acc, curr) => acc + (Number(getVal(curr, 'quantidade')) || 0), 0);
+    const pendentesCount = filtPend.reduce((acc, curr) => acc + (Number(curr.quantidade || curr.Quantidade) || 0), 0);
 
     const filtReprova = filterSupabase(volumetriaReprovas);
-    const reprovadosCount = filtReprova.reduce((acc, curr) => acc + (Number(getVal(curr, 'quantidade')) || 0), 0);
+    const reprovadosCount = filtReprova.reduce((acc, curr) => acc + (Number(curr.quantidade || curr.Quantidade) || 0), 0);
 
     const pendReprovTotal = pendentesCount + reprovadosCount;
     const pendReprovPercent = totalVolume > 0 
@@ -125,9 +116,9 @@ export const OperacaoPage: React.FC = () => {
 
     const dayMap: Record<string, number> = {};
     filtVolumetria.forEach(p => {
-      const d = getVal(p, 'data');
+      const d = p.data || p.Data;
       if (d) {
-        dayMap[d] = (dayMap[d] || 0) + (Number(getVal(p, 'quantidade')) || 0);
+        dayMap[d] = (dayMap[d] || 0) + (Number(p.quantidade || p.Quantidade) || 0);
       }
     });
 
@@ -136,9 +127,9 @@ export const OperacaoPage: React.FC = () => {
     Object.entries(dayMap).forEach(([dateStr, vol]) => {
       if (vol > peakVol) {
         peakVol = vol;
-        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        if (/^\\d{4}-\\d{2}-\\d{2}$/.test(dateStr)) {
           const [y, m, day] = dateStr.split('-');
-          peakDay = `${day}/${m}/${y}`;
+          peakDay = \`\${day}/\${m}/\${y}\`;
         } else {
           peakDay = dateStr;
         }
@@ -153,10 +144,10 @@ export const OperacaoPage: React.FC = () => {
     const filtPrio = filterSupabase(volumetriaPrioridades);
 
     filtPrio.forEach(p => {
-      const e = getVal(p, 'esteira') || 'Geral';
+      const e = p.esteira || p.Esteira || 'Geral';
       if (!map[e]) map[e] = { esteira: e, sim: 0, nao: 0, total: 0 };
-      const qty = Number(getVal(p, 'quantidade')) || 0;
-      const prio = String(getVal(p, 'prioridade') || '').trim().toLowerCase();
+      const qty = Number(p.quantidade || p.Quantidade) || 0;
+      const prio = (p.prioridade || p.Prioridade || '').trim().toLowerCase();
       if (prio === 'sim' || prio === 's' || prio === 'true' || prio === '1') {
         map[e].sim += qty;
       } else {
@@ -175,8 +166,8 @@ export const OperacaoPage: React.FC = () => {
 
     const filtStatus = filterSupabase(volumetriaStatus);
     filtStatus.forEach(p => {
-      const st = getVal(p, 'status') || 'Aprovado';
-      const qty = Number(getVal(p, 'quantidade')) || 0;
+      const st = p.status || p.Status || 'Aprovado';
+      const qty = Number(p.quantidade || p.Quantidade) || 0;
       if (st === 'Pendência' || st === 'Pendencia') pendentes += qty;
       else if (st === 'Reprovado' || st === 'Reprova') reprovados += qty;
       else aprovados += qty;
@@ -195,16 +186,16 @@ export const OperacaoPage: React.FC = () => {
     const filtRepr = filterSupabase(volumetriaReprovas);
 
     filtPend.forEach(p => {
-      const mot = String(getVal(p, 'motivo') || '').trim();
+      const mot = (p.motivo || p.Motivo || '').trim();
       if (mot && mot.toLowerCase() !== 'nenhum' && mot.toLowerCase() !== 'outros / não especificado') {
-        map[mot] = (map[mot] || 0) + (Number(getVal(p, 'quantidade')) || 0);
+        map[mot] = (map[mot] || 0) + (Number(p.quantidade || p.Quantidade) || 0);
       }
     });
 
     filtRepr.forEach(p => {
-      const mot = String(getVal(p, 'motivo') || '').trim();
+      const mot = (p.motivo || p.Motivo || '').trim();
       if (mot && mot.toLowerCase() !== 'nenhum' && mot.toLowerCase() !== 'outros / não especificado') {
-        map[mot] = (map[mot] || 0) + (Number(getVal(p, 'quantidade')) || 0);
+        map[mot] = (map[mot] || 0) + (Number(p.quantidade || p.Quantidade) || 0);
       }
     });
 
@@ -218,11 +209,11 @@ export const OperacaoPage: React.FC = () => {
     const map: Record<string, number> = {};
     const filteredVolumetria = filterSupabase(volumetriaTipoDeDemanda);
     filteredVolumetria.forEach(p => {
-      const rawDemanda = String(getVal(p, 'tipoDeDemanda') || '').trim();
-      const esteira = getVal(p, 'esteira') || 'Geral';
-      const demanda = rawDemanda || esteira || 'Geral';
-      const key = `${demanda} (${esteira})`;
-      const qty = Number(getVal(p, 'quantidade')) || 0;
+      const demanda = (p.tipoDeDemanda || p.TipoDeDemanda || '').trim();
+      if (!demanda) return;
+      const esteira = p.esteira || p.Esteira || 'Geral';
+      const key = \`\${demanda} (\${esteira})\`;
+      const qty = Number(p.quantidade || p.Quantidade) || 1;
       map[key] = (map[key] || 0) + qty;
     });
 
@@ -235,9 +226,9 @@ export const OperacaoPage: React.FC = () => {
     const map: Record<string, { totalQty: number; totalApuracao: number }> = {};
     const filteredTmo = filterSupabase(volumetriaMediaTmo);
     filteredTmo.forEach(p => {
-      const e = getVal(p, 'esteira') || 'Geral';
-      const qty = Number(getVal(p, 'quantidade')) || 0;
-      const tmoTotal = Number(getVal(p, 'apuracaoDeTempo')) || 0;
+      const e = p.esteira || p.Esteira || 'Geral';
+      const qty = Number(p.quantidade || p.Quantidade) || 1;
+      const tmoTotal = Number(p.apuracaoDeTempo || p.ApuracaoDeTempo) || 0;
       if (!map[e]) map[e] = { totalQty: 0, totalApuracao: 0 };
       map[e].totalQty += qty;
       map[e].totalApuracao += tmoTotal;
@@ -258,7 +249,7 @@ export const OperacaoPage: React.FC = () => {
             <div>
               <p className="font-bold text-sm">Nenhuma base de produtividade importada</p>
               <p className="text-xs text-amber-800 mt-0.5">
-                Aguardando importação da base de produtividade para exibir os dados e gráficos da Operação. 
+                Aguardando importação da base de produtividade para exibir os dados e gráficos da Operação. Acesse a aba <strong>Importar</strong> para carregar a base.
               </p>
             </div>
           </div>
@@ -420,7 +411,7 @@ export const OperacaoPage: React.FC = () => {
                     dataKey="value"
                   >
                     {statusDist.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+                      <Cell key={\`cell-\${index}\`} fill={entry.color} />
                     ))}
                   </Pie>
                   <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#001E62', borderRadius: '8px', color: '#001E62', fontWeight: 'bold' }} itemStyle={{ color: '#001E62', fontWeight: 'bold' }} labelStyle={{ color: '#001E62', fontWeight: 'bold' }} />
@@ -490,7 +481,7 @@ export const OperacaoPage: React.FC = () => {
                     <div className="w-full bg-white rounded-full h-2 overflow-hidden border border-gray-200">
                       <div 
                         className="bg-brand-blue-dark h-full rounded-full transition-all duration-500" 
-                        style={{ width: `${percent}%` }}
+                        style={{ width: \`\${percent}%\` }}
                       />
                     </div>
                   </div>
@@ -529,10 +520,10 @@ export const OperacaoPage: React.FC = () => {
                     contentStyle={{ backgroundColor: '#ffffff', borderColor: '#001E62', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', color: '#001E62', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }} 
                     itemStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
                     labelStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }}
-                    formatter={(val: any) => [`${Number(val).toFixed(1)} minutos`, 'TMO Médio']}
+                    formatter={(val: any) => [\`\${Number(val).toFixed(1)} minutos\`, 'TMO Médio']}
                   />
                   <Bar dataKey="tmoMedio" name="TMO Médio (min)" fill="#001E62" radius={[4, 4, 0, 0]} barSize={40}>
-                    <LabelList dataKey="tmoMedio" position="top" offset={6} fill="#001E62" fontSize={11} fontWeight="bold" formatter={(v: any) => `${Number(v).toFixed(1)}m`} />
+                    <LabelList dataKey="tmoMedio" position="top" offset={6} fill="#001E62" fontSize={11} fontWeight="bold" formatter={(v: any) => \`\${Number(v).toFixed(1)}m\`} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -543,3 +534,5 @@ export const OperacaoPage: React.FC = () => {
     </div>
   );
 };
+`
+fs.writeFileSync('src/pages/OperacaoPage.tsx', code);

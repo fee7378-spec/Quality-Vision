@@ -2,7 +2,15 @@ import React from 'react';
 import { Sidebar } from '../components/Sidebar';
 import { Header } from '../components/Header';
 
+import { useEffect } from 'react';
+import { useStore } from '../store/useStore';
+
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
+  const fetchSupabaseData = useStore(state => state.fetchSupabaseData);
+  useEffect(() => {
+    fetchSupabaseData();
+  }, [fetchSupabaseData]);
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-gray-50 text-slate-200">
       <Sidebar />

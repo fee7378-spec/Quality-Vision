@@ -87,22 +87,42 @@ export const AnaliseEvolucaoPage = () => {
     return true;
   };
 
-  // 1. Índice de Evolução e Tendência (Mensal ou Semanal se <= 1 mês)
+  // 1. Índice de Evolução e Tendência (Mês / Semana / Dias)
   const tendenciaData = useMemo(() => {
     if (filteredData.length === 0) return [];
 
-    const months = Array.from(new Set(filteredData.map(d => d.DataMonitoria ? d.DataMonitoria.slice(0, 7) : ''))).filter(Boolean);
-    const isOneMonthOrLess = months.length <= 1;
+    const dates = filteredData.map(d => d.DataMonitoria).filter(Boolean).sort();
+    let spanDays = 0;
+    if (dates.length > 0) {
+      const minD = new Date(dates[0]);
+      const maxD = new Date(dates[dates.length - 1]);
+      spanDays = Math.ceil((maxD.getTime() - minD.getTime()) / (1000 * 3600 * 24)) + 1;
+    }
 
-    if (isOneMonthOrLess) {
-      // Group by weeks
-      const weekMap: Record<string, { total: number; erros: number }> = {
-        'Semana 1': { total: 0, erros: 0 },
-        'Semana 2': { total: 0, erros: 0 },
-        'Semana 3': { total: 0, erros: 0 },
-        'Semana 4': { total: 0, erros: 0 }
-      };
+    if (spanDays > 0 && spanDays <= 7) {
+      // Group by Days
+      const dayMap: Record<string, { label: string; total: number; erros: number }> = {};
+      filteredData.forEach(item => {
+        if (!item.DataMonitoria) return;
+        const [y, m, day] = item.DataMonitoria.split('-');
+        const label = `${day}/${m}`;
+        if (!dayMap[item.DataMonitoria]) {
+          dayMap[item.DataMonitoria] = { label, total: 0, erros: 0 };
+        }
+        dayMap[item.DataMonitoria].total += (Number(item.Quantidade) || 1);
+        if (isErrorItem(item)) {
+          dayMap[item.DataMonitoria].erros += 1;
+        }
+      });
 
+      return Object.keys(dayMap).sort().map(dKey => {
+        const vals = dayMap[dKey];
+        const qualidade = vals.total > 0 ? Number((((vals.total - vals.erros) / vals.total) * 100).toFixed(1)) : 100;
+        return { label: vals.label, qualidade, erros: vals.erros, total: vals.total };
+      });
+    } else if (spanDays > 7 && spanDays <= 30) {
+      // Group by Weeks
+      const weekMap: Record<string, { label: string; total: number; erros: number }> = {};
       filteredData.forEach(item => {
         if (!item.DataMonitoria) return;
         const parts = item.DataMonitoria.split('-');
@@ -113,7 +133,10 @@ export const AnaliseEvolucaoPage = () => {
         else if (dayNum >= 15 && dayNum <= 21) weekKey = 'Semana 3';
         else if (dayNum >= 22) weekKey = 'Semana 4';
 
-        weekMap[weekKey].total += 1;
+        if (!weekMap[weekKey]) {
+          weekMap[weekKey] = { label: weekKey, total: 0, erros: 0 };
+        }
+        weekMap[weekKey].total += (Number(item.Quantidade) || 1);
         if (isErrorItem(item)) {
           weekMap[weekKey].erros += 1;
         }
@@ -121,23 +144,21 @@ export const AnaliseEvolucaoPage = () => {
 
       return Object.entries(weekMap).map(([week, vals]) => {
         const qualidade = vals.total > 0 ? Number((((vals.total - vals.erros) / vals.total) * 100).toFixed(1)) : 100;
-        return {
-          label: week,
-          qualidade,
-          erros: vals.erros,
-          total: vals.total
-        };
+        return { label: vals.label, qualidade, erros: vals.erros, total: vals.total };
       });
     } else {
-      // Group by months
-      const monthMap: Record<string, { total: number; erros: number }> = {};
-
+      // Group by Months
+      const monthMap: Record<string, { label: string; total: number; erros: number }> = {};
       filteredData.forEach(item => {
         const monthStr = item.DataMonitoria ? item.DataMonitoria.slice(0, 7) : 'Sem Data';
         if (!monthMap[monthStr]) {
-          monthMap[monthStr] = { total: 0, erros: 0 };
+          const [y, m] = monthStr.split('-');
+          const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+          const mIdx = parseInt(m, 10) - 1;
+          const label = monthNames[mIdx] ? `${monthNames[mIdx]}/${y?.slice(2) || ''}` : monthStr;
+          monthMap[monthStr] = { label, total: 0, erros: 0 };
         }
-        monthMap[monthStr].total += 1;
+        monthMap[monthStr].total += (Number(item.Quantidade) || 1);
         if (isErrorItem(item)) {
           monthMap[monthStr].erros += 1;
         }
@@ -147,17 +168,7 @@ export const AnaliseEvolucaoPage = () => {
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([mes, vals]) => {
           const qualidade = vals.total > 0 ? Number((((vals.total - vals.erros) / vals.total) * 100).toFixed(1)) : 100;
-          const [y, m] = mes.split('-');
-          const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-          const mIdx = parseInt(m, 10) - 1;
-          const label = monthNames[mIdx] ? `${monthNames[mIdx]}/${y?.slice(2) || ''}` : mes;
-
-          return {
-            label,
-            qualidade,
-            erros: vals.erros,
-            total: vals.total
-          };
+          return { label: vals.label, qualidade, erros: vals.erros, total: vals.total };
         });
     }
   }, [filteredData, selectedForma]);
@@ -246,7 +257,7 @@ export const AnaliseEvolucaoPage = () => {
             <div>
               <p className="font-bold text-sm">Nenhuma base de monitoria (qualidade) importada</p>
               <p className="text-xs text-amber-800 mt-0.5">
-                Aguardando importação da base de monitoria para calcular o Índice de Evolução, Erros por TAG, Motivo Macro e Heatmap. Acesse a aba <strong>Importar</strong> para carregar a planilha de monitoria.
+                Aguardando importação da base de monitoria para calcular o Índice de Evolução, Erros por TAG, Motivo Macro e Heatmap. 
               </p>
             </div>
           </div>
@@ -367,6 +378,11 @@ export const AnaliseEvolucaoPage = () => {
             </h3>
             <p className="text-[11px] text-gray-400/80 mt-0.5">
               Matriz de calor de volume de erros {heatmapData.isEsteiraMode ? 'dividida por Esteira Operacional' : 'dividida por Analista'} no tempo
+              {heatmapData.columns.length > 6 && (
+                <span className="ml-1.5 text-brand-blue font-semibold">
+                  (Exibindo 6 meses por visualização • Role para o lado para ver os demais)
+                </span>
+              )}
             </p>
           </div>
 
@@ -396,10 +412,20 @@ export const AnaliseEvolucaoPage = () => {
         </div>
 
         <div className="overflow-x-auto max-h-[520px] overflow-y-auto my-2 custom-scrollbar border border-gray-200 rounded-md">
-          <table className="w-full text-xs text-center border-collapse">
-            <thead className="sticky top-0 bg-white z-10 shadow-sm shadow-black">
+          <table 
+            className="w-full text-xs text-center border-collapse"
+            style={{
+              minWidth: heatmapData.columns.length > 6 
+                ? `calc(220px + (${heatmapData.columns.length} * (100% - 220px) / 6))` 
+                : '100%'
+            }}
+          >
+            <thead className="sticky top-0 bg-white z-20 shadow-xs">
               <tr className="border-b border-gray-200 text-gray-500 font-semibold">
-                <th className="p-3 text-left min-w-[200px] bg-white">
+                <th 
+                  className="p-3 text-left bg-white sticky top-0 left-0 z-30 border-b border-r border-gray-200"
+                  style={{ width: '220px', minWidth: '220px', maxWidth: '220px' }}
+                >
                   {heatmapData.isEsteiraMode ? 'Esteira Operacional' : 'Analista'}
                 </th>
                 {heatmapData.columns.map(c => {
@@ -408,7 +434,13 @@ export const AnaliseEvolucaoPage = () => {
                   const mIdx = parseInt(m, 10) - 1;
                   const label = monthNames[mIdx] ? `${monthNames[mIdx]}/${y?.slice(2) || ''}` : c;
                   return (
-                    <th key={c} className="p-3 min-w-[90px] bg-white">{label}</th>
+                    <th 
+                      key={c} 
+                      className="p-3 min-w-[110px] bg-white border-b border-gray-200"
+                      style={{ width: heatmapData.columns.length > 6 ? 'calc((100% - 220px) / 6)' : 'auto' }}
+                    >
+                      {label}
+                    </th>
                   );
                 })}
               </tr>
@@ -416,11 +448,12 @@ export const AnaliseEvolucaoPage = () => {
             <tbody>
               {heatmapData.categories.length > 0 ? (
                 heatmapData.categories.map(cat => (
-                  <tr key={cat} className="border-b border-gray-200/40 hover:bg-gray-100/20 transition-colors">
+                  <tr key={cat} className="group border-b border-gray-200/40 hover:bg-gray-50 transition-colors">
                     <td 
-                      className={`p-3 text-left font-semibold text-gray-900 truncate max-w-[220px] ${
+                      className={`p-3 text-left font-semibold text-gray-900 truncate bg-white sticky left-0 z-10 border-r border-gray-200 group-hover:bg-gray-50 transition-colors ${
                         !heatmapData.isEsteiraMode ? 'cursor-pointer text-[#001E62] hover:underline' : ''
                       }`} 
+                      style={{ width: '220px', minWidth: '220px', maxWidth: '220px' }}
                       title={!heatmapData.isEsteiraMode ? `Clique para ver erros e reincidências de ${cat}` : cat}
                       onClick={() => {
                         if (!heatmapData.isEsteiraMode) {
@@ -433,7 +466,11 @@ export const AnaliseEvolucaoPage = () => {
                     {heatmapData.columns.map(col => {
                       const count = heatmapData.matrix[cat]?.[col] || 0;
                       return (
-                        <td key={col} className="p-2">
+                        <td 
+                          key={col} 
+                          className="p-2 min-w-[110px]"
+                          style={{ width: heatmapData.columns.length > 6 ? 'calc((100% - 220px) / 6)' : 'auto' }}
+                        >
                           <div className={`py-2 px-3 rounded-md border text-xs font-bold transition-transform hover:scale-105 ${getHeatmapColor(count)}`}>
                             {count} erro(s)
                           </div>

@@ -113,34 +113,76 @@ export const CapacidadePage: React.FC = () => {
   }, [productivityData, esteiraParams, selectedEsteira, startDate, endDate]);
 
   // 2. Month-over-Month Volume Comparison & Provisão calculation
-  // Provisão formula: (Volume acumulado dos dias decorridos / Dias decorridos) * Dias úteis do mês
+  // Gráfico COMPARATIVO DE PRODUÇÃO MoM: Eixo X em Mês/Semana/Dia dependendo do período
   const momData = useMemo(() => {
-    const monthVolumeMap: Record<string, { monthKey: string; monthLabel: string; volume: number; daysCount: Set<string> }> = {};
-
-    productivityData.forEach(item => {
-      const dateStr = item.DataProdutividade;
-      if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return;
-      if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return;
-
-      const [year, month] = dateStr.split('-');
-      const key = `${year}-${month}`;
-      const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-      const monthIndex = parseInt(month, 10) - 1;
-      const label = `${monthNames[monthIndex] || month}/${year.slice(2)}`;
-
-      if (!monthVolumeMap[key]) {
-        monthVolumeMap[key] = { monthKey: key, monthLabel: label, volume: 0, daysCount: new Set() };
-      }
-
-      monthVolumeMap[key].volume += (item.Quantidade || 1);
-      monthVolumeMap[key].daysCount.add(dateStr);
+    const filteredProd = productivityData.filter(item => {
+      const d = item.DataProdutividade;
+      if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+      if (startDate && d < startDate) return false;
+      if (endDate && d > endDate) return false;
+      if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
+      return true;
     });
 
-    const sortedKeys = Object.keys(monthVolumeMap).sort();
+    const uniqueDates = Array.from(new Set(filteredProd.map(i => i.DataProdutividade))).sort();
     
-    const list = sortedKeys.map((key, idx) => {
-      const entry = monthVolumeMap[key];
-      const prevEntry = sortedKeys[idx - 1] ? monthVolumeMap[sortedKeys[idx - 1]] : null;
+    let spanDays = 0;
+    if (uniqueDates.length > 0) {
+      const minD = new Date(uniqueDates[0]);
+      const maxD = new Date(uniqueDates[uniqueDates.length - 1]);
+      spanDays = Math.ceil((maxD.getTime() - minD.getTime()) / (1000 * 3600 * 24)) + 1;
+    }
+
+    const map: Record<string, { label: string; volume: number; daysCount: Set<string> }> = {};
+
+    if (spanDays > 0 && spanDays <= 7) {
+      // Group by Day
+      filteredProd.forEach(item => {
+        const dateStr = item.DataProdutividade;
+        const [y, m, day] = dateStr.split('-');
+        const label = `${day}/${m}`;
+        if (!map[dateStr]) map[dateStr] = { label, volume: 0, daysCount: new Set() };
+        map[dateStr].volume += (Number(item.Quantidade) || 1);
+        map[dateStr].daysCount.add(dateStr);
+      });
+    } else if (spanDays > 7 && spanDays <= 30) {
+      // Group by Week
+      filteredProd.forEach(item => {
+        const dateStr = item.DataProdutividade;
+        const [y, m, dayStr] = dateStr.split('-');
+        const dayNum = parseInt(dayStr, 10);
+        let weekKey = 'Semana 1';
+        if (dayNum >= 1 && dayNum <= 7) weekKey = 'Semana 1';
+        else if (dayNum >= 8 && dayNum <= 14) weekKey = 'Semana 2';
+        else if (dayNum >= 15 && dayNum <= 21) weekKey = 'Semana 3';
+        else if (dayNum >= 22) weekKey = 'Semana 4';
+
+        const label = `${weekKey} (${m}/${y.slice(2)})`;
+        const key = `${y}-${m}-${weekKey}`;
+        if (!map[key]) map[key] = { label, volume: 0, daysCount: new Set() };
+        map[key].volume += (Number(item.Quantidade) || 1);
+        map[key].daysCount.add(dateStr);
+      });
+    } else {
+      // Group by Month
+      filteredProd.forEach(item => {
+        const dateStr = item.DataProdutividade;
+        const [y, m] = dateStr.split('-');
+        const key = `${y}-${m}`;
+        const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        const mIdx = parseInt(m, 10) - 1;
+        const label = `${monthNames[mIdx] || m}/${y.slice(2)}`;
+        if (!map[key]) map[key] = { label, volume: 0, daysCount: new Set() };
+        map[key].volume += (Number(item.Quantidade) || 1);
+        map[key].daysCount.add(dateStr);
+      });
+    }
+
+    const sortedKeys = Object.keys(map).sort();
+    
+    return sortedKeys.map((key, idx) => {
+      const entry = map[key];
+      const prevEntry = sortedKeys[idx - 1] ? map[sortedKeys[idx - 1]] : null;
       const momGrowth = prevEntry && prevEntry.volume > 0 
         ? (((entry.volume - prevEntry.volume) / prevEntry.volume) * 100).toFixed(1) 
         : '0';
@@ -156,8 +198,8 @@ export const CapacidadePage: React.FC = () => {
       const projectedVolume = Math.round(avgDailyRate * daysInMonth);
 
       return {
-        key: entry.monthKey,
-        label: entry.monthLabel,
+        key,
+        label: entry.label,
         volumeRealizado: entry.volume,
         provisaoProjetada: Math.max(entry.volume, projectedVolume),
         daysWorked,
@@ -165,9 +207,7 @@ export const CapacidadePage: React.FC = () => {
         momGrowth
       };
     });
-
-    return list;
-  }, [productivityData, workingDaysInMonth, selectedEsteira, esteiraParams]);
+  }, [productivityData, startDate, endDate, workingDaysInMonth, selectedEsteira, esteiraParams]);
 
   const latestMonth = momData[momData.length - 1] || { volumeRealizado: 0, provisaoProjetada: 0, momGrowth: '0', daysWorked: 1, avgDailyRate: 0 };
   const prevMonth = momData[momData.length - 2] || { volumeRealizado: 0 };
@@ -181,7 +221,7 @@ export const CapacidadePage: React.FC = () => {
             <div>
               <p className="font-bold text-sm">Nenhuma base de produtividade importada</p>
               <p className="text-xs text-amber-800 mt-0.5">
-                Os indicadores e gráficos desta aba são medidos ao carregar o arquivo de produtividade. Acesse a aba <strong>Importar</strong> para carregar a base.
+                Os indicadores e gráficos desta aba são medidos ao carregar o arquivo de produtividade. 
               </p>
             </div>
           </div>
@@ -288,9 +328,9 @@ export const CapacidadePage: React.FC = () => {
           <div className="bg-white border border-gray-200 p-6 rounded-md space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="text-brand-blue font-bold text-base flex items-center gap-2 uppercase">
+                <h3 className="text-brand-blue font-bold text-base flex items-center gap-2">
                   <TrendingUp size={18} className="text-brand-blue" />
-                  COMPARATIVO DE PRODUÇÃO MOM
+                  COMPARATIVO DE PRODUÇÃO MoM
                 </h3>
                 <p className="text-[11px] text-gray-400/80 mt-0.5">Comparativo de volumetria total por mês, e projeção de fechamento para o mês atual</p>
               </div>

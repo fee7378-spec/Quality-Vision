@@ -8,7 +8,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LabelList, Legend, PieChart, Pie, Cell 
 } from 'recharts';
-import { useStore, MonitoringItem, ProductivityItem, normalizeName, isValidAnalystName, matchesFilter } from '../store/useStore';
+import { useStore, MonitoringItem, ProductivityItem, normalizeName, isValidAnalystName, matchesFilter, formatDateToBR } from '../store/useStore';
+import { ErrorDetailModal } from '../components/ErrorDetailModal';
 
 export interface QuadranteInfo {
   nivel: number;
@@ -182,6 +183,7 @@ export const AnalistasPage = () => {
   const [rankingCategory, setRankingCategory] = useState<'geral' | 'qualidade' | 'produtividade'>('geral');
   const [selectedDiagramAnalyst, setSelectedDiagramAnalyst] = useState<AnalystDispersalData | null>(null);
   const [hoveredDiagramAnalyst, setHoveredDiagramAnalyst] = useState<{ analyst: AnalystDispersalData; mouseX: number; mouseY: number } | null>(null);
+  const [selectedErrorDetail, setSelectedErrorDetail] = useState<MonitoringItem | null>(null);
 
   // Reset display limit when filters change
   useEffect(() => {
@@ -1573,12 +1575,14 @@ export const AnalistasPage = () => {
                     selectedAnalyst.items.filter(isErrorItem).map((item, idx) => (
                       <div
                         key={idx}
-                        className="p-4 rounded-xl border border-red-300 bg-red-50 text-xs space-y-2"
+                        onClick={() => setSelectedErrorDetail(item)}
+                        className="p-4 rounded-xl border border-red-300 bg-red-50 text-xs space-y-2 hover:bg-red-100/80 transition-all cursor-pointer shadow-2xs group"
+                        title="Clique para ver os detalhes completos em um pop-up modal"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-mono text-gray-500">{item.DataMonitoria}</span>
-                          <span className="px-2.5 py-0.5 rounded-full font-bold text-[10px] bg-red-100 border border-red-300 text-red-700">
-                            NÃO CONFORME
+                          <span className="font-mono text-gray-500 font-medium">{formatDateToBR(item.DataMonitoria)}</span>
+                          <span className="px-2.5 py-0.5 rounded-full font-bold text-[10px] bg-red-100 border border-red-300 text-red-700 group-hover:bg-red-200 transition-colors">
+                            0% • NÃO CONFORME
                           </span>
                         </div>
 
@@ -1757,6 +1761,12 @@ export const AnalistasPage = () => {
           </p>
         </div>
       )}
+
+      {/* Pop-up Modal de Detalhes do Erro */}
+      <ErrorDetailModal
+        item={selectedErrorDetail}
+        onClose={() => setSelectedErrorDetail(null)}
+      />
     </div>
   );
 };

@@ -1,6 +1,7 @@
-import React from 'react';
-import { X, User, AlertTriangle, CheckCircle2, FileText, TrendingUp, Calendar, Tag } from 'lucide-react';
-import { useStore, getTabuladorName } from '../store/useStore';
+import React, { useState } from 'react';
+import { X, User, AlertTriangle, CheckCircle2, FileText, TrendingUp, Calendar, Tag, Eye } from 'lucide-react';
+import { useStore, getTabuladorName, formatDateToBR } from '../store/useStore';
+import { ErrorDetailModal } from './ErrorDetailModal';
 
 interface AnalystModalProps {
   analystCode: string | null;
@@ -10,6 +11,7 @@ interface AnalystModalProps {
 
 export const AnalystModal: React.FC<AnalystModalProps> = ({ analystCode, analystName, onClose }) => {
   const { data, esteiraMappings, startDate, endDate } = useStore();
+  const [selectedErrorDetail, setSelectedErrorDetail] = useState<typeof data[0] | null>(null);
 
   if (!analystCode && !analystName) return null;
 
@@ -152,8 +154,13 @@ export const AnalystModal: React.FC<AnalystModalProps> = ({ analystCode, analyst
                     analystItems.filter(isErrorItem).map((item, idx) => {
                       const isErr = isErrorItem(item);
                       return (
-                        <tr key={idx} className="hover:bg-gray-100/40 transition-colors">
-                          <td className="py-2.5 px-3 font-mono text-[11px] text-gray-700">{item.DataMonitoria}</td>
+                        <tr 
+                          key={idx} 
+                          onClick={() => setSelectedErrorDetail(item)}
+                          className="hover:bg-blue-50/70 transition-colors cursor-pointer"
+                          title="Clique para ver os detalhes deste registro"
+                        >
+                          <td className="py-2.5 px-3 font-mono text-[11px] text-gray-700">{formatDateToBR(item.DataMonitoria)}</td>
                           <td className="py-2.5 px-3 text-gray-800">{getTabuladorName(item.Esteira, esteiraMappings)}</td>
                           <td className="py-2.5 px-3">
                             <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-800 text-[11px]">
@@ -161,14 +168,14 @@ export const AnalystModal: React.FC<AnalystModalProps> = ({ analystCode, analyst
                             </span>
                           </td>
                           <td className="py-2.5 px-3 text-gray-500 text-[11px]">{item.MotivoMacro || '-'}</td>
-                          <td className="py-2.5 px-3 text-center">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              isErr ? 'bg-red-500/20 text-red-600 border border-red-500/30' : 'bg-emerald-500/20 text-emerald-600 border border-emerald-500/30'
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-extrabold whitespace-nowrap ${
+                              isErr ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
                             }`}>
-                              {isErr ? '0% Erro' : '100% OK'}
+                              {isErr ? '0% • Erro' : '100% • OK'}
                             </span>
                           </td>
-                          <td className="py-2.5 px-3 text-center text-gray-500 font-mono text-[11px]">{item.DataFeedback || '-'}</td>
+                          <td className="py-2.5 px-3 text-center text-gray-500 font-mono text-[11px]">{formatDateToBR(item.DataFeedback)}</td>
                           <td className="py-2.5 px-3 text-gray-700 max-w-xs truncate" title={item.Plano || ''}>{item.Plano || '-'}</td>
                         </tr>
                       );
@@ -180,6 +187,11 @@ export const AnalystModal: React.FC<AnalystModalProps> = ({ analystCode, analyst
           </div>
         </div>
       </div>
+
+      <ErrorDetailModal
+        item={selectedErrorDetail}
+        onClose={() => setSelectedErrorDetail(null)}
+      />
     </div>
   );
 };

@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { idbGet, idbSet, idbDel } from '../lib/idb';
-import { saveToFirebase, clearFirebaseData, subscribeToFirebaseData } from '../lib/firebase';
 
 export interface MonitoringItem {
   id?: string;
@@ -117,6 +116,15 @@ export const getCurrentMonthRange = () => {
 export const normalizeDateStr = (raw: any): string => {
   if (!raw) return '';
 
+  if (typeof raw === 'number' && raw > 30000 && raw < 80000) {
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+    const dateObj = new Date(excelEpoch.getTime() + raw * 86400000);
+    const y = dateObj.getUTCFullYear();
+    const m = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(dateObj.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
   if (raw instanceof Date && !isNaN(raw.getTime())) {
     const y = raw.getUTCFullYear();
     const m = String(raw.getUTCMonth() + 1).padStart(2, '0');
@@ -126,6 +134,18 @@ export const normalizeDateStr = (raw: any): string => {
 
   let str = String(raw).trim();
   if (!str) return '';
+
+  if (/^\d{5}$/.test(str)) {
+    const num = Number(str);
+    if (num > 30000 && num < 80000) {
+      const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+      const dateObj = new Date(excelEpoch.getTime() + num * 86400000);
+      const y = dateObj.getUTCFullYear();
+      const m = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getUTCDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+  }
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
     return str;
@@ -168,6 +188,27 @@ export const normalizeDateStr = (raw: any): string => {
   }
 
   return str.slice(0, 10);
+};
+
+export const formatDateToBR = (dateStr: string | undefined | null): string => {
+  if (!dateStr) return '-';
+  const str = String(dateStr).trim();
+  if (str === '' || str === '-' || str === 'null' || str === 'undefined') return '-';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const [y, m, d] = str.split('-');
+    return `${d}/${m}/${y}`;
+  }
+  if (str.includes('T')) {
+    const isoPart = str.split('T')[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(isoPart)) {
+      const [y, m, d] = isoPart.split('-');
+      return `${d}/${m}/${y}`;
+    }
+  }
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
+    return str;
+  }
+  return str;
 };
 
 export interface EsteiraParam {
@@ -278,12 +319,18 @@ export const isValidAnalystName = (name: any): boolean => {
   const isKnownEsteira = KNOWN_ESTEIRAS.some(e => normalizeName(e) === norm);
   if (isKnownEsteira) return false;
 
-  // Cannot be generic header words
+  // Cannot be generic header words or enum values
   const invalidKeywords = [
-    'NOME', 'ANALISTA', 'NOME DO ANALISTA', 'NOME ANALISTA', 'TOTAL', 
-    'GERAL', 'DATA', 'DATA PRODUTIVIDADE', 'SUPERVISOR', 'ESTEIRA', 
+    'NOME', 'ANALISTA', 'NOME DO ANALISTA', 'NOME ANALISTA', 'OPERADOR', 'COLABORADOR',
+    'TOTAL', 'GERAL', 'DATA', 'DATA PRODUTIVIDADE', 'SUPERVISOR', 'ESTEIRA', 
     'TOTAL GERAL', 'PRODUTIVIDADE', 'QUANTIDADE', 'CONTAGEM', 'MES', 'SOMA',
-    'MONITORA', 'TABULADOR', 'MONITOR'
+    'MONITORA', 'TABULADOR', 'MONITOR',
+    'APURACAO', 'APURACAO TEMPO', 'APURACAO DE TEMPO', 'TEMPO', 'TMO',
+    'COMPLEXIDADE', 'TIPO DE DEMANDA', 'TIPO DEMANDA', 'DEMANDA', 'ATIVIDADE',
+    'PENDENCIA', 'MOTIVO PENDENCIA', 'DOCUMENTO PENDENCIADO', 'DOC PENDENCIADO', 'PENDENCIADO',
+    'PRIORIDADE', 'PRIORITARIO', 'REPROVA', 'REPROVACAO', 'MOTIVO REPROVA',
+    'SEGMENTO', 'STATUS', 'CO SEGMENTO', 'COSEGMENTO', 'SUB SEGMENTO', 'SITUACAO', 'PARECER',
+    'SIM', 'NAO', 'BAIXA', 'MEDIA', 'ALTA', 'APROVADO', 'REPROVADO', 'PENDENCIA'
   ];
   if (invalidKeywords.includes(norm)) return false;
   return true;
@@ -331,6 +378,19 @@ export const sanitizeItems = (items: MonitoringItem[]): MonitoringItem[] => {
 const initialMonthRange = getCurrentMonthRange();
 
 interface AppState {
+  volumetriaAnalistas: any[];
+  monitorias: any[];
+  monitoriaErros: any[];
+  volumetriaPrioridades: any[];
+  volumetriaPendencias: any[];
+  volumetriaReprovas: any[];
+  volumetria: any[];
+  volumetriaTipoDeDemanda: any[];
+  volumetriaMediaTmo: any[];
+  volumetriaStatus: any[];
+
+  fetchSupabaseData: () => Promise<void>;
+
   data: MonitoringItem[];
   lastProcessed: string | null;
   productivityData: ProductivityItem[];
@@ -350,8 +410,7 @@ interface AppState {
   columnMapping: ColumnMapping;
   productivityMapping: ProductivityColumnMapping;
   esteiraMappings: EsteiraMapping[];
-  isFirebaseConnected: boolean;
-  
+    
   setData: (data: MonitoringItem[], timestamp?: string) => void;
   setProductivityData: (data: ProductivityItem[], timestamp?: string) => void;
   setStartDate: (date: string) => void;
@@ -529,6 +588,47 @@ const initialEsteirasMetrics: Record<string, EsteiraMetric> = {
 };
 
 export const useStore = create<AppState>((set, get) => ({
+
+  volumetriaAnalistas: [],
+  monitorias: [],
+  monitoriaErros: [],
+  volumetriaPrioridades: [],
+  volumetriaPendencias: [],
+  volumetriaReprovas: [],
+  volumetria: [],
+  volumetriaTipoDeDemanda: [],
+  volumetriaMediaTmo: [],
+  volumetriaStatus: [],
+  fetchSupabaseData: async () => {
+    try {
+      const { fetchAllSupabaseData } = await import('./supabaseData');
+      const data = await fetchAllSupabaseData();
+      
+      const dates: string[] = [];
+      Object.values(data).forEach((arr: any) => {
+        if (Array.isArray(arr)) {
+          arr.forEach((item: any) => {
+            if (item && item.data && /^\d{4}-\d{2}-\d{2}$/.test(String(item.data))) {
+              dates.push(String(item.data));
+            }
+          });
+        }
+      });
+
+      let updateObj: any = { ...data };
+      if (dates.length > 0) {
+        dates.sort();
+        updateObj.startDate = dates[0];
+        updateObj.endDate = dates[dates.length - 1];
+      }
+
+      set(updateObj);
+    } catch (e) {
+      console.error("Error fetching from Supabase:", e);
+    }
+  },
+
+
   data: initialStored.data,
   lastProcessed: initialStored.lastProcessed,
   productivityData: initialStored.prodData,
@@ -562,8 +662,7 @@ export const useStore = create<AppState>((set, get) => ({
     'SH-PME': { esteira: 'SH-PME', contratados: 3, tmoAlvoSegundos: 1680, horasTrabalhoDia: 8, metaDiaria: 45, diasUteisMes: 22 },
     'WM': { esteira: 'WM', contratados: 3, tmoAlvoSegundos: 3300, horasTrabalhoDia: 8, metaDiaria: 35, diasUteisMes: 22 }
   },
-  isFirebaseConnected: true,
-  columnMapping: {
+    columnMapping: {
     S: 'S',
     T: 'T',
     V: 'V',
@@ -610,80 +709,24 @@ export const useStore = create<AppState>((set, get) => ({
       end = allDates[allDates.length - 1];
     }
 
-    const { productivityData, productivityLastProcessed } = get();
-
-    // Save to Firebase
-    saveToFirebase(cleanData, ts, productivityData, productivityLastProcessed).catch((err) => {
-      console.error("Failed to save to Firebase Realtime Database:", err);
-    });
-
-    // Save locally
-    idbSet(STORAGE_KEY, cleanData);
-    idbSet(TIMESTAMP_KEY, ts);
-
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanData));
-      localStorage.setItem(TIMESTAMP_KEY, ts);
-    } catch {
-      console.warn("localStorage quota exceeded.");
-    }
-
-    set({
-      data: cleanData,
+    set({ 
+      data: cleanData, 
       lastProcessed: ts,
       startDate: start,
-      endDate: end,
-      selectedTag: 'TODAS',
-      selectedMacro: 'TODOS',
-      selectedEsteira: 'TODAS',
-      selectedForma: 'TODAS'
+      endDate: end
     });
   },
 
   setProductivityData: (prodItems, timestamp) => {
-    const cleanProd = prodItems.map(item => ({
-      ...item,
-      DataProdutividade: normalizeDateStr(item.DataProdutividade)
-    }));
-    const allProdDates = cleanProd.map(i => i.DataProdutividade).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
-    let currentStart = get().startDate;
-    let currentEnd = get().endDate;
-    
-    if (allProdDates.length > 0) {
-      const minPDate = allProdDates[0];
-      const maxPDate = allProdDates[allProdDates.length - 1];
-      if (!currentStart || minPDate < currentStart) currentStart = minPDate;
-      if (!currentEnd || maxPDate > currentEnd) currentEnd = maxPDate;
-    }
-
-    if (!currentStart) {
-      currentStart = getCurrentMonthRange().start;
-    }
-
     const ts = timestamp || new Date().toLocaleString('pt-BR');
-    const { data, lastProcessed } = get();
+    const cleanProd = (prodItems || []).map(item => ({
+      ...item,
+      DataProdutividade: item.DataProdutividade ? normalizeDateStr(item.DataProdutividade) : ''
+    }));
 
-    // Save to Firebase
-    saveToFirebase(data, lastProcessed || '', cleanProd, ts).catch((err) => {
-      console.error("Failed to save productivity to Firebase:", err);
-    });
-
-    // Save locally
-    idbSet(STORAGE_PROD_KEY, cleanProd);
-    idbSet(TIMESTAMP_PROD_KEY, ts);
-
-    try {
-      localStorage.setItem(STORAGE_PROD_KEY, JSON.stringify(cleanProd));
-      localStorage.setItem(TIMESTAMP_PROD_KEY, ts);
-    } catch {
-      console.warn("localStorage quota exceeded.");
-    }
-
-    set({
+    set({ 
       productivityData: cleanProd,
-      productivityLastProcessed: ts,
-      startDate: currentStart,
-      endDate: currentEnd
+      productivityLastProcessed: ts
     });
   },
 
@@ -695,198 +738,58 @@ export const useStore = create<AppState>((set, get) => ({
   setSelectedForma: (forma) => set({ selectedForma: forma }),
   setSelectedSupervisor: (supervisor) => set({ selectedSupervisor: supervisor }),
   setAnalystSearchQuery: (query) => set({ analystSearchQuery: query }),
-  setEsteiraParam: (esteira, param) => {
-    const current = get().esteiraParams;
-    const existing: EsteiraParam = current[esteira] || { 
-      esteira, 
-      contratados: 10, 
-      tmoAlvoSegundos: 1800, 
-      horasTrabalhoDia: 8, 
-      metaDiaria: 45, 
-      diasUteisMes: 22 
-    };
-    set({
-      esteiraParams: {
-        ...current,
-        [esteira]: { ...existing, ...param }
-      }
-    });
-  },
-  setEsteiraMetric: (esteira, metric) => {
-    const current = get().esteirasMetrics;
-    const existing: EsteiraMetric = current[esteira] || {
-      esteira,
-      contratados: 0,
-      tmo: 0,
-      capacidadeDia: 0,
-      produzidoFila: 0,
-      produzidoPrioridade: 0,
-      totalProduzido: 0
-    };
-    const nextItem = { ...existing, ...metric };
-    if (metric.produzidoFila !== undefined || metric.produzidoPrioridade !== undefined) {
-      nextItem.totalProduzido = (nextItem.produzidoFila || 0) + (nextItem.produzidoPrioridade || 0);
-    }
-    set({
-      esteirasMetrics: {
-        ...current,
-        [esteira]: nextItem
-      }
-    });
-  },
-
+  setEsteiraParam: (esteira, param) => set(state => ({
+    esteiraParams: { ...state.esteiraParams, [esteira]: { ...state.esteiraParams[esteira], ...param } }
+  })),
+  setEsteiraMetric: (esteira, metric) => set(state => ({
+    esteirasMetrics: { ...state.esteirasMetrics, [esteira]: { ...state.esteirasMetrics[esteira], ...metric } }
+  })),
   setTmoMode: (mode) => set({ tmoMode: mode }),
   setDailyWorkingHours: (hours) => set({ dailyWorkingHours: hours }),
-
   setColumnMapping: (mapping) => set({ columnMapping: mapping }),
   setProductivityMapping: (mapping) => set({ productivityMapping: mapping }),
-  
   setEsteiraMappings: (mappings) => {
-    try {
-      localStorage.setItem(STORAGE_ESTEIRA_MAP_KEY, JSON.stringify(mappings));
-    } catch {}
     set({ esteiraMappings: mappings });
   },
-  
-  updateEsteiraMapping: (index, field, value) => {
-    const { esteiraMappings } = get();
-    const next = [...esteiraMappings];
-    if (next[index]) {
-      next[index] = { ...next[index], [field]: value };
-      try {
-        localStorage.setItem(STORAGE_ESTEIRA_MAP_KEY, JSON.stringify(next));
-      } catch {}
-      set({ esteiraMappings: next });
+  updateEsteiraMapping: (index, field, value) => set(state => {
+    const newMappings = [...state.esteiraMappings];
+    if (newMappings[index]) {
+      newMappings[index] = { ...newMappings[index], [field]: value };
     }
-  },
-
-  addEsteiraMapping: (mapping) => {
-    const { esteiraMappings } = get();
-    const next = [...esteiraMappings, mapping || { monitora: '', tabulador: '' }];
-    try {
-      localStorage.setItem(STORAGE_ESTEIRA_MAP_KEY, JSON.stringify(next));
-    } catch {}
-    set({ esteiraMappings: next });
-  },
-
-  removeEsteiraMapping: (index) => {
-    const { esteiraMappings } = get();
-    const next = esteiraMappings.filter((_, i) => i !== index);
-    try {
-      localStorage.setItem(STORAGE_ESTEIRA_MAP_KEY, JSON.stringify(next));
-    } catch {}
-    set({ esteiraMappings: next });
-  },
-
+    return { esteiraMappings: newMappings };
+  }),
+  addEsteiraMapping: (mapping) => set(state => ({
+    esteiraMappings: [...state.esteiraMappings, mapping || { monitora: '', tabulador: '' }]
+  })),
+  removeEsteiraMapping: (index) => set(state => ({
+    esteiraMappings: state.esteiraMappings.filter((_, i) => i !== index)
+  })),
   resetEsteiraMappings: () => {
-    try {
-      localStorage.setItem(STORAGE_ESTEIRA_MAP_KEY, JSON.stringify(defaultEsteiraMappings));
-    } catch {}
     set({ esteiraMappings: defaultEsteiraMappings });
   },
-  
   clearData: () => {
-    const { productivityData, productivityLastProcessed } = get();
-    saveToFirebase([], '', productivityData, productivityLastProcessed).catch((err) => {
-      console.error("Failed to clear Firebase Realtime Database:", err);
+    set({ 
+      data: [], 
+      lastProcessed: null,
     });
-
-    idbSet(STORAGE_KEY, []);
-    idbDel(TIMESTAMP_KEY);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
-      localStorage.removeItem(TIMESTAMP_KEY);
-    } catch {
-      // Ignore
-    }
-    set({ data: [], lastProcessed: null });
   },
-
   clearProductivityData: () => {
-    const { data, lastProcessed } = get();
-    saveToFirebase(data, lastProcessed || '', [], null).catch((err) => {
-      console.error("Failed to clear productivity in Firebase:", err);
-    });
-
-    idbSet(STORAGE_PROD_KEY, []);
-    idbDel(TIMESTAMP_PROD_KEY);
-    try {
-      localStorage.setItem(STORAGE_PROD_KEY, JSON.stringify([]));
-      localStorage.removeItem(TIMESTAMP_PROD_KEY);
-    } catch {
-      // Ignore
-    }
     set({ productivityData: [], productivityLastProcessed: null });
   },
-
   loadFakeData: () => {
-    const initialTs = new Date().toLocaleString('pt-BR');
-    const { setData, setProductivityData } = get();
-    setData(initialSampleData, initialTs);
-    setProductivityData(initialSampleProductivityData, initialTs);
+    const fallbackRange = getCurrentMonthRange();
+    set({ 
+      data: initialSampleData, 
+      lastProcessed: new Date().toLocaleString('pt-BR'),
+      productivityData: initialSampleProductivityData,
+      productivityLastProcessed: new Date().toLocaleString('pt-BR'),
+      startDate: fallbackRange.start,
+      endDate: fallbackRange.end,
+      esteiraMappings: defaultEsteiraMappings
+    });
   },
   resetToCurrentMonth: () => {
-    const range = getCurrentMonthRange();
-    set({
-      startDate: range.start,
-      endDate: range.end,
-      selectedTag: 'TODAS',
-      selectedMacro: 'TODOS',
-      selectedEsteira: ['TODAS'],
-      selectedForma: ['TODAS'],
-      selectedSupervisor: ['TODOS']
-    });
+    const current = getCurrentMonthRange();
+    set({ startDate: current.start, endDate: current.end });
   }
 }));
-
-// Real-time synchronization listener with Firebase Realtime Database
-if (typeof window !== 'undefined') {
-  subscribeToFirebaseData(
-    (fbItems, fbTimestamp, fbProd, fbProdTs, isInitialized) => {
-      if (isInitialized) {
-        useStore.setState((state) => ({
-          ...state,
-          data: fbItems || [],
-          lastProcessed: fbTimestamp || null,
-          productivityData: fbProd || [],
-          productivityLastProcessed: fbProdTs || null,
-          isFirebaseConnected: true
-        }));
-
-        idbSet(STORAGE_KEY, fbItems || []);
-        if (fbTimestamp) idbSet(TIMESTAMP_KEY, fbTimestamp); else idbDel(TIMESTAMP_KEY);
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(fbItems || []));
-          if (fbTimestamp) localStorage.setItem(TIMESTAMP_KEY, fbTimestamp); else localStorage.removeItem(TIMESTAMP_KEY);
-        } catch {}
-
-        idbSet(STORAGE_PROD_KEY, fbProd || []);
-        if (fbProdTs) idbSet(TIMESTAMP_PROD_KEY, fbProdTs); else idbDel(TIMESTAMP_PROD_KEY);
-        try {
-          localStorage.setItem(STORAGE_PROD_KEY, JSON.stringify(fbProd || []));
-          if (fbProdTs) localStorage.setItem(TIMESTAMP_PROD_KEY, fbProdTs); else localStorage.removeItem(TIMESTAMP_PROD_KEY);
-        } catch {}
-      } else {
-        // Firebase is empty: seed with initial dataset so RTDB has data
-        const initialTs = new Date().toLocaleString('pt-BR');
-        saveToFirebase(initialSampleData, initialTs, initialSampleProductivityData, initialTs).then(() => {
-          useStore.setState((state) => ({
-            ...state,
-            data: sanitizeItems(initialSampleData),
-            lastProcessed: initialTs,
-            productivityData: initialSampleProductivityData,
-            productivityLastProcessed: initialTs,
-            isFirebaseConnected: true
-          }));
-        }).catch((err) => {
-          console.error("Failed to seed initial data to Firebase:", err);
-        });
-      }
-    },
-    (err) => {
-      console.warn("Firebase RTDB sync offline or error:", err);
-      useStore.setState({ isFirebaseConnected: false });
-    }
-  );
-}
-

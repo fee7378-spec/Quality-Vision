@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useStore, matchesFilter, getTabuladorName } from '../store/useStore';
 import { History, Download, AlertTriangle, CheckCircle, Calendar, MessageSquareCheck, Eye, X } from 'lucide-react';
+import { ErrorDetailModal } from '../components/ErrorDetailModal';
 
 export const HistoryPage = () => {
   const { 
@@ -271,12 +272,12 @@ export const HistoryPage = () => {
                       </td>
                       <td className="py-2 px-2.5 text-gray-600 max-w-[130px] truncate" title={item.MotivoMacro || '-'}>{item.MotivoMacro || '-'}</td>
                       <td className="py-2 px-2.5 text-center whitespace-nowrap">
-                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                        <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold whitespace-nowrap shadow-xs ${
                           isError 
                             ? 'bg-red-50 text-red-600 border border-red-200' 
                             : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
                         }`}>
-                          {isError ? '0% (Erro)' : '100% (OK)'}
+                          {isError ? '0% • Erro' : '100% • OK'}
                         </span>
                       </td>
                       <td className="py-2 px-2.5 text-gray-700 max-w-[200px] truncate" title={item.Plano || 'Sem plano registrado'}>
@@ -295,117 +296,10 @@ export const HistoryPage = () => {
       </div>
 
       {/* MODAL POP-UP: DETALHES COMPLETOS DO ERRO */}
-      {selectedModalItem && (
-        <div 
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
-          onClick={() => setSelectedModalItem(null)}
-        >
-          <div 
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-150"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="bg-[#001E62] text-white p-4 flex items-center justify-between border-b border-blue-900">
-              <div className="flex items-center gap-2.5">
-                <div className="p-1.5 bg-white/10 rounded-lg">
-                  <AlertTriangle className="text-amber-400" size={18} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wide">Detalhes do Registro</h3>
-                  <p className="text-[11px] text-blue-200">
-                    Monitoria em {formatDateBR(selectedModalItem.DataMonitoria)}
-                  </p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setSelectedModalItem(null)}
-                className="p-1.5 hover:bg-white/10 rounded-lg text-blue-200 hover:text-white transition-colors cursor-pointer"
-                title="Fechar modal"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="p-5 space-y-4 text-xs text-gray-800 max-h-[80vh] overflow-y-auto">
-              {/* Analyst & Code */}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Analista Avaliado</p>
-                  <p className="text-sm font-extrabold text-gray-900 mt-0.5">{selectedModalItem.NomeAnalista}</p>
-                  <p className="text-[11px] font-mono text-gray-500">Matrícula/Código: {selectedModalItem.CodigoAnalista || '-'}</p>
-                </div>
-                <div className="text-right">
-                  <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${
-                    selectedModalItem.Erro === '0' || Number(selectedModalItem.Erro) === 0
-                      ? 'bg-red-100 text-red-700 border border-red-300' 
-                      : 'bg-emerald-100 text-emerald-700 border border-emerald-300'
-                  }`}>
-                    {selectedModalItem.Erro === '0' || Number(selectedModalItem.Erro) === 0 ? '0% (Inconformidade)' : '100% (Conforme)'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Grid Metadata */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="bg-white border border-gray-200 p-3 rounded-lg">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase">Supervisor / Gestor</p>
-                  <p className="font-bold text-gray-800 mt-0.5">{selectedModalItem.NomeSupervisor || '-'}</p>
-                </div>
-                <div className="bg-white border border-gray-200 p-3 rounded-lg">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase">Monitor / Avaliador</p>
-                  <p className="font-bold text-gray-800 mt-0.5">{selectedModalItem.NomeMonitor || '-'}</p>
-                </div>
-                <div className="bg-white border border-gray-200 p-3 rounded-lg">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase">Esteira / Processo</p>
-                  <p className="font-bold text-gray-800 mt-0.5">
-                    {getTabuladorName(selectedModalItem.Esteira, esteiraMappings)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Inconsistência & Causa */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="bg-blue-50/60 border border-blue-200 p-3 rounded-lg">
-                  <p className="text-[10px] text-[#001E62] font-extrabold uppercase">Inconsistência / TAG</p>
-                  <p className="font-extrabold text-[#001E62] text-xs mt-1">{selectedModalItem.Tag || 'Sem Tag'}</p>
-                </div>
-                <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg">
-                  <p className="text-[10px] text-gray-500 font-bold uppercase">Motivo Causa / Macro</p>
-                  <p className="font-semibold text-gray-800 text-xs mt-1">{selectedModalItem.MotivoMacro || '-'}</p>
-                </div>
-              </div>
-
-              {/* Plano de Ação */}
-              <div className="bg-amber-50/80 border border-amber-200 p-3.5 rounded-xl space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <p className="text-amber-900 font-extrabold uppercase text-[10px] tracking-wider">
-                    Plano de Ação Registrado
-                  </p>
-                  {selectedModalItem.DataPlano && (
-                    <span className="text-[10px] text-amber-800 font-bold">
-                      Data do Plano: {formatDateBR(selectedModalItem.DataPlano)}
-                    </span>
-                  )}
-                </div>
-                <p className="text-gray-800 text-xs leading-relaxed whitespace-pre-wrap font-medium">
-                  {selectedModalItem.Plano || 'Nenhum plano de ação detalhado para este registro.'}
-                </p>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="bg-gray-50 p-3.5 border-t border-gray-200 flex justify-end">
-              <button
-                onClick={() => setSelectedModalItem(null)}
-                className="px-4 py-1.5 bg-[#001E62] text-white rounded-lg font-bold text-xs hover:bg-blue-900 transition-colors cursor-pointer"
-              >
-                Fechar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ErrorDetailModal 
+        item={selectedModalItem} 
+        onClose={() => setSelectedModalItem(null)} 
+      />
     </div>
   );
 };

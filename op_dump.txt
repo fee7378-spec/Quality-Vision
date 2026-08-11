@@ -1,0 +1,558 @@
+1: import React, { useMemo } from 'react';
+2: import { 
+3:   Layers, Clock, AlertTriangle, Calendar, CheckCircle2, 
+4:   BarChart2, PieChart as PieIcon, ArrowUpRight, ShieldAlert, Activity, Filter, Target
+5: } from 'lucide-react';
+6: import { 
+7:   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, 
+8:   Legend, LabelList, LineChart, Line, PieChart, Pie, Cell 
+9: } from 'recharts';
+10: import { useStore, matchesFilter, getTabuladorName } from '../store/useStore';
+11: 
+12: const CustomXAxisTick = (props: any) => {
+13:   const { x, y, payload } = props;
+14:   const value = payload.value || '';
+15: 
+16:   const words = value.split(' ');
+17:   const lines: string[] = [];
+18:   let currentLine = '';
+19: 
+20:   words.forEach((word: string) => {
+21:     if ((currentLine + ' ' + word).trim().length <= 12) {
+22:       currentLine = (currentLine + ' ' + word).trim();
+23:     } else {
+24:       if (currentLine) lines.push(currentLine);
+25:       currentLine = word;
+26:     }
+27:   });
+28:   if (currentLine) lines.push(currentLine);
+29: 
+30:   return (
+31:     <g transform={`translate(${x},${y})`}>
+32:       <text x={0} y={0} dy={4} textAnchor="middle" fill="#001E62" fontSize={11} fontWeight="600">
+33:         {lines.slice(0, 3).map((line, index) => (
+34:           <tspan x={0} dy={index === 0 ? 10 : 13} key={index}>
+35:             {line}
+36:           </tspan>
+37:         ))}
+38:       </text>
+39:     </g>
+40:   );
+41: };
+42: 
+43: export const OperacaoPage: React.FC = () => {
+44:   const { 
+45:     productivityData, volumetriaTipoDeDemanda, volumetriaPrioridades, volumetriaPendencias, volumetriaReprovas, volumetriaStatus, volumetria, volumetriaMediaTmo, 
+46:     data,
+47:     startDate, 
+48:     endDate, 
+49:     selectedEsteira,
+50:     esteiraMappings
+51:   } = useStore();
+52: 
+53:   // Filter productivity items
+54:   const filteredProd = useMemo(() => {
+55:     return productivityData.filter(item => {
+56:       const itemDate = item.DataProdutividade;
+57:       if (startDate && itemDate && itemDate < startDate) return false;
+58:       if (endDate && itemDate && itemDate > endDate) return false;
+59:       if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
+60:       return true;
+61:     });
+62:   }, [productivityData, startDate, endDate, selectedEsteira]);
+63: 
+64:   // Filter monitoring items
+65:   const filteredMonitoring = useMemo(() => {
+66:     return data.filter(item => {
+67:       const itemDate = item.DataMonitoria;
+68:       if (startDate && itemDate && itemDate < startDate) return false;
+69:       if (endDate && itemDate && itemDate > endDate) return false;
+70:       if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
+71:       return true;
+72:     });
+73:   }, [data, startDate, endDate, selectedEsteira]);
+74: 
+75:   // 1. KPI Totals
+76:   const kpis = useMemo(() => {
+77:     // Helper to filter data from supabase tables
+78:     const filterSupabase = (arr: any[]) => {
+79:       return (arr || []).filter(item => {
+80:         const itemDate = item.data || item.Data;
+81:         if (startDate && itemDate && itemDate < startDate) return false;
+82:         if (endDate && itemDate && itemDate > endDate) return false;
+83:         if (!matchesFilter(selectedEsteira, item.esteira || item.Esteira, 'TODAS')) return false;
+84:         return true;
+85:       });
+86:     };
+87: 
+88:     const filtVolumetria = filterSupabase(volumetria);
+89:     const totalVolume = filtVolumetria.reduce((acc, curr) => acc + (Number(curr.quantidade || curr.Quantidade) || 0), 0);
+90:     
+91:     // Prioridades: tabela volumetriaPrioridades marcados como SIM
+92:     const filtPrio = filterSupabase(volumetriaPrioridades);
+93:     const prioVolume = filtPrio.reduce((acc, curr) => {
+94:       const isSim = (curr.prioridade || '').trim().toLowerCase() === 'sim';
+95:       return isSim ? acc + (Number(curr.quantidade || curr.Quantidade) || 0) : acc;
+96:     }, 0);
+97:     const prioPercent = totalVolume > 0 ? ((prioVolume / totalVolume) * 100).toFixed(1).replace('.', ',') : '0,0';
+98: 
+99:     const totalMonitorias = filteredMonitoring.reduce((acc, curr) => acc + (Number(curr.Quantidade) || 1), 0);
+100:     const prioMonitoriaPercent = prioVolume > 0 
+101:       ? ((totalMonitorias / prioVolume) * 100).toFixed(1).replace('.', ',') 
+102:       : '0,0';
+103: 
+104:     // Pendências: tabela volumetriaPendencias
+105:     const filtPend = filterSupabase(volumetriaPendencias);
+106:     const pendentesCount = filtPend.reduce((acc, curr) => acc + (Number(curr.quantidade || curr.Quantidade) || 0), 0);
+107: 
+108:     // Reprovas: tabela volumetriaReprovas
+109:     const filtReprova = filterSupabase(volumetriaReprovas);
+110:     const reprovadosCount = filtReprova.reduce((acc, curr) => acc + (Number(curr.quantidade || curr.Quantidade) || 0), 0);
+111: 
+112:     const pendReprovTotal = pendentesCount + reprovadosCount;
+113:     const pendReprovPercent = totalVolume > 0 
+114:       ? ((pendReprovTotal / totalVolume) * 100).toFixed(1).replace('.', ',') 
+115:       : '0,0';
+116: 
+117:     // Average TMO per analyst / item (apuracaoDeTempo / sum(quantidade))
+118:     const itemsWithTmo = filteredProd.filter(p => p.TmoMinutos !== undefined && p.TmoMinutos > 0);
+119:     const totalApuracaoTempo = itemsWithTmo.reduce((acc, curr) => acc + ((curr.TmoMinutos || 0) * (Number(curr.Quantidade) || 1)), 0);
+120:     const totalQtyWithTmo = itemsWithTmo.reduce((acc, curr) => acc + (Number(curr.Quantidade) || 1), 0);
+121:     const tmoAvg = totalQtyWithTmo > 0 ? (totalApuracaoTempo / totalQtyWithTmo).toFixed(1).replace('.', ',') : '0,0';
+122: 
+123:     // Pico de Produção: tabela volumetria (dia com a maior produtividade)
+124:     const dayMap: Record<string, number> = {};
+125:     filtVolumetria.forEach(p => {
+126:       const d = p.data || p.Data;
+127:       if (d) {
+128:         dayMap[d] = (dayMap[d] || 0) + (Number(p.quantidade || p.Quantidade) || 0);
+129:       }
+130:     });
+131: 
+132:     let peakDay = 'N/D';
+133:     let peakVol = 0;
+134:     Object.entries(dayMap).forEach(([dateStr, vol]) => {
+135:       if (vol > peakVol) {
+136:         peakVol = vol;
+137:         if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+138:           const [y, m, day] = dateStr.split('-');
+139:           peakDay = `${day}/${m}/${y}`;
+140:         } else {
+141:           peakDay = dateStr;
+142:         }
+143:       }
+144:     });
+145: 
+146:     return {
+147:       totalVolume,
+148:       prioVolume,
+149:       prioPercent,
+150:       totalMonitorias,
+151:       prioMonitoriaPercent,
+152:       pendReprovTotal,
+153:       pendReprovPercent,
+154:       pendentesCount,
+155:       reprovadosCount,
+156:       tmoAvg,
+157:       peakDay,
+158:       peakVol
+159:     };
+160:   }, [volumetria, volumetriaPrioridades, volumetriaPendencias, volumetriaReprovas, filteredProd, filteredMonitoring, startDate, endDate, selectedEsteira]);
+161: 
+162:   // 2. Volumetria por Esteira e Prioridade (Sim vs Não) - Descending Order
+163:   const esteiraPrioData = useMemo(() => {
+164:     const map: Record<string, { esteira: string; sim: number; nao: number; total: number }> = {};
+165:     filteredProd.forEach(p => {
+166:       const e = p.Esteira || 'Geral';
+167:       if (!map[e]) {
+168:         map[e] = { esteira: e, sim: 0, nao: 0, total: 0 };
+169:       }
+170:       const qty = p.Quantidade || 1;
+171:       const prio = (p.Prioridade || '').trim().toLowerCase();
+172:       if (prio === 'sim' || prio === 's' || prio === 'true' || prio === '1') {
+173:         map[e].sim += qty;
+174:       } else if (prio === 'não' || prio === 'nao' || prio === 'n' || prio === 'false' || prio === '0') {
+175:         map[e].nao += qty;
+176:       }
+177:       map[e].total += qty;
+178:     });
+179: 
+180:     // Sort descending by total volume
+181:     return Object.values(map).sort((a, b) => b.total - a.total);
+182:   }, [filteredProd]);  // 5. TMO por Esteira (Vertical Bars, Descending Order - apuracaoDeTempo / quantidade por esteira)
+183:   const tmoPorEsteira = useMemo(() => {
+184:     const map: Record<string, { totalQty: number; totalApuracao: number }> = {};
+185:     const filteredTmo = (volumetriaMediaTmo || []).filter(item => {
+186:       const itemDate = item.data || item.Data;
+187:       if (startDate && itemDate && itemDate < startDate) return false;
+188:       if (endDate && itemDate && itemDate > endDate) return false;
+189:       if (!matchesFilter(selectedEsteira, item.esteira || item.Esteira, 'TODAS')) return false;
+190:       return true;
+191:     });
+192: 
+193:     filteredTmo.forEach(p => {
+194:       const e = p.esteira || p.Esteira || 'Geral';
+195:       const qty = Number(p.quantidade || p.Quantidade) || 1;
+196:       const tmoTotal = Number(p.apuracaoDeTempo || p.ApuracaoDeTempo) || 0;
+197:       if (!map[e]) map[e] = { totalQty: 0, totalApuracao: 0 };
+198:       map[e].totalQty += qty;
+199:       map[e].totalApuracao += tmoTotal;
+200:     });
+201: 
+202:     return Object.entries(map).map(([esteira, val]) => ({
+203:       esteira,
+204:       tmoMedio: val.totalQty > 0 ? parseFloat((val.totalApuracao / val.totalQty).toFixed(1)) : 0
+205:     })).filter(item => item.tmoMedio > 0).sort((a, b) => b.tmoMedio - a.tmoMedio);
+206:   }, [volumetriaMediaTmo, startDate, endDate, selectedEsteira]);  // 5. TMO por Esteira (Vertical Bars, Descending Order - apuracaoDeTempo / quantidade por esteira)
+207:   const tmoPorEsteira = useMemo(() => {
+208:     const map: Record<string, { totalQty: number; totalApuracao: number }> = {};
+209:     filteredProd.forEach(p => {
+210:       if (p.TmoMinutos === undefined || p.TmoMinutos <= 0) return;
+211:       const e = p.Esteira || 'Geral';
+212:       const qty = Number(p.Quantidade) || 1;
+213:       if (!map[e]) map[e] = { totalQty: 0, totalApuracao: 0 };
+214:       map[e].totalQty += qty;
+215:       map[e].totalApuracao += p.TmoMinutos * qty;
+216:     });
+217: 
+218:     return Object.entries(map).map(([esteira, val]) => ({
+219:       esteira,
+220:       tmoMedio: val.totalQty > 0 ? parseFloat((val.totalApuracao / val.totalQty).toFixed(1)) : 0
+221:     })).filter(item => item.tmoMedio > 0).sort((a, b) => b.tmoMedio - a.tmoMedio);
+222:   }, [filteredProd]);
+223: 
+224:   // 6. Evolução Diária e Destaque do Dia de Maior Volume
+225:   const evolucaoDiaria = useMemo(() => {
+226:     const map: Record<string, number> = {};
+227:     filteredProd.forEach(p => {
+228:       const d = p.DataProdutividade;
+229:       if (d) {
+230:         map[d] = (map[d] || 0) + (p.Quantidade || 1);
+231:       }
+232:     });
+233: 
+234:     return Object.keys(map).sort().map(d => {
+235:       const [y, m, day] = d.split('-');
+236:       return {
+237:         dataRaw: d,
+238:         label: `${day}/${m}`,
+239:         volume: map[d]
+240:       };
+241:     });
+242:   }, [filteredProd]);
+243: 
+244:   return (
+245:     <div className="w-full p-4 sm:p-6 md:p-8 bg-gray-50 text-gray-900 space-y-8">
+246:       {productivityData.length === 0 && (
+247:         <div className="bg-amber-50 border border-amber-200 text-amber-900 px-5 py-4 rounded-xl flex items-center justify-between gap-4 shadow-sm">
+248:           <div className="flex items-center gap-3">
+249:             <AlertTriangle className="text-amber-600 shrink-0" size={22} />
+250:             <div>
+251:               <p className="font-bold text-sm">Nenhuma base de produtividade importada</p>
+252:               <p className="text-xs text-amber-800 mt-0.5">
+253:                 Aguardando importação da base de produtividade para exibir os dados e gráficos da Operação. Acesse a aba <strong>Importar</strong> para carregar a base.
+254:               </p>
+255:             </div>
+256:           </div>
+257:         </div>
+258:       )}
+259: 
+260:       {/* KPI Cards Row */}
+261:       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+262:         {/* KPI 1: PRIORIDADES */}
+263:         <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
+264:           <div className="flex items-center justify-between">
+265:             <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">PRIORIDADES</span>
+266:             <div className="p-1.5 rounded-lg bg-blue-50 border border-blue-100">
+267:               <Target size={18} className="text-[#001E62]" />
+268:             </div>
+269:           </div>
+270:           <div>
+271:             <h3 className="text-3xl font-black text-gray-900 tracking-tight">{kpis.prioVolume.toLocaleString('pt-BR')}</h3>
+272:             <p className="text-[11px] text-gray-500 font-medium mt-0.5">Demanda prioritária ({kpis.prioPercent}% do volume total)</p>
+273:           </div>
+274:           <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
+275:             <span className="text-gray-500 font-medium text-[11px]">
+276:               Monitorias: <strong className="text-gray-800 font-bold">{kpis.totalMonitorias.toLocaleString('pt-BR')}</strong>
+277:             </span>
+278:             <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-[#001E62] font-bold text-[11px]" title="Percentual de monitorias em relação à demanda prioritária">
+279:               <Filter size={11} className="text-[#001E62]" />
+280:               <span>{kpis.prioMonitoriaPercent}% Percentual do total</span>
+281:             </div>
+282:           </div>
+283:         </div>
+284: 
+285:         {/* KPI 2: Taxa de Pendência / Reprova */}
+286:         <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
+287:           <div className="flex items-center justify-between">
+288:             <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">PENDÊNCIAS & REPROVAS</span>
+289:             <div className="p-1.5 rounded-lg bg-amber-50 border border-amber-100">
+290:               <AlertTriangle size={18} className="text-amber-600" />
+291:             </div>
+292:           </div>
+293:           <div>
+294:             <h3 className="text-3xl font-black text-[#001E62] tracking-tight">{kpis.pendReprovPercent}%</h3>
+295:           </div>
+296:           <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
+297:             <span className="text-gray-500 font-medium text-[11px]">
+298:               <strong className="text-amber-700 font-bold">{kpis.pendentesCount}</strong> pend. / <strong className="text-red-600 font-bold">{kpis.reprovadosCount}</strong> repr.
+299:             </span>
+300:             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 font-bold text-[11px]">
+301:               <ShieldAlert size={12} className="text-amber-600" />
+302:               <span>{kpis.pendReprovTotal} Ocorrências</span>
+303:             </div>
+304:           </div>
+305:         </div>
+306: 
+307:         {/* KPI 3: Dia de Maior Volume */}
+308:         <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
+309:           <div className="flex items-center justify-between">
+310:             <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">PICO DE PRODUÇÃO</span>
+311:             <div className="p-1.5 rounded-lg bg-gray-50 border border-gray-100">
+312:               <Calendar size={18} className="text-[#001E62]" />
+313:             </div>
+314:           </div>
+315:           <div>
+316:             <h3 className="text-2xl font-black text-gray-900 tracking-tight">{kpis.peakDay}</h3>
+317:           </div>
+318:           <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
+319:             <span className="text-gray-500 font-medium text-[11px]">Volume no dia de pico</span>
+320:             <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold text-[11px]">
+321:               <span>{kpis.peakVol.toLocaleString('pt-BR')}</span>
+322:             </div>
+323:           </div>
+324:         </div>
+325: 
+326:         {/* KPI 4: TMO Médio Operacional */}
+327:         <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
+328:           <div className="flex items-center justify-between">
+329:             <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">TMO MÉDIO OPERACIONAL</span>
+330:             <div className="p-1.5 rounded-lg bg-gray-50 border border-gray-100">
+331:               <Clock size={18} className="text-[#001E62]" />
+332:             </div>
+333:           </div>
+334:           <div>
+335:             <h3 className="text-3xl font-black text-gray-900 tracking-tight">{kpis.tmoAvg} <span className="text-sm font-bold text-gray-500">min</span></h3>
+336:           </div>
+337:           <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
+338:             <span className="text-gray-500 font-medium text-[11px]">Média por item tratado</span>
+339:             <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-[#001E62] font-bold text-[11px]">
+340:               <span>Média Operacional</span>
+341:             </div>
+342:           </div>
+343:         </div>
+344:       </div>
+345: 
+346:       {/* SECTION 1: Volumetria Tratada x Prioridade & Pendências / Reprovas */}
+347:       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+348:         {/* Chart 1: Volumetria por Esteira e Prioridade (Vertical bars, Descending order, Scrollable) */}
+349:         <div className="lg:col-span-7 bg-white border border-gray-200 p-6 rounded-md space-y-4">
+350:           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+351:             <div>
+352:               <h3 className="text-brand-blue font-bold text-base flex items-center gap-2 uppercase">
+353:                 <BarChart2 size={18} className="text-brand-blue" />
+354:                 VOLUMETRIA DE PRIORIDADES
+355:               </h3>
+356:             </div>
+357: 
+358:             {/* Fixed Legend opposite Title */}
+359:             <div className="flex items-center gap-4 bg-gray-50/70 border border-gray-200 px-3.5 py-1.5 rounded-md self-start sm:self-auto flex-shrink-0">
+360:               <div className="flex items-center gap-2">
+361:                 <span className="w-3 h-3 rounded-sm bg-brand-blue-dark inline-block" />
+362:                 <span className="text-xs font-bold text-gray-900">Prioridade (SIM)</span>
+363:               </div>
+364:               <div className="flex items-center gap-2">
+365:                 <span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" />
+366:                 <span className="text-xs font-bold text-gray-900">Normal (NÃO)</span>
+367:               </div>
+368:             </div>
+369:           </div>
+370: 
+371:           <div className="overflow-x-auto pb-2 custom-scrollbar">
+372:             <div style={{ minWidth: Math.max(800, esteiraPrioData.length * 160), height: 350 }}>
+373:               <ResponsiveContainer width="100%" height="100%">
+374:                 <BarChart data={esteiraPrioData} margin={{ top: 25, right: 20, left: -10, bottom: 25 }}>
+375:                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+376:                   <XAxis 
+377:                     dataKey="esteira" 
+378:                     stroke="#6b7280" 
+379:                     interval={0}
+380:                     tick={<CustomXAxisTick />}
+381:                     height={55}
+382:                   />
+383:                   <YAxis stroke="#6b7280" tick={{ fontSize: 11 }} />
+384:                   <Tooltip 
+385:                     cursor={{ fill: 'transparent' }}
+386:                     contentStyle={{ backgroundColor: '#ffffff', borderColor: '#001E62', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', color: '#001E62', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }} 
+387:                     itemStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
+388:                     labelStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }}
+389:                   />
+390:                   <Bar dataKey="sim" name="Prioridade (SIM)" fill="#001E62" radius={[4, 4, 0, 0]} barSize={34}>
+391:                     <LabelList dataKey="sim" position="top" offset={6} fill="#001E62" fontSize={11} fontWeight="bold" />
+392:                   </Bar>
+393:                   <Bar dataKey="nao" name="Normal (NÃO)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={34}>
+394:                     <LabelList dataKey="nao" position="top" offset={6} fill="#10b981" fontSize={11} fontWeight="bold" />
+395:                   </Bar>
+396:                 </BarChart>
+397:               </ResponsiveContainer>
+398:             </div>
+399:           </div>
+400:         </div>
+401: 
+402:         {/* Chart 2: Pendência & Reprova com Principais Motivos */}
+403:         <div className="lg:col-span-5 bg-white border border-gray-200 p-6 rounded-md space-y-4 flex flex-col justify-between">
+404:           <div>
+405:             <h3 className="text-brand-blue font-bold text-base flex items-center gap-2 uppercase">
+406:               <ShieldAlert size={18} className="text-brand-blue" />
+407:               STATUS DAS ANÁLISES
+408:             </h3>
+409:           </div>
+410: 
+411:           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+412:             <div className="h-44">
+413:               <ResponsiveContainer width="100%" height="100%">
+414:                 <PieChart>
+415:                   <Pie
+416:                     data={statusDist}
+417:                     cx="50%"
+418:                     cy="50%"
+419:                     innerRadius={38}
+420:                     outerRadius={65}
+421:                     paddingAngle={3}
+422:                     dataKey="value"
+423:                   >
+424:                     {statusDist.map((entry, index) => (
+425:                       <Cell key={`cell-${index}`} fill={entry.color} />
+426:                     ))}
+427:                   </Pie>
+428:                   <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#001E62', borderRadius: '8px', color: '#001E62', fontWeight: 'bold' }} itemStyle={{ color: '#001E62', fontWeight: 'bold' }} labelStyle={{ color: '#001E62', fontWeight: 'bold' }} />
+429:                 </PieChart>
+430:               </ResponsiveContainer>
+431:             </div>
+432: 
+433:             <div className="space-y-1.5 text-xs">
+434:               <p className="font-bold text-gray-700 uppercase text-[10px] tracking-wider mb-2">Resumo de Qualidade:</p>
+435:               {statusDist.map((s) => (
+436:                 <div key={s.name} className="flex items-center justify-between bg-gray-50/60 border border-gray-200 px-3 py-1.5 rounded">
+437:                   <span className="flex items-center gap-2 text-gray-700">
+438:                     <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.color }} />
+439:                     {s.name}
+440:                   </span>
+441:                   <span className="font-bold text-gray-900">{s.value}</span>
+442:                 </div>
+443:               ))}
+444:             </div>
+445:           </div>
+446: 
+447:           {/* Top Motivos Table */}
+448:           <div className="border-t border-gray-200 pt-3 space-y-2">
+449:             <h4 className="text-xs font-bold text-brand-blue uppercase tracking-wider flex items-center gap-1.5">
+450:               <AlertTriangle size={14} /> PRINCIPAIS MOTIVOS DE PENDÊNCIA / REPROVA
+451:             </h4>
+452:             <div className="space-y-1.5 text-xs">
+453:               {topMotivos.length > 0 ? (
+454:                 topMotivos.map((m, idx) => (
+455:                   <div key={idx} className="flex items-center justify-between bg-gray-50 border border-gray-200 px-3 py-1.5 rounded text-gray-700">
+456:                     <span className="truncate pr-2 font-medium">{idx + 1}. {m.motivo}</span>
+457:                     <span className="font-bold text-brand-blue bg-brand-blue-dark/10 px-2 py-0.5 rounded text-[11px] border border-brand-blue-dark/20">
+458:                       {m.count} ocorrência(s)
+459:                     </span>
+460:                   </div>
+461:                 ))
+462:               ) : (
+463:                 <p className="text-xs text-gray-400 italic">Nenhum motivo de pendência ou reprova registrado.</p>
+464:               )}
+465:             </div>
+466:           </div>
+467:         </div>
+468:       </div>
+469: 
+470:       {/* SECTION 2: Maior Volume por Atividade/Esteira & Visualização do TMO Vertical (Descrescente) */}
+471:       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+472:         {/* Atividade com maior volume por esteira */}
+473:         <div className="lg:col-span-5 bg-white border border-gray-200 p-6 rounded-md space-y-4">
+474:           <div>
+475:             <h3 className="text-brand-blue font-bold text-base flex items-center gap-2 uppercase">
+476:               <Activity size={18} className="text-brand-blue" />
+477:               VOLUMETRIA DE TIPOS DE DEMANDA
+478:             </h3>
+479:           </div>
+480: 
+481:           <div className="space-y-2.5 max-h-[380px] overflow-y-auto custom-scrollbar pr-1.5">
+482:             {atividadeVolume.length > 0 ? (
+483:               atividadeVolume.map((item, index) => {
+484:                 const maxVol = atividadeVolume[0]?.volume || 1;
+485:                 const percent = Math.round((item.volume / maxVol) * 100);
+486: 
+487:                 return (
+488:                   <div key={index} className="bg-gray-50 border border-gray-200 p-3 rounded-md space-y-1.5">
+489:                     <div className="flex items-center justify-between text-xs gap-2">
+490:                       <span className="font-semibold text-gray-900 truncate max-w-[78%] flex items-center gap-1.5">
+491:                         <span className="font-bold text-brand-blue bg-brand-blue-dark/10 border border-brand-blue-dark/20 px-1.5 py-0.5 rounded text-[11px] flex-shrink-0">
+492:                           {index + 1}º
+493:                         </span>
+494:                         <span className="truncate">{item.atividade}</span>
+495:                       </span>
+496:                       <span className="font-bold text-brand-blue flex-shrink-0">{item.volume}</span>
+497:                     </div>
+498:                     <div className="w-full bg-white rounded-full h-2 overflow-hidden border border-gray-200">
+499:                       <div 
+500:                         className="bg-brand-blue-dark h-full rounded-full transition-all duration-500" 
+501:                         style={{ width: `${percent}%` }}
+502:                       />
+503:                     </div>
+504:                   </div>
+505:                 );
+506:               })
+507:             ) : (
+508:               <p className="text-xs text-gray-400 py-6 text-center">Nenhuma demanda registrada no filtro atual.</p>
+509:             )}
+510:           </div>
+511:         </div>
+512: 
+513:         {/* Visualização de TMO por esteira (VERTICAL BARS, DECRESCENTE, COM LEGENDA FIXADA E 1 CASA DECIMAL) */}
+514:         <div className="lg:col-span-7 bg-white border border-gray-200 p-6 rounded-md space-y-4">
+515:           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+516:             <div>
+517:               <h3 className="text-brand-blue font-bold text-base flex items-center gap-2 uppercase">
+518:                 <Clock size={18} className="text-brand-blue" />
+519:                 TEMPO MÉDIO DE OPERAÇÃO POR ESTEIRAS
+520:               </h3>
+521:             </div>
+522: 
+523:             
+524:           </div>
+525: 
+526:           <div className="overflow-x-auto pb-2 custom-scrollbar">
+527:             <div style={{ minWidth: Math.max(1000, tmoPorEsteira.length * 300), height: 350 }}>
+528:               <ResponsiveContainer width="100%" height="100%">
+529:                 <BarChart data={tmoPorEsteira} margin={{ top: 25, right: 20, left: -10, bottom: 25 }}>
+530:                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+531:                   <XAxis 
+532:                     dataKey="esteira" 
+533:                     stroke="#6b7280" 
+534:                     interval={0}
+535:                     tick={<CustomXAxisTick />}
+536:                     height={55}
+537:                   />
+538:                   <YAxis stroke="#6b7280" tick={{ fontSize: 11 }} unit=" min" />
+539:                   <Tooltip 
+540:                     cursor={{ fill: 'transparent' }}
+541:                     contentStyle={{ backgroundColor: '#ffffff', borderColor: '#001E62', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', color: '#001E62', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }} 
+542:                     itemStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
+543:                     labelStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }}
+544:                     formatter={(val: any) => [`${Number(val).toFixed(1)} minutos`, 'TMO Médio']}
+545:                   />
+546:                   <Bar dataKey="tmoMedio" name="TMO Médio (min)" fill="#001E62" radius={[4, 4, 0, 0]} barSize={40}>
+547:                     <LabelList dataKey="tmoMedio" position="top" offset={6} fill="#001E62" fontSize={11} fontWeight="bold" formatter={(v: any) => `${Number(v).toFixed(1)}m`} />
+548:                   </Bar>
+549:                 </BarChart>
+550:               </ResponsiveContainer>
+551:             </div>
+552:           </div>
+553:         </div>
+554:       </div>
+555:     </div>
+556:   );
+557: };
+558: 

@@ -103,13 +103,22 @@ export const DashboardPage = () => {
     );
   };
 
-  // Executive KPIs (Affected by all active filters except Produtividade)
-  const totalMonitorias = filteredData.length;
-  const totalErros = filteredData.filter(d => isErrorItem(d)).length;
+  // Executive KPIs (Affected by date and esteira/active filters)
+  // Total Monitorias: sum of quantidade in table monitorias
+  const totalMonitorias = useMemo(() => {
+    return filteredData.reduce((sum, item) => sum + (Number(item.Quantidade) || 1), 0);
+  }, [filteredData]);
+
+  // Total Erros: count of rows in table monitoriaErros
+  const totalErros = useMemo(() => {
+    return filteredData.filter(d => isErrorItem(d)).length;
+  }, [filteredData]);
+
+  // Qualidade: (Total Monitorias - Total Erros) / Total Monitorias * 100
   const qualidadeNum = totalMonitorias > 0 
     ? Number((((totalMonitorias - totalErros) / totalMonitorias) * 100).toFixed(1))
     : 100;
-  const qualidade = qualidadeNum.toFixed(1) + '%';
+  const qualidade = qualidadeNum.toFixed(1).replace('.', ',') + '%';
 
   const getQualityColor = (pct: number) => {
     if (pct >= 97) return 'text-emerald-600';
@@ -118,81 +127,38 @@ export const DashboardPage = () => {
     return 'text-red-600';
   };
 
-  // Identify recurrences based on the FULL monitora base (data)
-  const errorIsRecurrence = useMemo(() => {
-    const isRecurrenceMap = new Map<any, boolean>();
-    const analystTagHistory: Record<string, Set<string>> = {};
-
-    [...data]
-      .filter(d => isErrorItem(d))
-      .sort((a, b) => (a.DataMonitoria || "").localeCompare(b.DataMonitoria || ""))
-      .forEach(item => {
-        const name = item.NomeAnalista || "ANALISTA";
-        const code = item.CodigoAnalista || name;
-        const tag = (item.Tag && item.Tag.trim()) ? item.Tag.trim() : "Geral";
-
-        if (!analystTagHistory[code]) {
-          analystTagHistory[code] = new Set();
-        }
-
-        if (analystTagHistory[code].has(tag)) {
-          isRecurrenceMap.set(item, true);
-        } else {
-          isRecurrenceMap.set(item, false);
-          analystTagHistory[code].add(tag);
-        }
-      });
-    return isRecurrenceMap;
-  }, [data]);
-
-  // Ranking de Reincidentes (Calculado por tag por analista na base full)
+  // Ranking de Reincidentes (Contagem de linhas na tabela monitoriaErros agrupadas por coluna Tag)
   const rankingReincidentes = useMemo(() => {
-    const analystStats: Record<string, { nome: string; totalErros: number; reincidencias: number; tags: Record<string, number> }> = {};
+    const tagStats: Record<string, { tag: string; count: number; analistas: Map<string, number> }> = {};
 
     filteredData.filter(d => isErrorItem(d)).forEach(item => {
-      const name = item.NomeAnalista || "ANALISTA";
-      const code = item.CodigoAnalista || name;
       const tag = (item.Tag && item.Tag.trim()) ? item.Tag.trim() : "Geral";
+      const name = item.NomeAnalista || "ANALISTA";
 
-      if (!analystStats[code]) {
-        analystStats[code] = { nome: name, totalErros: 0, reincidencias: 0, tags: {} };
+      if (!tagStats[tag]) {
+        tagStats[tag] = { tag, count: 0, analistas: new Map() };
       }
       
-      analystStats[code].totalErros += 1;
-      analystStats[code].tags[tag] = (analystStats[code].tags[tag] || 0) + 1;
-      
-      if (errorIsRecurrence.get(item)) {
-        analystStats[code].reincidencias += 1;
-      }
+      tagStats[tag].count += 1; // Contagem de linhas na tabela monitoriaErros
+      const currentAnalystCount = tagStats[tag].analistas.get(name) || 0;
+      tagStats[tag].analistas.set(name, currentAnalystCount + 1);
     });
 
-    const result = Object.entries(analystStats).map(([code, stats]) => {
-      let tagMaisErros = "Geral";
-      let topTagCount = 0;
-      
-      Object.entries(stats.tags).forEach(([tag, count]) => {
-        if (count > topTagCount) {
-          topTagCount = count;
-          tagMaisErros = tag;
-        }
-      });
-
-      return {
-        codigo: code,
-        nome: stats.nome,
-        totalErros: stats.totalErros,
-        reincidencias: stats.reincidencias,
-        tagMaisErros,
-        topTagCount,
-        tagsCount: Object.keys(stats.tags).length
-      };
-    })
-    .filter(a => a.totalErros > 0)
-    .sort((a, b) => b.reincidencias - a.reincidencias || b.totalErros - a.totalErros)
-    .slice(0, 15);
-
-    return result;
-  }, [filteredData, errorIsRecurrence]);
+    return Object.values(tagStats)
+      .map(stat => {
+        const sortedAnalysts = Array.from(stat.analistas.entries()).sort((a, b) => b[1] - a[1]);
+        return {
+          tag: stat.tag,
+          count: stat.count, // Quantidade de linhas em monitoriaErros
+          analistasCount: stat.analistas.size,
+          topAnalista: sortedAnalysts[0]?.[0] || 'N/A',
+          topAnalistaErros: sortedAnalysts[0]?.[1] || 0
+        };
+      })
+      .filter(t => t.count > 0)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 15);
+  }, [filteredData]);
 
   // Timeline chart: Filtered Data
   const timelineData = useMemo(() => {
@@ -396,37 +362,34 @@ export const DashboardPage = () => {
             {rankingReincidentes.length > 0 ? (
               rankingReincidentes.map((item, idx) => (
                 <div 
-                  key={item.codigo + idx} 
-                  onClick={() => setSelectedAnalystForModal({ code: item.codigo, name: item.nome })}
-                  className="bg-gray-50 border border-gray-200 hover:border-brand-blue/60 p-3 rounded-md flex items-center justify-between gap-3 cursor-pointer transition-all hover:bg-white group"
-                  title="Clique para abrir detalhes do analista"
+                  key={item.tag + idx} 
+                  className="bg-gray-50 border border-gray-200 hover:border-brand-blue/60 p-3 rounded-md flex items-center justify-between gap-3 transition-all hover:bg-white group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-7 h-7 rounded-md bg-gray-100 border border-gray-300 group-hover:border-brand-blue flex items-center justify-center font-bold text-xs text-brand-blue flex-shrink-0">
                       #{idx + 1}
                     </div>
                     <div className="truncate">
-                      <p className="text-xs font-semibold text-gray-900 group-hover:text-brand-blue-light truncate flex items-center gap-1.5">
-                        {item.nome}
-                        <Eye size={12} className="opacity-0 group-hover:opacity-100 text-brand-blue-light transition-opacity" />
+                      <p className="text-xs font-bold text-gray-900 group-hover:text-brand-blue-light truncate">
+                        {item.tag}
                       </p>
-                      <p className="text-[10px] text-brand-blue/90 truncate mt-0.5">
-                        Tag principal: <span className="font-semibold">{item.tagMaisErros}</span> ({item.topTagCount}x)
+                      <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                        Maior ofensor: <span className="font-semibold text-gray-700">{item.topAnalista}</span> ({item.topAnalistaErros}x)
                       </p>
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <span className="bg-red-50 border border-red-300 text-red-700 px-2 py-0.5 rounded-md text-[11px] font-bold">
-                      {item.reincidencias} reincidência(s)
+                      {item.count} erro(s)
                     </span>
                     <p className="text-[10px] text-gray-500 mt-1">
-                      {item.totalErros} erro(s) em {item.tagsCount} tag(s)
+                      {item.analistasCount} analista(s)
                     </p>
                   </div>
                 </div>
               ))
             ) : (
-              <p className="text-xs text-gray-400 py-6 text-center">Nenhuma reincidência registrada no filtro atual.</p>
+              <p className="text-xs text-gray-400 py-6 text-center">Nenhum erro registrado no filtro atual.</p>
             )}
           </div>
         </div>
