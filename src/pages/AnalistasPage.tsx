@@ -1009,7 +1009,6 @@ export const AnalistasPage = () => {
                         key={item.id}
                         onClick={() => setSelectedDiagramAnalyst(item)}
                         onMouseEnter={(e) => setHoveredDiagramAnalyst({ analyst: item, mouseX: e.clientX, mouseY: e.clientY })}
-                        onMouseMove={(e) => setHoveredDiagramAnalyst({ analyst: item, mouseX: e.clientX, mouseY: e.clientY })}
                         onMouseLeave={() => setHoveredDiagramAnalyst(null)}
                         className="cursor-pointer group"
                       >
@@ -1021,8 +1020,8 @@ export const AnalistasPage = () => {
                               r="22" 
                               fill="none" 
                               stroke={isSearched ? "#001E62" : item.prodQuadrantColor} 
-                              strokeWidth="2.5" 
-                              className="animate-ping opacity-75" 
+                              strokeWidth="1.5" 
+                              className="opacity-25" 
                             />
                             <circle 
                               cx={item.x} 
@@ -1054,7 +1053,7 @@ export const AnalistasPage = () => {
                           fill={isSearched ? "#001E62" : item.prodQuadrantColor} 
                           stroke="#ffffff" 
                           strokeWidth="1.2"
-                          className="transition-all duration-150 group-hover:scale-105"
+                          className="transition-all duration-150"
                           filter="url(#dotGlow)"
                         />
                       </g>
