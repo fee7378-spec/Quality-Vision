@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, User, AlertTriangle, CheckCircle2, FileText, Tag } from 'lucide-react';
-import { useStore, getTabuladorName, formatDateToBR } from '../store/useStore';
+import { useStore, getTabuladorName, formatDateToBR, getSupervisorCode } from '../store/useStore';
+import { useTokenStore } from '../store/useTokenStore';
 import { ErrorDetailModal } from './ErrorDetailModal';
 
 const getVal = (obj: any, key: string) => {
@@ -23,7 +24,7 @@ interface AnalystModalProps {
 }
 
 export const AnalystModal: React.FC<AnalystModalProps> = ({ analystCode, analystName, onClose }) => {
-  const { data, monitorias, monitoriaErros, esteiraMappings, startDate, endDate } = useStore();
+  const { data, monitorias, monitoriaErros, volumetria, selectedForma, esteiraMappings, startDate, endDate } = useStore();
   const [selectedErrorDetail, setSelectedErrorDetail] = useState<any>(null);
 
   if (!analystCode && !analystName) return null;
@@ -66,6 +67,17 @@ export const AnalystModal: React.FC<AnalystModalProps> = ({ analystCode, analyst
     return matchesAnalyst(i);
   }).sort((a, b) => (b.DataMonitoria || '').localeCompare(a.DataMonitoria || ''));
 
+  // 3. Volumetria (Produtividade)
+  const filteredVolumetria = volumetria.filter(v => {
+    const d = getVal(v, 'data') || getVal(v, 'DataProdutividade') || '';
+    if (d && typeof d === 'string') {
+      if (startDate && d < startDate) return false;
+      if (endDate && d > endDate) return false;
+    }
+    return matchesAnalyst(v);
+  });
+  const totalProdutividade = filteredVolumetria.reduce((sum, v) => sum + (Number(getVal(v, 'quantidade')) || 0), 0);
+
   const isErrorFromData = (item: any) => {
     const errStr = (item.Erro || '').toString().trim().toLowerCase();
     return errStr === '0' || errStr === 'erro' || errStr === 'reprovado' || errStr === 'nc' || errStr === 'n/c' || errStr === 'nok';
@@ -80,7 +92,14 @@ export const AnalystModal: React.FC<AnalystModalProps> = ({ analystCode, analyst
     : analystItemsFromData.filter(isErrorFromData);
 
   const totalErros = effectiveErrorList.length;
-  const qualidadeNum = totalMonitorias > 0 ? ((totalMonitorias - totalErros) / totalMonitorias) * 100 : 100;
+  
+  const isDoubleCheck = Array.isArray(selectedForma) 
+    ? selectedForma.includes('Double Check') && selectedForma.length === 1 
+    : selectedForma === 'Double Check';
+  
+  const baseForQuality = isDoubleCheck ? totalProdutividade : totalMonitorias;
+
+  const qualidadeNum = baseForQuality > 0 ? ((baseForQuality - totalErros) / baseForQuality) * 100 : 100;
   const qualidadeStr = qualidadeNum.toFixed(1);
 
   // Tag frequency breakdown
@@ -91,12 +110,17 @@ export const AnalystModal: React.FC<AnalystModalProps> = ({ analystCode, analyst
     tagBreakdown[tagStr] = (tagBreakdown[tagStr] || 0) + 1;
   });
 
+  const { accessType } = useTokenStore();
+  const isVisualizacao = accessType === 'visualizacao';
+
   const sortedTags = Object.entries(tagBreakdown).sort((a, b) => b[1] - a[1]);
   const primarySupervisor = getVal(effectiveErrorList[0], 'supervisor') || getVal(filteredMonitorias[0], 'supervisor') || analystItemsFromData[0]?.NomeSupervisor || analystItemsFromData[0]?.Supervisor || 'Não informado';
+  const supervisorDisplay = isVisualizacao ? getSupervisorCode({ NomeSupervisor: primarySupervisor }) : primarySupervisor;
   const rawEsteira = getVal(effectiveErrorList[0], 'esteira') || getVal(filteredMonitorias[0], 'esteira') || analystItemsFromData[0]?.Esteira || '';
   const primaryEsteira = getTabuladorName(rawEsteira, esteiraMappings) || rawEsteira || 'Geral';
-  const nameDisplay = analystName || getVal(effectiveErrorList[0], 'analista') || analystItemsFromData[0]?.NomeAnalista || 'Analista';
+  const rawNameDisplay = analystName || getVal(effectiveErrorList[0], 'analista') || analystItemsFromData[0]?.NomeAnalista || 'Analista';
   const codeDisplay = analystCode || getVal(effectiveErrorList[0], 'codAnalista') || analystItemsFromData[0]?.CodigoAnalista || '';
+  const nameDisplay = isVisualizacao ? (codeDisplay || 'Analista') : rawNameDisplay;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-50/80 backdrop-blur-sm animate-fadeIn">
@@ -112,7 +136,7 @@ export const AnalystModal: React.FC<AnalystModalProps> = ({ analystCode, analyst
               <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
                 <span className="font-mono bg-gray-100 px-2 py-0.5 rounded text-brand-blue-light">{codeDisplay}</span>
                 <span>•</span>
-                <span>Supervisor: {primarySupervisor}</span>
+                <span>Supervisor: {supervisorDisplay}</span>
                 <span>•</span>
                 <span>Esteira: {primaryEsteira}</span>
               </div>

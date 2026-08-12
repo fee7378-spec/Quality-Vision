@@ -347,7 +347,7 @@ const esteiraPrioData = useMemo(() => {
                 <span className="text-xs font-bold text-gray-900">Prioridade (SIM)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-sm bg-[#F8F8FF] border border-gray-200 inline-block" />
+                <span className="w-3 h-3 rounded-sm bg-[#EEF2FF] border border-[#001E62] inline-block" />
                 <span className="text-xs font-bold text-gray-900">Normal (NÃO)</span>
               </div>
             </div>
@@ -356,7 +356,7 @@ const esteiraPrioData = useMemo(() => {
           <div className="overflow-x-auto pb-2 custom-scrollbar">
             <div style={{ minWidth: Math.max(800, esteiraPrioData.length * 160), height: 350 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={esteiraPrioData} margin={{ top: 25, right: 20, left: -10, bottom: 25 }}>
+                <BarChart data={esteiraPrioData} margin={{ top: 25, right: 20, left: 10, bottom: 25 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis 
                     dataKey="esteira" 
@@ -375,7 +375,7 @@ const esteiraPrioData = useMemo(() => {
                   <Bar dataKey="sim" name="Prioridade (SIM)" fill="#001E62" radius={[4, 4, 0, 0]} barSize={34}>
                     <LabelList dataKey="sim" position="top" offset={6} fill="#001E62" fontSize={11} fontWeight="bold" />
                   </Bar>
-                  <Bar dataKey="nao" name="Normal (NÃO)" fill="#F8F8FF" stroke="#e5e7eb" strokeWidth={1} radius={[4, 4, 0, 0]} barSize={34}>
+                  <Bar dataKey="nao" name="Normal (NÃO)" fill="#EEF2FF" stroke="#001E62" strokeWidth={1} radius={[4, 4, 0, 0]} barSize={34}>
                     <LabelList dataKey="nao" position="top" offset={6} fill="#001E62" fontSize={11} fontWeight="bold" />
                   </Bar>
                 </BarChart>
@@ -461,7 +461,7 @@ const esteiraPrioData = useMemo(() => {
           <div className="overflow-x-auto pb-2 custom-scrollbar">
             <div style={{ minWidth: Math.max(1000, tmoPorEsteira.length * 300), height: 350 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={tmoPorEsteira} margin={{ top: 25, right: 20, left: -10, bottom: 25 }}>
+                <BarChart data={tmoPorEsteira} margin={{ top: 25, right: 20, left: 10, bottom: 25 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis 
                     dataKey="esteira" 

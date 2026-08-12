@@ -403,8 +403,8 @@ export const CapacidadePage: React.FC = () => {
                   <span className="w-3 h-3 rounded-sm bg-brand-blue-dark inline-block" />
                   <span>Volume Realizado</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-emerald-600">
-                  <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" />
+                <div className="flex items-center gap-1.5 text-gray-600">
+                  <span className="w-3 h-3 rounded-full bg-gray-600 inline-block" />
                   <span>Previsão Projetada</span>
                 </div>
               </div>
@@ -412,9 +412,9 @@ export const CapacidadePage: React.FC = () => {
 
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={momData} margin={{ top: 25, right: 25, left: -10, bottom: 5 }}>
+                <ComposedChart data={momData} margin={{ top: 25, right: 30, left: 15, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="label" stroke="#6b7280" tick={{ fontSize: 11 }} />
+                  <XAxis dataKey="label" stroke="#6b7280" tick={{ fontSize: 11 }} padding={{ left: 25, right: 25 }} />
                   <YAxis stroke="#6b7280" tick={{ fontSize: 11 }} />
                   <Tooltip 
                     cursor={{ fill: 'transparent' }} 
@@ -425,8 +425,8 @@ export const CapacidadePage: React.FC = () => {
                   <Bar dataKey="volumeRealizado" name="Volume Realizado" fill="#001E62" radius={[4, 4, 0, 0]}>
                     <LabelList dataKey="volumeRealizado" position="insideTop" offset={6} fill="#ffffff" fontSize={10} fontWeight="bold" />
                   </Bar>
-                  <Line type="monotone" dataKey="provisaoProjetada" name="Previsão (Projeção Fechamento)" stroke="#10b981" strokeWidth={3} strokeDasharray="4 4" dot={{ fill: '#10b981', r: 5 }}>
-                    <LabelList dataKey="provisaoProjetada" position="top" offset={14} fill="#10b981" fontSize={11} fontWeight="bold" />
+                  <Line type="monotone" dataKey="provisaoProjetada" name="Previsão (Projeção Fechamento)" stroke="#4b5563" strokeWidth={3} strokeDasharray="4 4" dot={{ fill: '#4b5563', r: 5 }}>
+                    <LabelList dataKey="provisaoProjetada" position="top" offset={14} fill="#4b5563" fontSize={11} fontWeight="bold" />
                   </Line>
                 </ComposedChart>
               </ResponsiveContainer>

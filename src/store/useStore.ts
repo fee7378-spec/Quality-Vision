@@ -337,20 +337,196 @@ export const isValidAnalystName = (name: any): boolean => {
 };
 
 export const parseFormaMonitoria = (rawVal: any): string => {
-  if (!rawVal) return 'Estudo';
-  const str = String(rawVal).trim().toLowerCase();
-  if (!str) return 'Estudo';
+  if (!rawVal) return '';
+  const str = String(rawVal).trim();
+  if (!str) return '';
+  const lower = str.toLowerCase();
 
-  if (str.includes('interfile')) {
+  if (lower.includes('interfile')) {
     return 'Qualidade Interfile';
   }
-  if (str.includes('cliente') || str.includes('double')) {
+  if (lower.includes('cliente') || lower.includes('double')) {
     return 'Double Check';
   }
-  if (str.includes('estudo')) {
+  if (lower.includes('estudo')) {
     return 'Estudo';
   }
-  return 'Estudo';
+  return str;
+};
+
+export const getFormaFromItem = (item: any): string => {
+  if (!item) return '';
+  const raw = getVal(item, 'forma') || getVal(item, 'formaMonitoria') || item.FormaMonitoria || item.forma || item.AA || '';
+  return parseFormaMonitoria(raw);
+};
+
+export const matchesFormaFilter = (selectedForma: FilterValue, item: any): boolean => {
+  if (!selectedForma) return true;
+  if (!item) return true;
+
+  const hasFormaKey = 
+    item.hasOwnProperty('forma') || 
+    item.hasOwnProperty('formaMonitoria') || 
+    item.hasOwnProperty('FormaMonitoria') || 
+    item.hasOwnProperty('AA') || 
+    Object.keys(item).some(k => k.toLowerCase() === 'forma' || k.toLowerCase() === 'formamonitoria');
+
+  if (!hasFormaKey) return true;
+
+  const raw = getVal(item, 'forma') || getVal(item, 'formaMonitoria') || item.FormaMonitoria || item.forma || item.AA || '';
+  const parsed = parseFormaMonitoria(raw);
+  return matchesFilter(selectedForma, parsed, 'TODAS') || matchesFilter(selectedForma, String(raw).trim(), 'TODAS');
+};
+
+export const getVal = (obj: any, key: string) => {
+  if (!obj || typeof obj !== 'object') return undefined;
+  if (obj[key] !== undefined) return obj[key];
+  const lowerKey = key.toLowerCase();
+  const foundKey = Object.keys(obj).find(k => k.toLowerCase() === lowerKey);
+  return foundKey ? obj[foundKey] : undefined;
+};
+
+export const generateCodeFromName = (name: string, prefix: 'SUP' | 'MON' | 'MAT') => {
+  if (!name || name === '-' || name.trim().toLowerCase() === 'não informado' || name.trim().toLowerCase() === 'supervisor geral') return '-';
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash << 5) - hash + name.charCodeAt(i);
+    hash |= 0;
+  }
+  const positiveNum = Math.abs(hash) % 900 + 100;
+  return `${prefix}-${positiveNum}`;
+};
+
+export const getAnalystCode = (item: any) => {
+  if (!item) return '-';
+  let directCode = getVal(item, 'codAnalista') || getVal(item, 'codigoAnalista') || item?.CodigoAnalista || item?.codAnalista || item?.codigo || item?.cod_analista || item?.cd_analista || item?.matricula || item?.Matricula;
+  let name = typeof item === 'string' ? item : (getVal(item, 'analista') || item?.NomeAnalista || item?.nome || '');
+
+  if (directCode && String(directCode).trim() && String(directCode).trim() !== '-') {
+    const dStr = String(directCode).trim();
+    if (/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(dStr) && dStr.includes(' ')) {
+      // directCode is actually a full name, so ignore it and use it as name if name is empty
+      if (!name || name === '-') name = dStr;
+      directCode = undefined;
+    } else {
+      return dStr;
+    }
+  }
+
+  if (!name || name === '-' || name.trim().toLowerCase() === 'não informado') return '-';
+
+  try {
+    const storeState = useStore.getState ? useStore.getState() : null;
+    if (storeState) {
+      const cleanName = name.trim().toLowerCase();
+      
+      const monitoriasList = storeState.monitorias || [];
+      const matchInMonitorias = monitoriasList.find(m => {
+        const mName = (getVal(m, 'analista') || m?.NomeAnalista || m?.nome || '').toString().trim().toLowerCase();
+        const mCode = getVal(m, 'codAnalista') || getVal(m, 'codigoAnalista') || m?.CodigoAnalista || m?.codAnalista || m?.codigo || m?.cod_analista || m?.cd_analista || m?.matricula || m?.Matricula;
+        return mName === cleanName && mCode && String(mCode).trim() && String(mCode).trim() !== '-';
+      });
+
+      if (matchInMonitorias) {
+        const foundCode = getVal(matchInMonitorias, 'codAnalista') || getVal(matchInMonitorias, 'codigoAnalista') || matchInMonitorias?.CodigoAnalista || matchInMonitorias?.codAnalista || matchInMonitorias?.codigo || matchInMonitorias?.cod_analista || matchInMonitorias?.cd_analista || matchInMonitorias?.matricula || matchInMonitorias?.Matricula;
+        if (foundCode) return String(foundCode).trim();
+      }
+
+      const dataList = storeState.data || [];
+      const matchInData = dataList.find(m => {
+        const mName = (getVal(m, 'analista') || m?.NomeAnalista || m?.nome || '').toString().trim().toLowerCase();
+        const mCode = getVal(m, 'codAnalista') || getVal(m, 'codigoAnalista') || m?.CodigoAnalista || m?.codAnalista || m?.codigo || m?.cod_analista || m?.cd_analista || m?.matricula || m?.Matricula;
+        return mName === cleanName && mCode && String(mCode).trim() && String(mCode).trim() !== '-';
+      });
+
+      if (matchInData) {
+        const foundCode = getVal(matchInData, 'codAnalista') || getVal(matchInData, 'codigoAnalista') || matchInData?.CodigoAnalista || matchInData?.codAnalista || matchInData?.codigo || matchInData?.cod_analista || matchInData?.cd_analista || matchInData?.matricula || matchInData?.Matricula;
+        if (foundCode) return String(foundCode).trim();
+      }
+    }
+  } catch (err) {
+    // ignore
+  }
+
+  return generateCodeFromName(name, 'MAT');
+};
+
+export const getSupervisorCode = (item: any) => {
+  if (!item) return '-';
+  let directCode = getVal(item, 'codSupervisor') || getVal(item, 'codigoSupervisor') || item?.CodigoSupervisor || item?.codSupervisor || item?.cod_supervisor;
+  let name = typeof item === 'string' ? item : (getVal(item, 'supervisor') || item?.NomeSupervisor || item?.nome || '');
+
+  if (directCode && String(directCode).trim() && String(directCode).trim() !== '-') {
+    const dStr = String(directCode).trim();
+    if (/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(dStr) && dStr.includes(' ')) {
+      if (!name || name === '-') name = dStr;
+      directCode = undefined;
+    } else {
+      return dStr;
+    }
+  }
+
+  if (!name || name === '-' || name.trim().toLowerCase() === 'não informado' || name.trim().toLowerCase() === 'supervisor geral') return '-';
+
+  try {
+    const storeState = useStore.getState ? useStore.getState() : null;
+    if (storeState) {
+      const cleanName = name.trim().toLowerCase();
+      const monitoriasList = storeState.monitorias || [];
+      const match = monitoriasList.find(m => {
+        const mName = (getVal(m, 'supervisor') || m?.NomeSupervisor || '').toString().trim().toLowerCase();
+        const mCode = getVal(m, 'codSupervisor') || getVal(m, 'codigoSupervisor') || m?.CodigoSupervisor || m?.codSupervisor;
+        return mName === cleanName && mCode && String(mCode).trim() && String(mCode).trim() !== '-';
+      });
+      if (match) {
+        const foundCode = getVal(match, 'codSupervisor') || getVal(match, 'codigoSupervisor') || match?.CodigoSupervisor || match?.codSupervisor;
+        if (foundCode) return String(foundCode).trim();
+      }
+    }
+  } catch (err) {
+    // ignore
+  }
+
+  return generateCodeFromName(name, 'SUP');
+};
+
+export const getMonitorCode = (item: any) => {
+  if (!item) return '-';
+  let directCode = getVal(item, 'codMonitor') || getVal(item, 'codigoMonitor') || item?.CodigoMonitor || item?.codMonitor || item?.cod_monitor;
+  let name = typeof item === 'string' ? item : (getVal(item, 'monitor') || item?.NomeMonitor || item?.nome || '');
+
+  if (directCode && String(directCode).trim() && String(directCode).trim() !== '-') {
+    const dStr = String(directCode).trim();
+    if (/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(dStr) && dStr.includes(' ')) {
+      if (!name || name === '-') name = dStr;
+      directCode = undefined;
+    } else {
+      return dStr;
+    }
+  }
+
+  if (!name || name === '-' || name.trim().toLowerCase() === 'não informado') return '-';
+
+  try {
+    const storeState = useStore.getState ? useStore.getState() : null;
+    if (storeState) {
+      const cleanName = name.trim().toLowerCase();
+      const monitoriasList = storeState.monitorias || [];
+      const match = monitoriasList.find(m => {
+        const mName = (getVal(m, 'monitor') || m?.NomeMonitor || '').toString().trim().toLowerCase();
+        const mCode = getVal(m, 'codMonitor') || getVal(m, 'codigoMonitor') || m?.CodigoMonitor || m?.codMonitor;
+        return mName === cleanName && mCode && String(mCode).trim() && String(mCode).trim() !== '-';
+      });
+      if (match) {
+        const foundCode = getVal(match, 'codMonitor') || getVal(match, 'codigoMonitor') || match?.CodigoMonitor || match?.codMonitor;
+        if (foundCode) return String(foundCode).trim();
+      }
+    }
+  } catch (err) {
+    // ignore
+  }
+
+  return generateCodeFromName(name, 'MON');
 };
 
 export const getTabuladorName = (esteiraName: string, mappings: EsteiraMapping[]): string => {
@@ -449,23 +625,23 @@ const initialSampleData: MonitoringItem[] = [
   // CARLOS SILVA (Abertura PJ)
   { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-01', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '0', Esteira: 'Abertura PJ', DataFeedback: '2026-07-03' },
   { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-04', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '0', Esteira: 'Abertura PJ', DataFeedback: '2026-07-06' },
-  { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-08', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Abertura PJ', DataFeedback: '' },
+  { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Double Check', DataMonitoria: '2026-07-08', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Abertura PJ', DataFeedback: '' },
   { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-12', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Abertura PJ', DataFeedback: '' },
-  { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-18', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '100', Esteira: 'Abertura PJ', DataFeedback: '' },
+  { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Double Check', DataMonitoria: '2026-07-18', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '100', Esteira: 'Abertura PJ', DataFeedback: '' },
   { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-22', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '100', Esteira: 'Abertura PJ', DataFeedback: '' },
 
   // ANA BEATRIZ (Abertura PF)
-  { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-02', Tag: 'SLA Excedido', MotivoMacro: 'Atraso na Entrega', Erro: '0', Esteira: 'Abertura PF', DataFeedback: '2026-07-05' },
+  { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Double Check', DataMonitoria: '2026-07-02', Tag: 'SLA Excedido', MotivoMacro: 'Atraso na Entrega', Erro: '0', Esteira: 'Abertura PF', DataFeedback: '2026-07-05' },
   { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-07', Tag: 'SLA Excedido', MotivoMacro: 'Atraso na Entrega', Erro: '0', Esteira: 'Abertura PF', DataFeedback: '2026-07-09' },
   { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-14', Tag: 'SLA Excedido', MotivoMacro: 'Atraso na Entrega', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
-  { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-20', Tag: 'Atendimento ao Cliente', MotivoMacro: 'Comunicação Inadequada', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
+  { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Double Check', DataMonitoria: '2026-07-20', Tag: 'Atendimento ao Cliente', MotivoMacro: 'Comunicação Inadequada', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
   { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-25', Tag: 'SLA Excedido', MotivoMacro: 'Atraso na Entrega', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
 
   // FERNANDO ALVES (Crédito PJ)
   { CodigoAnalista: 'MAT103', NomeAnalista: 'FERNANDO ALVES', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-03', Tag: 'Erro de Cadastro', MotivoMacro: 'Falha de Digitação', Erro: '0', Esteira: 'Crédito PJ', DataFeedback: '2026-07-05' },
   { CodigoAnalista: 'MAT103', NomeAnalista: 'FERNANDO ALVES', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-09', Tag: 'Erro de Cadastro', MotivoMacro: 'Falha de Digitação', Erro: '0', Esteira: 'Crédito PJ', DataFeedback: '' },
   { CodigoAnalista: 'MAT103', NomeAnalista: 'FERNANDO ALVES', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-15', Tag: 'Erro de Cadastro', MotivoMacro: 'Falha de Digitação', Erro: '0', Esteira: 'Crédito PJ', DataFeedback: '2026-07-17' },
-  { CodigoAnalista: 'MAT103', NomeAnalista: 'FERNANDO ALVES', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-21', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Crédito PJ', DataFeedback: '' },
+  { CodigoAnalista: 'MAT103', NomeAnalista: 'FERNANDO ALVES', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Double Check', DataMonitoria: '2026-07-21', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Crédito PJ', DataFeedback: '' },
 
   // MARIANA COSTA (Crédito PJ)
   { CodigoAnalista: 'MAT104', NomeAnalista: 'MARIANA COSTA', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Double Check', DataMonitoria: '2026-07-06', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '100', Esteira: 'Crédito PJ', DataFeedback: '' },
@@ -473,9 +649,9 @@ const initialSampleData: MonitoringItem[] = [
   { CodigoAnalista: 'MAT104', NomeAnalista: 'MARIANA COSTA', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-20', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Crédito PJ', DataFeedback: '' },
 
   // LUCAS MENDES (Abertura PF)
-  { CodigoAnalista: 'MAT105', NomeAnalista: 'LUCAS MENDES', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-05', Tag: 'Atendimento ao Cliente', MotivoMacro: 'Comunicação Inadequada', Erro: '0', Esteira: 'Abertura PF', DataFeedback: '2026-07-08' },
+  { CodigoAnalista: 'MAT105', NomeAnalista: 'LUCAS MENDES', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Double Check', DataMonitoria: '2026-07-05', Tag: 'Atendimento ao Cliente', MotivoMacro: 'Comunicação Inadequada', Erro: '0', Esteira: 'Abertura PF', DataFeedback: '2026-07-08' },
   { CodigoAnalista: 'MAT105', NomeAnalista: 'LUCAS MENDES', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-16', Tag: 'Atendimento ao Cliente', MotivoMacro: 'Comunicação Inadequada', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
-  { CodigoAnalista: 'MAT105', NomeAnalista: 'LUCAS MENDES', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-24', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
+  { CodigoAnalista: 'MAT105', NomeAnalista: 'LUCAS MENDES', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Double Check', DataMonitoria: '2026-07-24', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
 ];
 
 export const initialSampleProductivityData: ProductivityItem[] = [
@@ -616,12 +792,7 @@ export const useStore = create<AppState>((set, get) => ({
       });
 
       let updateObj: any = { ...data };
-      if (dates.length > 0) {
-        dates.sort();
-        updateObj.startDate = dates[0];
-        updateObj.endDate = dates[dates.length - 1];
-      }
-
+      // Maintain current month range default / user selection when data refreshes
       set(updateObj);
     } catch (e) {
       console.error("Error fetching from Supabase:", e);
@@ -698,22 +869,10 @@ export const useStore = create<AppState>((set, get) => ({
       ...item,
       DataMonitoria: normalizeDateStr(item.DataMonitoria)
     }));
-    const allDates = cleanData.map(i => i.DataMonitoria).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
-    
-    const fallbackRange = getCurrentMonthRange();
-    let start = fallbackRange.start;
-    let end = fallbackRange.end;
-    
-    if (allDates.length > 0) {
-      start = allDates[0];
-      end = allDates[allDates.length - 1];
-    }
 
     set({ 
       data: cleanData, 
-      lastProcessed: ts,
-      startDate: start,
-      endDate: end
+      lastProcessed: ts
     });
   },
 

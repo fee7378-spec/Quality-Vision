@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertTriangle, X, Calendar, User, Shield, CheckCircle2 } from 'lucide-react';
-import { useStore, getTabuladorName } from '../store/useStore';
+import { useStore, getTabuladorName, getAnalystCode, getSupervisorCode, getMonitorCode } from '../store/useStore';
+import { useTokenStore } from '../store/useTokenStore';
 
 interface ErrorDetailModalProps {
   item: any;
@@ -9,6 +10,8 @@ interface ErrorDetailModalProps {
 
 export const ErrorDetailModal: React.FC<ErrorDetailModalProps> = ({ item, onClose }) => {
   const { esteiraMappings } = useStore();
+  const { accessType } = useTokenStore();
+  const isVisualizacao = accessType === 'visualizacao';
 
   if (!item) return null;
 
@@ -40,13 +43,13 @@ export const ErrorDetailModal: React.FC<ErrorDetailModalProps> = ({ item, onClos
   const rawEsteira = getVal(item, 'esteira') || item.Esteira || '';
   const esteiraLabel = getTabuladorName(rawEsteira, esteiraMappings) || rawEsteira || '-';
 
-  const nomeAnalista = getVal(item, 'analista') || item.NomeAnalista || 'Analista';
-  const codAnalista = getVal(item, 'codAnalista') || item.CodigoAnalista || '-';
-  const supervisor = getVal(item, 'supervisor') || item.NomeSupervisor || '-';
-  const monitor = getVal(item, 'monitor') || item.NomeMonitor || '-';
+  const codAnalista = getAnalystCode(item);
+  const nomeAnalista = isVisualizacao ? codAnalista : (getVal(item, 'analista') || item.NomeAnalista || 'Analista');
+  const supervisor = isVisualizacao ? getSupervisorCode(item) : (getVal(item, 'supervisor') || item.NomeSupervisor || '-');
+  const monitor = isVisualizacao ? getMonitorCode(item) : (getVal(item, 'monitor') || item.NomeMonitor || '-');
   const tag = getVal(item, 'tag') || item.Tag || 'Sem Tag';
   const macroTag = getVal(item, 'macroTag') || item.MotivoMacro || '-';
-  const forma = getVal(item, 'forma') || item.FormaMonitoria || '-';
+  const forma = getVal(item, 'forma') || getVal(item, 'formaMonitoria') || item.FormaMonitoria || '-';
   const dataMonitoria = getVal(item, 'data') || item.DataMonitoria || '-';
   const dataFeedback = getVal(item, 'dataFeedback') || item.DataFeedback;
   const planoDeAcao = getVal(item, 'planoDeAcao') || item.Plano || item.plano;

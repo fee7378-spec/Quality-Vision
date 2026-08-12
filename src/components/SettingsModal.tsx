@@ -30,7 +30,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     }
   };
 
-  const isAdmin = (tokenRecord?.modoVisualizacao || tokenRecord?.modo) === 'admin';
+  const currentTipo = (tokenRecord?.tipo || 'visualizacao').toLowerCase();
+  const isAdmin = currentTipo === 'administracao';
 
   return (
     <>
@@ -48,7 +49,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   Configurações do Sistema
                 </h3>
                 <p className="text-[11px] text-gray-500">
-                  Gerenciamento de sessão, token ativo e permissões
+                  Gerenciamento de sessão, token ativo e permissões do Supabase
                 </p>
               </div>
             </div>
@@ -71,20 +72,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   <ShieldCheck size={16} className="text-[#001E62]" />
                   <span className="text-xs font-bold text-[#001E62] uppercase tracking-wider">Sessão Ativa</span>
                 </div>
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                  isAdmin 
-                    ? 'bg-purple-100 text-purple-800 border border-purple-200' 
-                    : 'bg-blue-100 text-[#001E62] border border-blue-200'
-                }`}>
-                  {isAdmin ? 'Modo Admin' : 'Modo Usuário'}
-                </span>
+                {currentTipo === 'administracao' && (
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-purple-100 text-purple-900 border border-purple-200">
+                    administracao
+                  </span>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-xs pt-1">
                 <div>
                   <span className="text-gray-500 text-[11px] block">Token em Uso:</span>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="font-mono font-black text-gray-900 text-sm">{tokenString || '-'}</span>
+                    <span className="font-mono font-black text-gray-900 text-sm max-w-[140px] truncate">{tokenString || '-'}</span>
                     {tokenString && (
                       <button
                         onClick={handleCopy}
@@ -117,33 +116,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   <span className="text-gray-500 text-[11px] block">Limite de Usuários:</span>
                   <span className="font-bold text-gray-800 text-xs flex items-center gap-1 mt-0.5">
                     <Users size={13} />
-                    Até {tokenRecord?.qtdUsuarios || 1}
+                    Até {tokenRecord?.qtdUsuarios || 1} ({tokenRecord?.qtdUsuariosLogados || 1} ativos)
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Admin Section: Generate Tokens Button */}
-            {isAdmin ? (
+            {/* Admin Section: Generate Tokens Button (Only visible for Administração) */}
+            {isAdmin && (
               <div className="p-4 rounded-xl border border-purple-200 bg-purple-50/50 space-y-3">
                 <div className="flex items-center gap-2 text-purple-900 font-bold text-xs">
                   <KeyRound size={16} />
                   <span>Painel de Administração de Tokens</span>
                 </div>
                 <p className="text-[11px] text-purple-800 leading-relaxed">
-                  Como o seu token possui o modo <strong>Admin</strong>, você tem permissão para gerar novos tokens, definir prazos em minutos, limites de usuários e renovações.
+                  Como o seu token possui o tipo de acesso <strong>Administração</strong>, você tem permissão para criar e gerenciar tokens de acesso com persistência oficial no Supabase.
                 </p>
                 <button
                   onClick={() => setIsGeneratorOpen(true)}
-                  className="w-full flex items-center justify-center gap-2 bg-purple-700 hover:bg-purple-800 text-white py-2.5 px-4 rounded-xl font-extrabold text-xs tracking-wider uppercase shadow-md shadow-purple-700/20 active:scale-98 transition-all cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 bg-purple-800 hover:bg-purple-900 text-white py-2.5 px-4 rounded-xl font-extrabold text-xs tracking-wider uppercase shadow-md shadow-purple-800/20 active:scale-98 transition-all cursor-pointer"
                 >
                   <PlusCircle size={16} />
-                  <span>Abrir Gerador de Tokens</span>
+                  <span>Abrir Gerenciamento de Tokens</span>
                 </button>
-              </div>
-            ) : (
-              <div className="p-3.5 rounded-xl border border-gray-200 bg-gray-50 text-[11px] text-gray-500 leading-relaxed">
-                A geração de novos tokens é restrita a usuários com token em modo <strong>Admin</strong>.
               </div>
             )}
 

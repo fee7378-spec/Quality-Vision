@@ -8,7 +8,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LabelList, Legend, PieChart, Pie, Cell 
 } from 'recharts';
-import { useStore, MonitoringItem, ProductivityItem, normalizeName, isValidAnalystName, matchesFilter, formatDateToBR, getTabuladorName } from '../store/useStore';
+import { useStore, MonitoringItem, ProductivityItem, normalizeName, isValidAnalystName, matchesFilter, matchesFormaFilter, formatDateToBR, getTabuladorName, getSupervisorCode, getAnalystCode } from '../store/useStore';
+import { useTokenStore } from '../store/useTokenStore';
 import { ErrorDetailModal } from '../components/ErrorDetailModal';
 
 export interface QuadranteInfo {
@@ -107,6 +108,7 @@ export interface MacroErrorDetail {
 }
 
 export interface AnalystSummary {
+  id: string;
   codigo: string;
   nome: string;
   supervisor: string;
@@ -243,6 +245,9 @@ export const getQuadranteForTag = (tagCount: number, distinctTagsCount: number):
 };
 
 export const AnalistasPage = () => {
+  const { accessType } = useTokenStore();
+  const isVisualizacao = accessType === 'visualizacao';
+
   const { 
     data, 
     productivityData,
@@ -275,6 +280,11 @@ export const AnalistasPage = () => {
     setRankingLimit(10);
   }, [startDate, endDate, selectedEsteira, selectedForma, analystSearchQuery]);
 
+  // Ensure scroll stays at top when activeTab or page changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [activeTab]);
+
   // Global Escape key handler to close popups
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -294,8 +304,7 @@ export const AnalistasPage = () => {
   const isErrorItem = (item: any) => {
     if (!item) return false;
     if (getVal(item, 'macroTag') !== undefined || getVal(item, 'tag') !== undefined) {
-      const forma = getVal(item, 'forma') || item.FormaMonitoria;
-      if (!matchesFilter(selectedForma, forma, 'TODAS')) return false;
+      if (!matchesFormaFilter(selectedForma, item)) return false;
       return true;
     }
     const errStr = String(item.Erro ?? '').trim().toLowerCase();
@@ -313,7 +322,7 @@ export const AnalistasPage = () => {
       errStr === 'nok';
 
     if (!isErr) return false;
-    if (!matchesFilter(selectedForma, item.FormaMonitoria, 'TODAS')) return false;
+    if (!matchesFormaFilter(selectedForma, item)) return false;
     return true;
   };
 
@@ -323,9 +332,10 @@ export const AnalistasPage = () => {
       if (startDate && item.DataMonitoria && item.DataMonitoria < startDate) return false;
       if (endDate && item.DataMonitoria && item.DataMonitoria > endDate) return false;
       if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
+      if (!matchesFormaFilter(selectedForma, item)) return false;
       return true;
     });
-  }, [data, startDate, endDate, selectedEsteira]);
+  }, [data, startDate, endDate, selectedEsteira, selectedForma]);
 
   // Filter raw productivity data by date and esteira
   const filteredProdData = useMemo(() => {
@@ -356,9 +366,10 @@ export const AnalistasPage = () => {
       if (endDate && d && d > endDate) return false;
       const est = getVal(m, 'esteira');
       if (!matchesFilter(selectedEsteira, est, 'TODAS')) return false;
+      if (!matchesFormaFilter(selectedForma, m)) return false;
       return true;
     });
-  }, [monitorias, startDate, endDate, selectedEsteira]);
+  }, [monitorias, startDate, endDate, selectedEsteira, selectedForma]);
 
   const filteredMonitoriaErros = useMemo(() => {
     return (monitoriaErros || []).filter(e => {
@@ -367,13 +378,14 @@ export const AnalistasPage = () => {
       if (endDate && d && d > endDate) return false;
       const est = getVal(e, 'esteira');
       if (!matchesFilter(selectedEsteira, est, 'TODAS')) return false;
+      if (!matchesFormaFilter(selectedForma, e)) return false;
       const macroTag = getVal(e, 'macroTag');
       if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
         return false;
       }
       return true;
     });
-  }, [monitoriaErros, startDate, endDate, selectedEsteira]);
+  }, [monitoriaErros, startDate, endDate, selectedEsteira, selectedForma]);
 
   // Group all filtered data by Analyst name
   const analystsList = useMemo(() => {
@@ -446,8 +458,14 @@ export const AnalistasPage = () => {
       const totalErros = effectiveErrRows.length;
 
       // Qualidade %
-      const qualidadePct = totalMonitorias > 0
-        ? Number((((totalMonitorias - totalErros) / totalMonitorias) * 100).toFixed(1))
+      const isDoubleCheck = Array.isArray(selectedForma) 
+        ? selectedForma.includes('Double Check') && selectedForma.length === 1 
+        : selectedForma === 'Double Check';
+      
+      const baseForQuality = isDoubleCheck ? totalProdutividade : totalMonitorias;
+      
+      const qualidadePct = baseForQuality > 0
+        ? Number((((baseForQuality - totalErros) / baseForQuality) * 100).toFixed(1))
         : 100;
 
       // Tag breakdown & Reincidências
@@ -496,8 +514,11 @@ export const AnalistasPage = () => {
         .sort((a, b) => b.count - a.count);
 
       // Supervisor, Código, Esteiras
-      const supervisor = getVal(errRows[0], 'supervisor') || getVal(monRows[0], 'supervisor') || (filteredRawData.find(i => normalizeName(i.NomeAnalista) === key)?.NomeSupervisor) || 'SUPERVISOR GERAL';
-      const codigo = getVal(errRows[0], 'codAnalista') || (filteredRawData.find(i => normalizeName(i.NomeAnalista) === key)?.CodigoAnalista) || 'MAT-000';
+      const sampleItem = errRows[0] || monRows[0] || volRows[0] || filteredRawData.find(i => normalizeName(i.NomeAnalista) === key) || nome;
+      const rawSupervisor = getVal(errRows[0], 'supervisor') || getVal(monRows[0], 'supervisor') || (filteredRawData.find(i => normalizeName(i.NomeAnalista) === key)?.NomeSupervisor) || 'SUPERVISOR GERAL';
+      const codigo = getAnalystCode(sampleItem);
+      const supervisor = isVisualizacao ? getSupervisorCode({ supervisor: rawSupervisor, NomeSupervisor: rawSupervisor }) : rawSupervisor;
+      const nomeDisplay = isVisualizacao ? codigo : nome;
 
       const estSet = new Set<string>();
       volRows.forEach(v => { const est = getVal(v, 'esteira'); if (est) estSet.add(String(est)); });
@@ -539,8 +560,9 @@ export const AnalistasPage = () => {
       const tmoMedio = totalProdutividade > 0 ? (totalProdutividade > 50 ? "12.5" : "15.0") : "0.0";
 
       return {
+        id: key,
         codigo,
-        nome,
+        nome: nomeDisplay,
         supervisor,
         esteiras,
         totalMonitorias,
@@ -712,7 +734,7 @@ export const AnalistasPage = () => {
         .filter(item => item.prodQuadrant === prodQuadrant)
         .sort((a, b) => b.analyst.totalProdutividade - a.analyst.totalProdutividade);
 
-      const subIndex = Math.max(0, quadrantGroup.findIndex(item => item.analyst.codigo === analyst.codigo && item.analyst.nome === analyst.nome));
+      const subIndex = Math.max(0, quadrantGroup.findIndex(item => item.analyst.id === analyst.id));
       const subCount = Math.max(1, quadrantGroup.length);
       const subFraction = subCount > 1 ? subIndex / (subCount - 1) : 0.5;
 
@@ -976,7 +998,7 @@ export const AnalistasPage = () => {
 
                   {/* Analyst Dots (Bolinhas - Totalmente fixas e sem vibração no hover) */}
                   {dispersalData.map((item) => {
-                    const isSelected = selectedDiagramAnalyst?.codigo === item.codigo && selectedDiagramAnalyst?.nome === item.nome;
+                    const isSelected = selectedDiagramAnalyst?.id === item.id;
                     const isSearched = analystSearchQuery.trim().length > 0 && (
                       item.nome.toLowerCase().includes(analystSearchQuery.toLowerCase()) || 
                       item.codigo.toLowerCase().includes(analystSearchQuery.toLowerCase())
@@ -984,7 +1006,7 @@ export const AnalistasPage = () => {
 
                     return (
                       <g 
-                        key={item.codigo + item.nome}
+                        key={item.id}
                         onClick={() => setSelectedDiagramAnalyst(item)}
                         onMouseEnter={(e) => setHoveredDiagramAnalyst({ analyst: item, mouseX: e.clientX, mouseY: e.clientY })}
                         onMouseMove={(e) => setHoveredDiagramAnalyst({ analyst: item, mouseX: e.clientX, mouseY: e.clientY })}
@@ -1199,7 +1221,7 @@ export const AnalistasPage = () => {
                 );
                 return (
                   <div
-                    key={analyst.codigo + analyst.nome}
+                    key={analyst.id}
                     className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row items-center justify-between gap-4 ${
                       isSearched
                         ? 'bg-blue-50/30 border-brand-blue ring-1 ring-brand-blue/50 shadow-lg'
@@ -1381,7 +1403,7 @@ export const AnalistasPage = () => {
           <>
             {filteredAnalysts.slice(0, displayLimit).map(analyst => (
               <div
-                key={analyst.codigo + analyst.nome}
+                key={analyst.id}
                 onClick={() => setSelectedAnalyst(analyst)}
                 className="w-full bg-white border border-gray-200 hover:border-brand-blue-dark/50 p-4 sm:p-5 rounded-2xl cursor-pointer transition-all duration-200 hover:shadow-xl flex flex-col xl:flex-row items-center justify-between gap-4 xl:gap-6 group"
               >
@@ -1630,7 +1652,7 @@ export const AnalistasPage = () => {
 
                     {selectedAnalyst.tagsDetalhadas.length > 0 ? (
                       <ResponsiveContainer width="100%" height={260}>
-                        <BarChart data={selectedAnalyst.tagsDetalhadas} margin={{ top: 20, right: 15, left: -15, bottom: 40 }}>
+                        <BarChart data={selectedAnalyst.tagsDetalhadas} margin={{ top: 20, right: 15, left: 10, bottom: 40 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                           <XAxis dataKey="tag" stroke="#6b7280" interval={0} tick={<CustomXAxisTick />} padding={{ left: 20, right: 20 }} />
                           <YAxis stroke="#6b7280" tick={{ fontSize: 10 }} allowDecimals={false} />
@@ -1705,7 +1727,7 @@ export const AnalistasPage = () => {
                       const itemEsteira = getTabuladorName(rawEsteiraVal, esteiraMappings) || rawEsteiraVal || 'Geral';
                       const itemTag = getVal(item, 'tag') || item.Tag || 'Sem Tag';
                       const itemMacro = getVal(item, 'macroTag') || item.MotivoMacro || 'Outros';
-                      const itemForma = getVal(item, 'forma') || item.FormaMonitoria || '-';
+                      const itemForma = getVal(item, 'forma') || getVal(item, 'formaMonitoria') || item.FormaMonitoria || '-';
 
                       return (
                         <div
@@ -1777,7 +1799,7 @@ export const AnalistasPage = () => {
 
               {popupAnalyst.tagsDetalhadas.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={popupAnalyst.tagsDetalhadas} margin={{ top: 20, right: 15, left: -15, bottom: 25 }}>
+                  <BarChart data={popupAnalyst.tagsDetalhadas} margin={{ top: 20, right: 15, left: 10, bottom: 25 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis dataKey="tag" stroke="#6b7280" tick={{ fontSize: 10 }} interval={0} padding={{ left: 15, right: 15 }} />
                     <YAxis stroke="#6b7280" tick={{ fontSize: 10 }} />

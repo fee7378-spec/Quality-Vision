@@ -1,0 +1,22 @@
+--- src/store/useStore.ts
++++ src/store/useStore.ts
+@@ -388,7 +388,14 @@
+ export const getAnalystCode = (item: any) => {
+   if (!item) return '-';
+-  const directCode = getVal(item, 'codAnalista') || getVal(item, 'codigoAnalista') || item?.CodigoAnalista || item?.codAnalista || item?.codigo || item?.cod_analista || item?.cd_analista || item?.matricula || item?.Matricula;
+-  if (directCode && String(directCode).trim() && String(directCode).trim() !== '-') return String(directCode).trim();
++  let directCode = getVal(item, 'codAnalista') || getVal(item, 'codigoAnalista') || item?.CodigoAnalista || item?.codAnalista || item?.codigo || item?.cod_analista || item?.cd_analista || item?.matricula || item?.Matricula;
++  let name = typeof item === 'string' ? item : (getVal(item, 'analista') || item?.NomeAnalista || item?.nome || '');
++
++  if (directCode && String(directCode).trim() && String(directCode).trim() !== '-') {
++    const dStr = String(directCode).trim();
++    if (/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(dStr) && dStr.includes(' ')) {
++      if (!name) name = dStr;
++      directCode = undefined;
++    } else {
++      return dStr;
++    }
++  }
+ 
+-  const name = typeof item === 'string' ? item : (getVal(item, 'analista') || item?.NomeAnalista || item?.nome || '');
+   if (!name || name === '-' || name.trim().toLowerCase() === 'não informado') return '-';

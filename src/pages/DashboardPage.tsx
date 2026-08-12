@@ -4,7 +4,8 @@ import {
   LineChart, Line, PieChart, Pie, Cell, Legend, LabelList 
 } from 'recharts';
 import { AlertCircle, CheckCircle2, Award, Briefcase, BarChart3, PieChart as PieIcon, Filter, Calendar, Eye, Target } from 'lucide-react';
-import { useStore, matchesFilter } from '../store/useStore';
+import { useStore, matchesFilter, matchesFormaFilter, getAnalystCode } from '../store/useStore';
+import { useTokenStore } from '../store/useTokenStore';
 import { AnalystModal } from '../components/AnalystModal';
 
 const MACRO_COLORS = ['#001E62', '#001E62', '#10b981', '#a855f7', '#06b6d4', '#f97316', '#ec4899', '#001E62'];
@@ -48,6 +49,9 @@ const getVal = (obj: any, key: string) => {
 };
 
 export const DashboardPage = () => {
+  const { accessType } = useTokenStore();
+  const isVisualizacao = accessType === 'visualizacao';
+
   const { 
     data, 
     monitorias,
@@ -81,7 +85,7 @@ export const DashboardPage = () => {
   const filteredData = useMemo(() => {
     return baseDateData.filter(item => {
       if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
-      if (!matchesFilter(selectedForma, item.FormaMonitoria, 'TODAS')) return false;
+      if (!matchesFormaFilter(selectedForma, item)) return false;
       if (!matchesFilter(selectedTag, item.Tag, 'TODAS')) return false;
       if (!matchesFilter(selectedMacro, item.MotivoMacro, 'TODOS')) return false;
       return true;
@@ -127,12 +131,13 @@ export const DashboardPage = () => {
           if (endDate && itemDate > endDate) return false;
           const itemEsteira = getVal(item, 'esteira');
           if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+          if (!matchesFormaFilter(selectedForma, item)) return false;
           return true;
         })
         .reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || Number(item.quantidade) || 0), 0);
     }
     return filteredData.reduce((sum, item) => sum + (Number(item.Quantidade) || 1), 0);
-  }, [monitorias, startDate, endDate, selectedEsteira, filteredData]);
+  }, [monitorias, startDate, endDate, selectedEsteira, selectedForma, filteredData]);
 
   // Total Erros: count of rows in table monitoriaErros where macroTag is not null, filtered by date and esteira
   const totalErros = useMemo(() => {
@@ -144,6 +149,7 @@ export const DashboardPage = () => {
         if (endDate && itemDate > endDate) return false;
         const itemEsteira = getVal(item, 'esteira');
         if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+        if (!matchesFormaFilter(selectedForma, item)) return false;
 
         const macroTag = getVal(item, 'macroTag');
         if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
@@ -154,13 +160,19 @@ export const DashboardPage = () => {
       }).length;
     }
     return filteredData.filter(d => isErrorItem(d)).length;
-  }, [monitoriaErros, startDate, endDate, selectedEsteira, filteredData]);
+  }, [monitoriaErros, startDate, endDate, selectedEsteira, selectedForma, filteredData]);
 
-  // Qualidade: (Total Monitorias - Total Erros) / Total Monitorias * 100
+  // Qualidade
   const qualidadeNum = useMemo(() => {
-    if (totalMonitorias <= 0) return 100;
-    return Number((((totalMonitorias - totalErros) / totalMonitorias) * 100).toFixed(1));
-  }, [totalMonitorias, totalErros]);
+    const isDoubleCheck = Array.isArray(selectedForma) 
+      ? selectedForma.includes('Double Check') && selectedForma.length === 1 
+      : selectedForma === 'Double Check';
+    
+    const base = isDoubleCheck ? totalProdutividade : totalMonitorias;
+
+    if (base <= 0) return 100;
+    return Number((((base - totalErros) / base) * 100).toFixed(1));
+  }, [totalMonitorias, totalErros, totalProdutividade, selectedForma]);
 
   const qualidade = qualidadeNum.toFixed(1).replace('.', ',') + '%';
 
@@ -184,6 +196,7 @@ export const DashboardPage = () => {
         if (endDate && itemDate > endDate) return false;
         const itemEsteira = getVal(item, 'esteira');
         if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+        if (!matchesFormaFilter(selectedForma, item)) return false;
 
         const macroTag = getVal(item, 'macroTag');
         if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
@@ -194,14 +207,18 @@ export const DashboardPage = () => {
       });
 
       filteredErros.forEach(item => {
-        const name = getVal(item, 'analista') || "ANALISTA";
+        const rawName = getVal(item, 'analista') || "ANALISTA";
+        const code = getAnalystCode(item);
+        const name = isVisualizacao ? code : rawName;
         const rawTag = getVal(item, 'tag');
         const tag = (rawTag && String(rawTag).trim()) ? String(rawTag).trim() : "Sem Tag";
         errorItems.push({ analista: name, tag });
       });
     } else {
       filteredData.filter(d => isErrorItem(d)).forEach(item => {
-        const name = item.NomeAnalista || "ANALISTA";
+        const rawName = item.NomeAnalista || "ANALISTA";
+        const code = getAnalystCode(item);
+        const name = isVisualizacao ? code : rawName;
         const tag = (item.Tag && item.Tag.trim()) ? item.Tag.trim() : "Sem Tag";
         errorItems.push({ analista: name, tag });
       });
@@ -240,7 +257,7 @@ export const DashboardPage = () => {
         return b.totalErros - a.totalErros;
       })
       .slice(0, 15);
-  }, [monitoriaErros, startDate, endDate, selectedEsteira, filteredData]);
+  }, [monitoriaErros, startDate, endDate, selectedEsteira, selectedForma, filteredData]);
 
   // Timeline chart: Filtered Data
   const timelineData = useMemo(() => {
@@ -252,6 +269,7 @@ export const DashboardPage = () => {
         if (endDate && itemDate > endDate) return false;
         const itemEsteira = getVal(item, 'esteira');
         if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+        if (!matchesFormaFilter(selectedForma, item)) return false;
 
         const macroTag = getVal(item, 'macroTag');
         if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
@@ -268,6 +286,7 @@ export const DashboardPage = () => {
         if (endDate && itemDate > endDate) return false;
         const itemEsteira = getVal(item, 'esteira');
         if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+        if (!matchesFormaFilter(selectedForma, item)) return false;
         return true;
       });
 
@@ -541,8 +560,8 @@ export const DashboardPage = () => {
               <span className="w-3 h-3 rounded-full bg-[#001E62] inline-block" />
               <span>Casos Tratados</span>
             </div>
-            <div className="flex items-center gap-1.5 text-emerald-600">
-              <span className="w-3 h-0.5 border-t-2 border-dashed border-emerald-500 inline-block" />
+            <div className="flex items-center gap-1.5 text-gray-600 font-bold">
+              <span className="w-3 h-0.5 border-t-2 border-dashed border-gray-600 inline-block" />
               <span>Meta de Produção</span>
             </div>
           </div>
@@ -550,9 +569,9 @@ export const DashboardPage = () => {
 
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={evolucaoDiaria} margin={{ top: 25, right: 25, left: -10, bottom: 5 }}>
+            <LineChart data={evolucaoDiaria} margin={{ top: 25, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="label" stroke="#6b7280" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="label" stroke="#6b7280" tick={{ fontSize: 11 }} padding={{ left: 35, right: 35 }} />
               <YAxis stroke="#6b7280" tick={{ fontSize: 11 }} />
               <Tooltip 
                 cursor={{ stroke: '#001E62', strokeDasharray: '3 3' }} 
@@ -563,8 +582,8 @@ export const DashboardPage = () => {
               <Line type="monotone" dataKey="volume" name="Casos Tratados" stroke="#001E62" strokeWidth={3} dot={{ fill: '#001E62', r: 5 }}>
                 <LabelList dataKey="volume" position="top" offset={10} fill="#001E62" fontSize={11} fontWeight="bold" />
               </Line>
-              <Line type="monotone" dataKey="meta" name="Meta de Produção" stroke="#10b981" strokeWidth={2} strokeDasharray="5 5" dot={{ fill: '#10b981', r: 3 }}>
-                <LabelList dataKey="meta" position="bottom" offset={8} fill="#10b981" fontSize={10} fontWeight="semibold" />
+              <Line type="monotone" dataKey="meta" name="Meta de Produção" stroke="#4b5563" strokeWidth={2.5} strokeDasharray="5 5" dot={{ fill: '#4b5563', r: 4 }}>
+                <LabelList dataKey="meta" position="bottom" offset={8} fill="#4b5563" fontSize={11} fontWeight="bold" />
               </Line>
             </LineChart>
           </ResponsiveContainer>
@@ -586,7 +605,7 @@ export const DashboardPage = () => {
             {rankingReincidentes.length > 0 ? (
               rankingReincidentes.map((item, idx) => (
                 <div 
-                  key={item.analista + idx} 
+                  key={`ranking-${idx}-${item.analista}`} 
                   className="bg-gray-50 border border-gray-200 hover:border-brand-blue/60 p-3 rounded-md flex items-center justify-between gap-3 transition-all hover:bg-white group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -641,9 +660,9 @@ export const DashboardPage = () => {
 
           <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={timelineData.list} margin={{ top: 25, right: 25, left: -10, bottom: 5 }}>
+              <LineChart data={timelineData.list} margin={{ top: 25, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="label" stroke="#6b7280" tick={{ fontSize: 11 }} padding={{ left: 30, right: 30 }} />
+                <XAxis dataKey="label" stroke="#6b7280" tick={{ fontSize: 11 }} padding={{ left: 35, right: 35 }} />
                 <YAxis stroke="#6b7280" tick={{ fontSize: 11 }} />
                 <Tooltip 
                   cursor={{ stroke: '#001E62', strokeDasharray: '3 3' }} 

@@ -1,13 +1,18 @@
 import React, { useMemo, useState } from 'react';
-import { useStore, matchesFilter, getTabuladorName } from '../store/useStore';
+import { useStore, matchesFilter, matchesFormaFilter, getTabuladorName, getAnalystCode, getSupervisorCode, getMonitorCode } from '../store/useStore';
+import { useTokenStore } from '../store/useTokenStore';
 import { History, Download, AlertTriangle, CheckCircle, Calendar, MessageSquareCheck, Eye, X } from 'lucide-react';
 import { ErrorDetailModal } from '../components/ErrorDetailModal';
 
 export const HistoryPage = () => {
+  const { accessType } = useTokenStore();
+  const isVisualizacao = accessType === 'visualizacao';
+
   const { 
     data, 
     monitorias,
     monitoriaErros,
+    volumetria,
     startDate, 
     endDate, 
     selectedEsteira, 
@@ -17,6 +22,7 @@ export const HistoryPage = () => {
   } = useStore();
 
   const [selectedModalItem, setSelectedModalItem] = useState<typeof data[0] | null>(null);
+  const [visibleCount, setVisibleCount] = useState(15);
 
   const getVal = (obj: any, key: string) => {
     if (!obj) return undefined;
@@ -49,7 +55,7 @@ export const HistoryPage = () => {
       if (startDate && item.DataMonitoria && item.DataMonitoria < startDate) return false;
       if (endDate && item.DataMonitoria && item.DataMonitoria > endDate) return false;
       if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
-      if (!matchesFilter(selectedForma, item.FormaMonitoria, 'TODAS')) return false;
+      if (!matchesFormaFilter(selectedForma, item)) return false;
       return true;
     });
   }, [data, startDate, endDate, selectedEsteira, selectedForma]);
@@ -64,12 +70,13 @@ export const HistoryPage = () => {
           if (endDate && itemDate > endDate) return false;
           const itemEsteira = getVal(item, 'esteira');
           if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+          if (!matchesFormaFilter(selectedForma, item)) return false;
           return true;
         })
         .reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || Number(item.quantidade) || 0), 0);
     }
     return baseFilteredData.length;
-  }, [monitorias, startDate, endDate, selectedEsteira, baseFilteredData]);
+  }, [monitorias, startDate, endDate, selectedEsteira, selectedForma, baseFilteredData]);
 
   const totalErrosGeral = useMemo(() => {
     if (monitoriaErros && monitoriaErros.length > 0) {
@@ -80,6 +87,7 @@ export const HistoryPage = () => {
         if (endDate && itemDate > endDate) return false;
         const itemEsteira = getVal(item, 'esteira');
         if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+        if (!matchesFormaFilter(selectedForma, item)) return false;
 
         const macroTag = getVal(item, 'macroTag');
         if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
@@ -105,10 +113,30 @@ export const HistoryPage = () => {
         errStr === 'nok'
       );
     }).length;
-  }, [monitoriaErros, startDate, endDate, selectedEsteira, baseFilteredData]);
+  }, [monitoriaErros, startDate, endDate, selectedEsteira, selectedForma, baseFilteredData]);
 
-  const qualidadeGeralNum = totalMonitoriasGeral > 0
-    ? Number((((totalMonitoriasGeral - totalErrosGeral) / totalMonitoriasGeral) * 100).toFixed(1))
+  const totalProdutividadeGeral = useMemo(() => {
+    if (!volumetria) return 0;
+    return volumetria
+      .filter(item => {
+        const itemDate = getVal(item, 'data') || getVal(item, 'DataProdutividade') || '';
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        if (!matchesFilter(selectedEsteira, getVal(item, 'esteira'), 'TODAS')) return false;
+        return true;
+      })
+      .reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || 0), 0);
+  }, [volumetria, startDate, endDate, selectedEsteira]);
+
+  const isDoubleCheck = Array.isArray(selectedForma) 
+    ? selectedForma.includes('Double Check') && selectedForma.length === 1 
+    : selectedForma === 'Double Check';
+  
+  const baseForQualityGeral = isDoubleCheck ? totalProdutividadeGeral : totalMonitoriasGeral;
+
+  const qualidadeGeralNum = baseForQualityGeral > 0
+    ? Number((((baseForQualityGeral - totalErrosGeral) / baseForQualityGeral) * 100).toFixed(1))
     : 100;
   const qualidadeGeralStr = qualidadeGeralNum.toFixed(1) + '%';
 
@@ -124,6 +152,7 @@ export const HistoryPage = () => {
 
           const itemEsteira = getVal(item, 'esteira');
           if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+          if (!matchesFormaFilter(selectedForma, item)) return false;
 
           const macroTag = getVal(item, 'macroTag');
           if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
@@ -148,7 +177,7 @@ export const HistoryPage = () => {
       if (startDate && item.DataMonitoria < startDate) return false;
       if (endDate && item.DataMonitoria > endDate) return false;
       if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
-      if (!matchesFilter(selectedForma, item.FormaMonitoria, 'TODAS')) return false;
+      if (!matchesFormaFilter(selectedForma, item)) return false;
 
       if (analystSearchQuery) {
         const q = analystSearchQuery.toLowerCase();
@@ -188,6 +217,7 @@ export const HistoryPage = () => {
 
         const itemEsteira = getVal(item, 'esteira');
         if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+        if (!matchesFormaFilter(selectedForma, item)) return false;
 
         const macroTag = getVal(item, 'macroTag');
         if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
@@ -203,7 +233,7 @@ export const HistoryPage = () => {
       const fb = String(i.DataFeedback ?? i.Plano ?? '').trim();
       return fb !== '' && fb !== '-' && fb !== 'null' && fb !== 'undefined';
     }).length;
-  }, [monitoriaErros, startDate, endDate, selectedEsteira, filteredErrosTable]);
+  }, [monitoriaErros, startDate, endDate, selectedEsteira, selectedForma, filteredErrosTable]);
 
   // Export to CSV
   const handleExportCSV = () => {
@@ -211,10 +241,10 @@ export const HistoryPage = () => {
     const headers = ['Data', 'Código', 'Analista', 'Supervisor', 'Monitor', 'Esteira', 'Tag', 'Motivo Macro', 'Forma', 'Plano de Ação', 'Data Feedback'];
     const rows = filteredErrosTable.map(i => {
       const itemDate = getVal(i, 'data') || i.DataMonitoria || '';
-      const itemCode = getVal(i, 'codAnalista') || i.CodigoAnalista || '';
-      const itemAnalista = getVal(i, 'analista') || i.NomeAnalista || '';
-      const itemSup = getVal(i, 'supervisor') || i.NomeSupervisor || '';
-      const itemMon = getVal(i, 'monitor') || i.NomeMonitor || '';
+      const itemCode = getAnalystCode(i);
+      const itemAnalista = isVisualizacao ? getAnalystCode(i) : (getVal(i, 'analista') || i.NomeAnalista || '');
+      const itemSup = isVisualizacao ? getSupervisorCode(i) : (getVal(i, 'supervisor') || i.NomeSupervisor || '');
+      const itemMon = isVisualizacao ? getMonitorCode(i) : (getVal(i, 'monitor') || i.NomeMonitor || '');
       const rawEst = getVal(i, 'esteira') || i.Esteira || '';
       const itemEst = getTabuladorName(rawEst, esteiraMappings) || rawEst;
       const itemTag = getVal(i, 'tag') || i.Tag || '';
@@ -337,12 +367,12 @@ export const HistoryPage = () => {
                   </td>
                 </tr>
               ) : (
-                filteredErrosTable.map((item, idx) => {
+                filteredErrosTable.slice(0, visibleCount).map((item, idx) => {
                   const itemDate = getVal(item, 'data') || item.DataMonitoria || '-';
-                  const itemAnalista = getVal(item, 'analista') || item.NomeAnalista || 'Analista';
-                  const itemCode = getVal(item, 'codAnalista') || item.CodigoAnalista || '-';
-                  const itemSup = getVal(item, 'supervisor') || item.NomeSupervisor || '-';
-                  const itemMon = getVal(item, 'monitor') || item.NomeMonitor || '-';
+                  const itemCode = getAnalystCode(item);
+                  const itemAnalista = isVisualizacao ? getAnalystCode(item) : (getVal(item, 'analista') || item.NomeAnalista || 'Analista');
+                  const itemSup = isVisualizacao ? getSupervisorCode(item) : (getVal(item, 'supervisor') || item.NomeSupervisor || '-');
+                  const itemMon = isVisualizacao ? getMonitorCode(item) : (getVal(item, 'monitor') || item.NomeMonitor || '-');
                   const rawEst = getVal(item, 'esteira') || item.Esteira || '';
                   const esteiraLabel = getTabuladorName(rawEst, esteiraMappings) || rawEst || '-';
                   const itemTag = getVal(item, 'tag') || item.Tag || 'Sem Tag';
@@ -369,7 +399,9 @@ export const HistoryPage = () => {
                       </td>
                       <td className="py-2 px-2.5 font-bold text-gray-900 whitespace-nowrap max-w-[150px] truncate" title={itemAnalista}>
                         {itemAnalista}
-                        <span className="block text-[9px] text-gray-400 font-mono font-normal truncate">{itemCode}</span>
+                        {!isVisualizacao && (
+                          <span className="block text-[9px] text-gray-400 font-mono font-normal truncate">{itemCode}</span>
+                        )}
                       </td>
                       <td className="py-2 px-2.5 text-gray-700 whitespace-nowrap max-w-[120px] truncate" title={itemSup}>{itemSup}</td>
                       <td className="py-2 px-2.5 text-gray-500 whitespace-nowrap max-w-[110px] truncate" title={itemMon}>{itemMon}</td>
@@ -398,6 +430,17 @@ export const HistoryPage = () => {
             </tbody>
           </table>
         </div>
+        
+        {filteredErrosTable.length > visibleCount && (
+          <div className="p-3 border-t border-gray-200 bg-gray-50/50 flex justify-center">
+            <button
+              onClick={() => setVisibleCount(prev => prev + 15)}
+              className="px-4 py-1.5 bg-white border border-[#001E62]/30 text-[#001E62] rounded-md text-xs font-bold shadow-xs hover:bg-[#001E62]/5 hover:border-[#001E62] transition-colors"
+            >
+              Exibir mais 15 erros
+            </button>
+          </div>
+        )}
       </div>
 
       {/* MODAL POP-UP: DETALHES COMPLETOS DO ERRO */}

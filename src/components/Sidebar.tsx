@@ -92,10 +92,10 @@ export const Sidebar = () => {
         </nav>
 
         {/* Settings Button at bottom */}
-        <div className="p-3 border-t border-gray-200">
+        <div className="h-16 px-3 border-t border-gray-200 flex items-center">
           <button
             onClick={() => setIsSettingsOpen(true)}
-            className="w-full flex items-center gap-3.5 px-3 py-2.5 rounded-md transition-all hover:bg-white text-gray-500 hover:text-gray-900 cursor-pointer"
+            className="w-full flex items-center gap-3.5 px-3 py-2 rounded-md transition-all hover:bg-white text-gray-500 hover:text-gray-900 cursor-pointer"
             title="Configurações e Token"
           >
             <Settings size={19} className="flex-shrink-0 text-brand-blue" />

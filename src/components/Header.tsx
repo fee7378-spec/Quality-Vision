@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { RefreshCw, Search, X, ShieldCheck, Clock, KeyRound } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-import { useStore, matchesFilter } from '../store/useStore';
+import { useStore, matchesFilter, matchesFormaFilter, getFormaFromItem, getVal } from '../store/useStore';
 import { MultiSelectDropdown } from './MultiSelectDropdown';
 import { useTokenStore } from '../store/useTokenStore';
 import { SettingsModal } from './SettingsModal';
@@ -13,6 +13,8 @@ export const Header = () => {
 
   const { 
     data, 
+    monitorias,
+    monitoriaErros,
     productivityData,
     volumetriaTipoDeDemanda,
     volumetria,
@@ -92,28 +94,68 @@ export const Header = () => {
   // Interdependent (Cascading) dropdown filters
   const availableFormas = useMemo(() => {
     let items = data.filter(i => matchesFilter(selectedEsteira, i.Esteira, 'TODAS'));
-    const setF = new Set<string>(items.map(i => i.FormaMonitoria).filter(Boolean));
-    return ['TODAS', ...Array.from(setF).sort()];
-  }, [data, selectedEsteira]);
+    const setF = new Set<string>();
+    items.forEach(i => {
+      const forma = getFormaFromItem(i);
+      if (forma && forma.trim()) setF.add(forma.trim());
+    });
+    if (monitoriaErros && monitoriaErros.length > 0) {
+      monitoriaErros.forEach(e => {
+        if (matchesFilter(selectedEsteira, getVal(e, 'esteira'), 'TODAS')) {
+          const forma = getFormaFromItem(e);
+          if (forma && forma.trim()) setF.add(forma.trim());
+        }
+      });
+    }
+    if (monitorias && monitorias.length > 0) {
+      monitorias.forEach(m => {
+        if (matchesFilter(selectedEsteira, getVal(m, 'esteira'), 'TODAS')) {
+          const forma = getFormaFromItem(m);
+          if (forma && forma.trim()) setF.add(forma.trim());
+        }
+      });
+    }
+    return ['TODAS', ...Array.from(setF).filter(Boolean).sort()];
+  }, [data, monitorias, monitoriaErros, selectedEsteira]);
 
   const availableMacros = useMemo(() => {
     let items = data.filter(i => 
       matchesFilter(selectedEsteira, i.Esteira, 'TODAS') && 
-      matchesFilter(selectedForma, i.FormaMonitoria, 'TODAS')
+      matchesFormaFilter(selectedForma, i)
     );
     const setM = new Set<string>(items.map(i => i.MotivoMacro).filter(Boolean));
+    if (monitoriaErros && monitoriaErros.length > 0) {
+      monitoriaErros.forEach(e => {
+        if (matchesFilter(selectedEsteira, getVal(e, 'esteira'), 'TODAS') && matchesFormaFilter(selectedForma, e)) {
+          const macro = getVal(e, 'macroTag');
+          if (macro && String(macro).trim() && String(macro).toLowerCase() !== 'null') setM.add(String(macro).trim());
+        }
+      });
+    }
     return ['TODOS', ...Array.from(setM).sort()];
-  }, [data, selectedEsteira, selectedForma]);
+  }, [data, monitoriaErros, selectedEsteira, selectedForma]);
 
   const availableTags = useMemo(() => {
     let items = data.filter(i => 
       matchesFilter(selectedEsteira, i.Esteira, 'TODAS') && 
-      matchesFilter(selectedForma, i.FormaMonitoria, 'TODAS') &&
+      matchesFormaFilter(selectedForma, i) &&
       matchesFilter(selectedMacro, i.MotivoMacro, 'TODOS')
     );
     const setT = new Set<string>(items.map(i => i.Tag).filter(Boolean));
+    if (monitoriaErros && monitoriaErros.length > 0) {
+      monitoriaErros.forEach(e => {
+        if (
+          matchesFilter(selectedEsteira, getVal(e, 'esteira'), 'TODAS') && 
+          matchesFormaFilter(selectedForma, e) &&
+          matchesFilter(selectedMacro, getVal(e, 'macroTag'), 'TODOS')
+        ) {
+          const tag = getVal(e, 'tag');
+          if (tag && String(tag).trim()) setT.add(String(tag).trim());
+        }
+      });
+    }
     return ['TODAS', ...Array.from(setT).sort()];
-  }, [data, selectedEsteira, selectedForma, selectedMacro]);
+  }, [data, monitoriaErros, selectedEsteira, selectedForma, selectedMacro]);
 
   const path = location.pathname;
   const showFilters = path !== '/import';
@@ -137,32 +179,17 @@ export const Header = () => {
 
         <div className="flex flex-wrap items-center gap-3">
           
-          {/* Active Token Status Pill */}
+          {/* Active Token Status Pill - Timer Only */}
           {isLoggedIn && tokenString && (
             <button
               onClick={() => setIsSettingsOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50/70 hover:bg-blue-100/80 text-xs transition-all cursor-pointer shadow-2xs group"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50/70 hover:bg-blue-100/80 text-xs font-bold text-[#001E62] transition-all cursor-pointer shadow-2xs group"
               title="Clique para abrir as configurações e detalhes do token"
             >
-              <div className="p-1 rounded-md bg-white border border-blue-200 text-[#001E62] group-hover:scale-105 transition-transform">
-                <KeyRound size={13} />
-              </div>
-              <div className="flex flex-col items-start text-left">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-mono font-black text-[#001E62] text-xs tracking-wide">
-                    {tokenString}
-                  </span>
-                  <span className={`px-1.5 py-0.2 rounded text-[9px] font-extrabold uppercase ${
-                    isAdmin ? 'bg-purple-200 text-purple-900' : 'bg-blue-200 text-blue-900'
-                  }`}>
-                    {isAdmin ? 'Admin' : 'Usuário'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 text-[10px] text-gray-500 font-semibold">
-                  <Clock size={11} className="text-amber-600" />
-                  <span>Sessão: {formatMinSec(remainingSeconds)}</span>
-                </div>
-              </div>
+              <Clock size={14} className="text-amber-600 group-hover:scale-110 transition-transform" />
+              <span className="font-mono font-black tracking-wide">
+                {formatMinSec(remainingSeconds)}
+              </span>
             </button>
           )}
 

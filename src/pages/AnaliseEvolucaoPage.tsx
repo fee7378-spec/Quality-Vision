@@ -4,7 +4,7 @@ import {
   AreaChart, Area, LabelList, Legend, BarChart, Bar, PieChart, Pie, Cell
 } from 'recharts';
 import { TrendingUp, Grid, PieChart as PieIcon, AlertTriangle } from 'lucide-react';
-import { useStore, matchesFilter } from '../store/useStore';
+import { useStore, matchesFilter, matchesFormaFilter, getAnalystCode } from '../store/useStore';
 import { AnalystModal } from '../components/AnalystModal';
 
 const MACRO_COLORS = ['#001E62', '#10b981', '#a855f7', '#06b6d4', '#f97316', '#ec4899', '#3b82f6', '#eab308'];
@@ -45,6 +45,7 @@ export const AnaliseEvolucaoPage = () => {
     data, 
     monitorias,
     monitoriaErros,
+    volumetria,
     startDate, 
     endDate, 
     selectedTag, 
@@ -70,9 +71,10 @@ export const AnaliseEvolucaoPage = () => {
       if (!matchesFilter(selectedTag, item.Tag, 'TODAS')) return false;
       if (!matchesFilter(selectedMacro, item.MotivoMacro, 'TODOS')) return false;
       if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
+      if (!matchesFormaFilter(selectedForma, item)) return false;
       return true;
     });
-  }, [data, startDate, endDate, selectedTag, selectedMacro, selectedEsteira]);
+  }, [data, startDate, endDate, selectedTag, selectedMacro, selectedEsteira, selectedForma]);
 
   // Helper to check if item is an error considering selectedForma filter
   const isErrorItem = (item: typeof data[0]) => {
@@ -98,6 +100,10 @@ export const AnaliseEvolucaoPage = () => {
   // 1. Índice de Evolução e Tendência (Mês / Semana / Dias)
   const tendenciaData = useMemo(() => {
     if (monitoriaErros && monitoriaErros.length > 0 && monitorias && monitorias.length > 0) {
+      const isDoubleCheck = Array.isArray(selectedForma) 
+        ? selectedForma.includes('Double Check') && selectedForma.length === 1 
+        : selectedForma === 'Double Check';
+
       const filteredErros = monitoriaErros.filter(item => {
         const itemDate = getVal(item, 'data');
         if (!itemDate || typeof itemDate !== 'string') return false;
@@ -105,6 +111,7 @@ export const AnaliseEvolucaoPage = () => {
         if (endDate && itemDate > endDate) return false;
         const itemEsteira = getVal(item, 'esteira');
         if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+        if (!matchesFormaFilter(selectedForma, item)) return false;
 
         const macroTag = getVal(item, 'macroTag');
         if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
@@ -121,12 +128,24 @@ export const AnaliseEvolucaoPage = () => {
         if (endDate && itemDate > endDate) return false;
         const itemEsteira = getVal(item, 'esteira');
         if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+        if (!matchesFormaFilter(selectedForma, item)) return false;
         return true;
       });
+      
+      const filteredVolumetria = volumetria.filter(item => {
+        const itemDate = getVal(item, 'data') || getVal(item, 'DataProdutividade') || '';
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        if (!matchesFilter(selectedEsteira, getVal(item, 'esteira'), 'TODAS')) return false;
+        return true;
+      });
+      
+      const baseDataForTotals = isDoubleCheck ? filteredVolumetria : filteredMonitorias;
 
       const allDates = [
         ...filteredErros.map(i => getVal(i, 'data')),
-        ...filteredMonitorias.map(i => getVal(i, 'data'))
+        ...baseDataForTotals.map(i => getVal(i, 'data') || getVal(i, 'DataProdutividade'))
       ].filter(Boolean).sort();
 
       let spanDays = 0;
@@ -140,8 +159,8 @@ export const AnaliseEvolucaoPage = () => {
         // Group by Days
         const dayMap: Record<string, { label: string; total: number; erros: number }> = {};
         
-        filteredMonitorias.forEach(item => {
-          const dStr = getVal(item, 'data');
+        baseDataForTotals.forEach(item => {
+          const dStr = getVal(item, 'data') || getVal(item, 'DataProdutividade');
           if (!dStr) return;
           const parts = dStr.split('-');
           const label = parts.length === 3 ? `${parts[2]}/${parts[1]}` : dStr;
@@ -178,8 +197,8 @@ export const AnaliseEvolucaoPage = () => {
           return weekKey;
         };
 
-        filteredMonitorias.forEach(item => {
-          const dStr = getVal(item, 'data');
+        baseDataForTotals.forEach(item => {
+          const dStr = getVal(item, 'data') || getVal(item, 'DataProdutividade');
           if (!dStr) return;
           const weekKey = getWeekKeyAndLabel(dStr);
           if (!weekMap[weekKey]) weekMap[weekKey] = { label: weekKey, total: 0, erros: 0 };
@@ -211,8 +230,8 @@ export const AnaliseEvolucaoPage = () => {
           return { key: monthStr, label };
         };
 
-        filteredMonitorias.forEach(item => {
-          const dStr = getVal(item, 'data');
+        baseDataForTotals.forEach(item => {
+          const dStr = getVal(item, 'data') || getVal(item, 'DataProdutividade');
           if (!dStr) return;
           const { key, label } = getMonthKeyAndLabel(dStr);
           if (!monthMap[key]) monthMap[key] = { label, total: 0, erros: 0 };
@@ -236,6 +255,11 @@ export const AnaliseEvolucaoPage = () => {
       }
     }
 
+    // fallback when no monitoriaErros
+    const isDoubleCheck = Array.isArray(selectedForma) 
+      ? selectedForma.includes('Double Check') && selectedForma.length === 1 
+      : selectedForma === 'Double Check';
+      
     if (filteredData.length === 0) return [];
 
     const dates = filteredData.map(d => d.DataMonitoria).filter(Boolean).sort();
@@ -318,7 +342,7 @@ export const AnaliseEvolucaoPage = () => {
           return { label: vals.label, qualidade, erros: vals.erros, total: vals.total };
         });
     }
-  }, [monitoriaErros, monitorias, startDate, endDate, selectedEsteira, filteredData, selectedForma]);
+  }, [monitoriaErros, monitorias, volumetria, startDate, endDate, selectedEsteira, filteredData, selectedForma]);
 
   // 2. Heatmap de Reincidência de Erros
   const heatmapData = useMemo(() => {
@@ -332,6 +356,7 @@ export const AnaliseEvolucaoPage = () => {
         if (endDate && itemDate > endDate) return false;
         const itemEsteira = getVal(item, 'esteira');
         if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+        if (!matchesFormaFilter(selectedForma, item)) return false;
 
         const macroTag = getVal(item, 'macroTag');
         if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
@@ -341,11 +366,12 @@ export const AnaliseEvolucaoPage = () => {
         return true;
       });
 
-      const catField = isEsteiraMode ? 'esteira' : 'analista';
-
       const categories = Array.from(new Set(filteredErros.map(d => {
-        const val = getVal(d, catField);
-        return (val && String(val).trim()) ? String(val).trim() : 'Outros';
+        if (isEsteiraMode) {
+          const val = getVal(d, 'esteira');
+          return (val && String(val).trim()) ? String(val).trim() : 'Outros';
+        }
+        return getAnalystCode(d);
       }))).sort((a, b) => a.localeCompare(b));
 
       const columns = Array.from(new Set(filteredErros.map(d => {
@@ -363,7 +389,7 @@ export const AnaliseEvolucaoPage = () => {
       });
 
       filteredErros.forEach(item => {
-        const rawCat = getVal(item, catField);
+        const rawCat = isEsteiraMode ? getVal(item, 'esteira') : getAnalystCode(item);
         const catKey = (rawCat && String(rawCat).trim()) ? String(rawCat).trim() : 'Outros';
         const dStr = getVal(item, 'data');
         const colKey = dStr ? String(dStr).slice(0, 7) : '2026-01';
@@ -378,7 +404,7 @@ export const AnaliseEvolucaoPage = () => {
 
     const categories = isEsteiraMode
       ? (Array.from(new Set(filteredData.map(d => d.Esteira))).filter(Boolean) as string[]).sort((a, b) => a.localeCompare(b))
-      : (Array.from(new Set(filteredData.map(d => d.NomeAnalista))).filter(Boolean) as string[]).sort((a, b) => a.localeCompare(b));
+      : (Array.from(new Set(filteredData.map(d => getAnalystCode(d)))).filter(Boolean) as string[]).sort((a, b) => a.localeCompare(b));
 
     const columns = Array.from(new Set(filteredData.map(d => d.DataMonitoria ? d.DataMonitoria.slice(0, 7) : '2026-07'))).sort() as string[];
 
@@ -392,7 +418,7 @@ export const AnaliseEvolucaoPage = () => {
     });
 
     filteredData.filter(d => isErrorItem(d)).forEach(item => {
-      const catKey = isEsteiraMode ? item.Esteira : item.NomeAnalista;
+      const catKey = isEsteiraMode ? item.Esteira : getAnalystCode(item);
       const colKey = item.DataMonitoria ? item.DataMonitoria.slice(0, 7) : '2026-07';
 
       if (matrix[catKey] && matrix[catKey][colKey] !== undefined) {
@@ -420,6 +446,7 @@ export const AnaliseEvolucaoPage = () => {
         if (endDate && itemDate > endDate) return false;
         const itemEsteira = getVal(item, 'esteira');
         if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+        if (!matchesFormaFilter(selectedForma, item)) return false;
 
         const macroTag = getVal(item, 'macroTag');
         if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
@@ -450,7 +477,7 @@ export const AnaliseEvolucaoPage = () => {
     return Object.entries(map)
       .map(([tag, count]) => ({ tag, count }))
       .sort((a, b) => b.count - a.count);
-  }, [monitoriaErros, startDate, endDate, selectedEsteira, filteredData]);
+  }, [monitoriaErros, startDate, endDate, selectedEsteira, selectedForma, filteredData]);
 
   // Erros por Motivo Macro (Enhanced & Intuitive)
   const errorsByMacroData = useMemo(() => {
@@ -462,6 +489,7 @@ export const AnaliseEvolucaoPage = () => {
         if (endDate && itemDate > endDate) return false;
         const itemEsteira = getVal(item, 'esteira');
         if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+        if (!matchesFormaFilter(selectedForma, item)) return false;
 
         const macroTag = getVal(item, 'macroTag');
         if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
