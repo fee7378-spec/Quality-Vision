@@ -8,7 +8,6 @@ const menuItems = [
   { path: '/', label: 'Visão Geral', icon: LayoutDashboard },
   { path: '/operacao', label: 'Operação', icon: Layers },
   { path: '/capacidade', label: 'Capacidade', icon: TrendingUp },
-  { path: '/metricas', label: 'Métricas', icon: Sliders },
   { path: '/analise', label: 'Qualidade', icon: LineChart },
   { path: '/analistas', label: 'Analistas', icon: Users },
   { path: '/history', label: 'Histórico', icon: History },

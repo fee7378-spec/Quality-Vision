@@ -26,7 +26,8 @@ export const fetchAllSupabaseData = async () => {
     volumetria,
     volumetriaTipoDeDemanda,
     volumetriaMediaTmo,
-    volumetriaStatus
+    volumetriaStatus,
+    capacity
   ] = await Promise.all([
     fetchAllRows('volumetriaAnalistas'),
     fetchAllRows('monitorias'),
@@ -37,7 +38,8 @@ export const fetchAllSupabaseData = async () => {
     fetchAllRows('volumetria'),
     fetchAllRows('volumetriaTipoDeDemanda'),
     fetchAllRows('volumetriaMediaTmo'),
-    fetchAllRows('volumetriaStatus')
+    fetchAllRows('volumetriaStatus'),
+    fetchAllRows('capacity')
   ]);
 
   const mapData = (arr: any[]) => arr ? arr.map(item => {
@@ -58,6 +60,7 @@ export const fetchAllSupabaseData = async () => {
     volumetria: mapData(volumetria || []),
     volumetriaTipoDeDemanda: mapData(volumetriaTipoDeDemanda || []),
     volumetriaMediaTmo: mapData(volumetriaMediaTmo || []),
-    volumetriaStatus: mapData(volumetriaStatus || [])
+    volumetriaStatus: mapData(volumetriaStatus || []),
+    capacity: mapData(capacity || [])
   };
 };

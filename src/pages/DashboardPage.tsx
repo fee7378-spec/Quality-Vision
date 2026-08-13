@@ -4,7 +4,7 @@ import {
   LineChart, Line, PieChart, Pie, Cell, Legend, LabelList 
 } from 'recharts';
 import { AlertCircle, CheckCircle2, Award, Briefcase, BarChart3, PieChart as PieIcon, Filter, Calendar, Eye, Target } from 'lucide-react';
-import { useStore, matchesFilter, matchesFormaFilter, getAnalystCode } from '../store/useStore';
+import { useStore, matchesFilter, matchesFormaFilter, getAnalystCode, getVal } from '../store/useStore';
 import { useTokenStore } from '../store/useTokenStore';
 import { AnalystModal } from '../components/AnalystModal';
 
@@ -41,12 +41,6 @@ const CustomXAxisTick = (props: any) => {
   );
 };
 
-
-const getVal = (obj: any, key: string) => {
-  if (!obj) return undefined;
-  const found = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
-  return found ? obj[found] : undefined;
-};
 
 export const DashboardPage = () => {
   const { accessType } = useTokenStore();
@@ -92,22 +86,8 @@ export const DashboardPage = () => {
     });
   }, [baseDateData, selectedEsteira, selectedForma, selectedTag, selectedMacro]);
 
-// Total Produtividade calculation
-  const totalProdutividade = useMemo(() => {
-    return volumetria
-      .filter(item => {
-        const itemDate = getVal(item, 'data');
-        if (!itemDate || typeof itemDate !== 'string') return false;
-        if (startDate && itemDate < startDate) return false;
-        if (endDate && itemDate > endDate) return false;
-        if (!matchesFilter(selectedEsteira, getVal(item, 'esteira'), 'TODAS')) return false;
-        return true;
-      })
-      .reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || 0), 0);
-  }, [volumetria, startDate, endDate, selectedEsteira]);
-
   // Helper to test if item is an error
-  const isErrorItem = (item: typeof data[0]) => {
+  const isErrorItem = (item: any) => {
     const errStr = (item.Erro || "").toString().trim().toLowerCase();
     return (
       errStr === "0" || 
@@ -119,11 +99,11 @@ export const DashboardPage = () => {
     );
   };
 
-  // Executive KPIs (Affected by date and esteira/active filters)
-  // Total Monitorias: sum of quantidade in table monitorias filtered by date and esteira
-  const totalMonitorias = useMemo(() => {
+  // Consolidate KPI calculations to reduce iterations
+  const kpis = useMemo(() => {
+    let monTotal = 0;
     if (monitorias && monitorias.length > 0) {
-      return monitorias
+      monTotal = monitorias
         .filter(item => {
           const itemDate = getVal(item, 'data');
           if (!itemDate || typeof itemDate !== 'string') return false;
@@ -135,14 +115,13 @@ export const DashboardPage = () => {
           return true;
         })
         .reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || Number(item.quantidade) || 0), 0);
+    } else {
+      monTotal = filteredData.reduce((sum, item) => sum + (Number(item.Quantidade) || 1), 0);
     }
-    return filteredData.reduce((sum, item) => sum + (Number(item.Quantidade) || 1), 0);
-  }, [monitorias, startDate, endDate, selectedEsteira, selectedForma, filteredData]);
 
-  // Total Erros: count of rows in table monitoriaErros where macroTag is not null, filtered by date and esteira
-  const totalErros = useMemo(() => {
+    let errTotal = 0;
     if (monitoriaErros && monitoriaErros.length > 0) {
-      return monitoriaErros.filter(item => {
+      errTotal = monitoriaErros.filter(item => {
         const itemDate = getVal(item, 'data');
         if (!itemDate || typeof itemDate !== 'string') return false;
         if (startDate && itemDate < startDate) return false;
@@ -155,26 +134,40 @@ export const DashboardPage = () => {
         if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
           return false;
         }
-
         return true;
       }).length;
+    } else {
+      errTotal = filteredData.filter(d => isErrorItem(d)).length;
     }
-    return filteredData.filter(d => isErrorItem(d)).length;
-  }, [monitoriaErros, startDate, endDate, selectedEsteira, selectedForma, filteredData]);
 
-  // Qualidade
-  const qualidadeNum = useMemo(() => {
+    const prodTotal = volumetria
+      .filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        if (!matchesFilter(selectedEsteira, getVal(item, 'esteira'), 'TODAS')) return false;
+        return true;
+      })
+      .reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || 0), 0);
+
     const isDoubleCheck = Array.isArray(selectedForma) 
       ? selectedForma.includes('Double Check') && selectedForma.length === 1 
       : selectedForma === 'Double Check';
     
-    const base = isDoubleCheck ? totalProdutividade : totalMonitorias;
+    const qualityBase = isDoubleCheck ? prodTotal : monTotal;
+    const qualityPct = qualityBase > 0 ? Number((((qualityBase - errTotal) / qualityBase) * 100).toFixed(1)) : 100;
 
-    if (base <= 0) return 100;
-    return Number((((base - totalErros) / base) * 100).toFixed(1));
-  }, [totalMonitorias, totalErros, totalProdutividade, selectedForma]);
+    return {
+      totalMonitorias: monTotal,
+      totalErros: errTotal,
+      totalProdutividade: prodTotal,
+      qualidadePct: qualityPct,
+      qualidadeStr: qualityPct.toFixed(1).replace('.', ',') + '%'
+    };
+  }, [monitorias, monitoriaErros, volumetria, startDate, endDate, selectedEsteira, selectedForma, filteredData]);
 
-  const qualidade = qualidadeNum.toFixed(1).replace('.', ',') + '%';
+  const { totalMonitorias, totalErros, totalProdutividade, qualidadePct, qualidadeStr: qualidade } = kpis;
 
   const getQualityColor = (pct: number) => {
     if (pct >= 97) return 'text-emerald-600';
@@ -512,11 +505,11 @@ export const DashboardPage = () => {
           <div className="flex items-center justify-between">
             <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">QUALIDADE</p>
             <div className="p-1.5 rounded-lg bg-gray-50 border border-gray-100">
-              <CheckCircle2 size={18} className={getQualityColor(qualidadeNum)} />
+              <CheckCircle2 size={18} className={getQualityColor(qualidadePct)} />
             </div>
           </div>
           <div>
-            <h3 className={`text-3xl font-black tracking-tight ${getQualityColor(qualidadeNum)}`}>{qualidade}</h3>
+            <h3 className={`text-3xl font-black tracking-tight ${getQualityColor(qualidadePct)}`}>{qualidade}</h3>
           </div>
           <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
             <span className="text-gray-500 font-medium text-[11px]">Qualidade operacional</span>

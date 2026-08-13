@@ -56,7 +56,6 @@ export default function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/operacao" element={<OperacaoPage />} />
           <Route path="/capacidade" element={<CapacidadePage />} />
-          <Route path="/metricas" element={<MetricasPage />} />
           <Route path="/analise" element={<AnaliseEvolucaoPage />} />
           <Route path="/analistas" element={<AnalistasPage />} />
           <Route path="/history" element={<HistoryPage />} />

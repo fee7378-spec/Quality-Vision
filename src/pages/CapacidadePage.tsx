@@ -421,6 +421,7 @@ export const CapacidadePage: React.FC = () => {
                     contentStyle={{ backgroundColor: '#ffffff', borderColor: '#001E62', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', color: '#001E62', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }} 
                     itemStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
                     labelStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
+                    formatter={(value: number) => value.toLocaleString('pt-BR')}
                   />
                   <Bar dataKey="volumeRealizado" name="Volume Realizado" fill="#001E62" radius={[4, 4, 0, 0]}>
                     <LabelList dataKey="volumeRealizado" position="insideTop" offset={6} fill="#ffffff" fontSize={10} fontWeight="bold" />

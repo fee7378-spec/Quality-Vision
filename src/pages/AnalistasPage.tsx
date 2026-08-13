@@ -126,6 +126,7 @@ export interface AnalystSummary {
   maxQuadrante: QuadranteInfo;
   mediaDiasEntreErros: number;
   tmoMedio: number | string;
+  metaDiaria: number;
   items: MonitoringItem[];
   prodItems: ProductivityItem[];
 }
@@ -254,6 +255,7 @@ export const AnalistasPage = () => {
     volumetriaAnalistas,
     monitorias,
     monitoriaErros,
+    capacity,
     startDate, 
     endDate, 
     selectedEsteira, 
@@ -391,6 +393,7 @@ export const AnalistasPage = () => {
   const analystsList = useMemo(() => {
     const analystNamesMap: Record<string, string> = {};
 
+    // First pass: collect all analyst names
     filteredVolumetria.forEach(v => {
       const raw = getVal(v, 'analista');
       if (raw && isValidAnalystName(raw)) {
@@ -433,26 +436,69 @@ export const AnalistasPage = () => {
       });
     }
 
+    // Optimization: Group all data by key in one pass before mapping
+    const volByAnalyst = new Map<string, any[]>();
+    const monByAnalyst = new Map<string, any[]>();
+    const errByAnalyst = new Map<string, any[]>();
+    const rawByAnalyst = new Map<string, any[]>();
+    const prodByAnalyst = new Map<string, any[]>();
+
+    filteredVolumetria.forEach(v => {
+      const k = normalizeName(getVal(v, 'analista'));
+      if (k) {
+        if (!volByAnalyst.has(k)) volByAnalyst.set(k, []);
+        volByAnalyst.get(k)!.push(v);
+      }
+    });
+    filteredMonitorias.forEach(m => {
+      const k = normalizeName(getVal(m, 'analista'));
+      if (k) {
+        if (!monByAnalyst.has(k)) monByAnalyst.set(k, []);
+        monByAnalyst.get(k)!.push(m);
+      }
+    });
+    filteredMonitoriaErros.forEach(e => {
+      const k = normalizeName(getVal(e, 'analista'));
+      if (k) {
+        if (!errByAnalyst.has(k)) errByAnalyst.set(k, []);
+        errByAnalyst.get(k)!.push(e);
+      }
+    });
+    filteredRawData.forEach(i => {
+      const k = normalizeName(i.NomeAnalista);
+      if (k) {
+        if (!rawByAnalyst.has(k)) rawByAnalyst.set(k, []);
+        rawByAnalyst.get(k)!.push(i);
+      }
+    });
+    filteredProdData.forEach(p => {
+      const k = normalizeName(p.NomeAnalista);
+      if (k) {
+        if (!prodByAnalyst.has(k)) prodByAnalyst.set(k, []);
+        prodByAnalyst.get(k)!.push(p);
+      }
+    });
+
     const allAnalystKeys = Object.keys(analystNamesMap).sort((a, b) => analystNamesMap[a].localeCompare(analystNamesMap[b]));
 
     return allAnalystKeys.map((key): AnalystSummary => {
       const nome = analystNamesMap[key];
 
-      // Volumetria rows for this analyst
-      const volRows = filteredVolumetria.filter(v => normalizeName(getVal(v, 'analista')) === key);
+      // Volumetria rows for this analyst (from optimized map)
+      const volRows = volByAnalyst.get(key) || [];
       const totalProdutividade = volRows.length > 0 
         ? volRows.reduce((sum, v) => sum + (Number(getVal(v, 'quantidade')) || Number(v.quantidade) || 0), 0)
-        : (filteredProdData.filter(p => normalizeName(p.NomeAnalista) === key).reduce((sum, p) => sum + (Number(p.Quantidade) || 1), 0));
+        : ((prodByAnalyst.get(key) || []).reduce((sum, p) => sum + (Number(p.Quantidade) || 1), 0));
 
       // Monitoria rows for this analyst
-      const monRows = filteredMonitorias.filter(m => normalizeName(getVal(m, 'analista')) === key);
+      const monRows = monByAnalyst.get(key) || [];
       const totalMonitorias = monRows.length > 0
         ? monRows.reduce((sum, m) => sum + (Number(getVal(m, 'quantidade')) || Number(m.quantidade) || 0), 0)
-        : (filteredRawData.filter(i => normalizeName(i.NomeAnalista) === key).length);
+        : ((rawByAnalyst.get(key) || []).length);
 
       // Errors rows for this analyst
-      const errRows = filteredMonitoriaErros.filter(e => normalizeName(getVal(e, 'analista')) === key);
-      const fallbackErrRows = filteredRawData.filter(i => normalizeName(i.NomeAnalista) === key && isErrorItem(i));
+      const errRows = errByAnalyst.get(key) || [];
+      const fallbackErrRows = (rawByAnalyst.get(key) || []).filter(i => isErrorItem(i));
       
       const effectiveErrRows = (filteredMonitoriaErros.length > 0 || filteredMonitorias.length > 0) ? errRows : fallbackErrRows;
       const totalErros = effectiveErrRows.length;
@@ -529,6 +575,50 @@ export const AnalistasPage = () => {
       }
       const esteiras = Array.from(estSet);
 
+      // --- Meta Diária Calculation ---
+      // 1. Primary esteira
+      const esteiraCounts: Record<string, number> = {};
+      volRows.forEach(item => {
+          const est = getVal(item, 'esteira') || item.Esteira;
+          if (est) {
+              esteiraCounts[est] = (esteiraCounts[est] || 0) + (Number(getVal(item, 'quantidade')) || 1);
+          }
+      });
+      let primaryE = '';
+      let maxCount = -1;
+      Object.entries(esteiraCounts).forEach(([est, count]) => {
+          if (count > maxCount) {
+              maxCount = count;
+              primaryE = est;
+          }
+      });
+
+      let metaDiaria = 40; // Default
+      if (primaryE) {
+          const capItem = capacity.find(c => getVal(c, 'esteira') === primaryE);
+          if (capItem) {
+              const tmoStr = getVal(capItem, 'tmoMinuto') || '00:00:00';
+              const horaStr = getVal(capItem, 'horaDiaria') || '08:00:00';
+              
+              const parseTime = (str: any) => {
+                  if (typeof str !== 'string' || !str.includes(':')) return Number(str) || 0;
+                  const parts = str.split(':');
+                  const h = parseInt(parts[0], 10) || 0;
+                  const m = parseInt(parts[1], 10) || 0;
+                  const s = parseInt(parts[2], 10) || 0;
+                  return h * 60 + m + s / 60;
+              };
+
+              const tmoMin = parseTime(tmoStr);
+              const horaMin = parseTime(horaStr);
+              
+              if (tmoMin > 0) {
+                  metaDiaria = horaMin / tmoMin;
+              }
+          }
+      }
+      // -------------------------------
+
       // Intervalo médio entre erros (dias)
       const errorDates = effectiveErrRows
         .map(e => getVal(e, 'data') || (e as any).DataMonitoria)
@@ -578,11 +668,12 @@ export const AnalistasPage = () => {
         maxQuadrante,
         mediaDiasEntreErros,
         tmoMedio,
+        metaDiaria,
         items: effectiveErrRows as any[],
         prodItems: volRows as any[]
       };
     });
-  }, [filteredVolumetria, filteredMonitorias, filteredMonitoriaErros, filteredRawData, filteredProdData]);
+  }, [filteredVolumetria, filteredMonitorias, filteredMonitoriaErros, filteredRawData, filteredProdData, capacity]);
 
 
   // Quadrant statistics calculation (counts and percentages)
@@ -660,13 +751,13 @@ export const AnalistasPage = () => {
 
     const analystsWithQuad = filteredAnalysts.map((analyst) => {
       // Determine analyst's daily target meta from their esteira(s)
-      let metaDiaria = 40;
-      if (analyst.esteiras && analyst.esteiras.length > 0) {
-        const primaryE = analyst.esteiras[0];
-        if (esteiraParams[primaryE]?.metaDiaria) {
-          metaDiaria = esteiraParams[primaryE].metaDiaria;
-        }
-      }
+      let metaDiaria = analyst.metaDiaria;
+//       if (analyst.esteiras && analyst.esteiras.length > 0) {
+//         const primaryE = analyst.esteiras[0];
+//         if (esteiraParams[primaryE]?.metaDiaria) {
+//           metaDiaria = esteiraParams[primaryE].metaDiaria;
+//         }
+//       }
 
       // Expected goal for the period
       const targetForPeriod = Math.max(1, metaDiaria * businessDays);
@@ -1386,7 +1477,7 @@ export const AnalistasPage = () => {
             <div className="flex flex-col items-center justify-center space-y-1 w-full flex-1">
               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-rose-100 text-rose-700 font-extrabold text-[10px] border border-rose-300 mb-0.5">&gt;4</span>
               <h4 className="text-xs font-extrabold text-rose-700">Persistência</h4>
-              <p className="text-[11px] text-gray-500 leading-tight">+ de 4 erros na mesma TAG</p>
+              <p className="text-[11px] text-gray-500 leading-tight">Avaliação da gestão</p>
             </div>
             <div className="w-full border-t border-rose-300 my-2" />
             <p className="text-xs font-bold text-rose-700 whitespace-nowrap">

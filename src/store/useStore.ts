@@ -380,10 +380,16 @@ export const matchesFormaFilter = (selectedForma: FilterValue, item: any): boole
 
 export const getVal = (obj: any, key: string) => {
   if (!obj || typeof obj !== 'object') return undefined;
+  // Exact match first (O(1))
   if (obj[key] !== undefined) return obj[key];
+  
+  // Case-insensitive fallback (O(N))
+  const keys = Object.keys(obj);
   const lowerKey = key.toLowerCase();
-  const foundKey = Object.keys(obj).find(k => k.toLowerCase() === lowerKey);
-  return foundKey ? obj[foundKey] : undefined;
+  for (let i = 0; i < keys.length; i++) {
+    if (keys[i].toLowerCase() === lowerKey) return obj[keys[i]];
+  }
+  return undefined;
 };
 
 export const generateCodeFromName = (name: string, prefix: 'SUP' | 'MON' | 'MAT') => {
@@ -564,6 +570,7 @@ interface AppState {
   volumetriaTipoDeDemanda: any[];
   volumetriaMediaTmo: any[];
   volumetriaStatus: any[];
+  capacity: any[];
 
   fetchSupabaseData: () => Promise<void>;
 
@@ -775,6 +782,7 @@ export const useStore = create<AppState>((set, get) => ({
   volumetriaTipoDeDemanda: [],
   volumetriaMediaTmo: [],
   volumetriaStatus: [],
+  capacity: [],
   fetchSupabaseData: async () => {
     try {
       const { fetchAllSupabaseData } = await import('./supabaseData');

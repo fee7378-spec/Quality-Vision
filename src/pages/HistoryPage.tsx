@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useStore, matchesFilter, matchesFormaFilter, getTabuladorName, getAnalystCode, getSupervisorCode, getMonitorCode } from '../store/useStore';
+import { useStore, matchesFilter, matchesFormaFilter, getTabuladorName, getAnalystCode, getSupervisorCode, getMonitorCode, getVal } from '../store/useStore';
 import { useTokenStore } from '../store/useTokenStore';
 import { History, Download, AlertTriangle, CheckCircle, Calendar, MessageSquareCheck, Eye, X } from 'lucide-react';
 import { ErrorDetailModal } from '../components/ErrorDetailModal';
@@ -23,12 +23,6 @@ export const HistoryPage = () => {
 
   const [selectedModalItem, setSelectedModalItem] = useState<typeof data[0] | null>(null);
   const [visibleCount, setVisibleCount] = useState(15);
-
-  const getVal = (obj: any, key: string) => {
-    if (!obj) return undefined;
-    const found = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
-    return found ? obj[found] : undefined;
-  };
 
   // Format Date to DD/MM/YYYY
   const formatDateBR = (dateStr?: string | null) => {
@@ -60,9 +54,11 @@ export const HistoryPage = () => {
     });
   }, [data, startDate, endDate, selectedEsteira, selectedForma]);
 
-  const totalMonitoriasGeral = useMemo(() => {
+  // Consolidate global KPI calculations to reduce redundant loops
+  const globalKpis = useMemo(() => {
+    let monTotal = 0;
     if (monitorias && monitorias.length > 0) {
-      return monitorias
+      monTotal = monitorias
         .filter(item => {
           const itemDate = getVal(item, 'data');
           if (!itemDate || typeof itemDate !== 'string') return false;
@@ -74,13 +70,13 @@ export const HistoryPage = () => {
           return true;
         })
         .reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || Number(item.quantidade) || 0), 0);
+    } else {
+      monTotal = baseFilteredData.length;
     }
-    return baseFilteredData.length;
-  }, [monitorias, startDate, endDate, selectedEsteira, selectedForma, baseFilteredData]);
 
-  const totalErrosGeral = useMemo(() => {
+    let errTotal = 0;
     if (monitoriaErros && monitoriaErros.length > 0) {
-      return monitoriaErros.filter(item => {
+      errTotal = monitoriaErros.filter(item => {
         const itemDate = getVal(item, 'data');
         if (!itemDate || typeof itemDate !== 'string') return false;
         if (startDate && itemDate < startDate) return false;
@@ -93,52 +89,64 @@ export const HistoryPage = () => {
         if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
           return false;
         }
-
         return true;
       }).length;
+    } else {
+      errTotal = baseFilteredData.filter(item => {
+        const errStr = String(item.Erro ?? '').trim().toLowerCase();
+        return (
+          errStr === '0' || 
+          errStr === '0.0' || 
+          errStr.startsWith('0') || 
+          errStr.includes('erro') || 
+          errStr.includes('não conforme') || 
+          errStr.includes('nao conforme') || 
+          errStr.includes('falha') || 
+          errStr.includes('reprovad') || 
+          errStr === 'nc' || 
+          errStr === 'n/c' || 
+          errStr === 'nok'
+        );
+      }).length;
     }
-    return baseFilteredData.filter(item => {
-      const errStr = String(item.Erro ?? '').trim().toLowerCase();
-      return (
-        errStr === '0' || 
-        errStr === '0.0' || 
-        errStr.startsWith('0') || 
-        errStr.includes('erro') || 
-        errStr.includes('não conforme') || 
-        errStr.includes('nao conforme') || 
-        errStr.includes('falha') || 
-        errStr.includes('reprovad') || 
-        errStr === 'nc' || 
-        errStr === 'n/c' || 
-        errStr === 'nok'
-      );
-    }).length;
-  }, [monitoriaErros, startDate, endDate, selectedEsteira, selectedForma, baseFilteredData]);
 
-  const totalProdutividadeGeral = useMemo(() => {
-    if (!volumetria) return 0;
-    return volumetria
-      .filter(item => {
-        const itemDate = getVal(item, 'data') || getVal(item, 'DataProdutividade') || '';
-        if (!itemDate || typeof itemDate !== 'string') return false;
-        if (startDate && itemDate < startDate) return false;
-        if (endDate && itemDate > endDate) return false;
-        if (!matchesFilter(selectedEsteira, getVal(item, 'esteira'), 'TODAS')) return false;
-        return true;
-      })
-      .reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || 0), 0);
-  }, [volumetria, startDate, endDate, selectedEsteira]);
+    let prodTotal = 0;
+    if (volumetria) {
+      prodTotal = volumetria
+        .filter(item => {
+          const itemDate = getVal(item, 'data') || getVal(item, 'DataProdutividade') || '';
+          if (!itemDate || typeof itemDate !== 'string') return false;
+          if (startDate && itemDate < startDate) return false;
+          if (endDate && itemDate > endDate) return false;
+          if (!matchesFilter(selectedEsteira, getVal(item, 'esteira'), 'TODAS')) return false;
+          return true;
+        })
+        .reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || 0), 0);
+    }
 
-  const isDoubleCheck = Array.isArray(selectedForma) 
-    ? selectedForma.includes('Double Check') && selectedForma.length === 1 
-    : selectedForma === 'Double Check';
-  
-  const baseForQualityGeral = isDoubleCheck ? totalProdutividadeGeral : totalMonitoriasGeral;
+    const isDoubleCheck = Array.isArray(selectedForma) 
+      ? selectedForma.includes('Double Check') && selectedForma.length === 1 
+      : selectedForma === 'Double Check';
+    
+    const baseForQuality = isDoubleCheck ? prodTotal : monTotal;
+    const qualityPct = baseForQuality > 0 ? Number((((baseForQuality - errTotal) / baseForQuality) * 100).toFixed(1)) : 100;
 
-  const qualidadeGeralNum = baseForQualityGeral > 0
-    ? Number((((baseForQualityGeral - totalErrosGeral) / baseForQualityGeral) * 100).toFixed(1))
-    : 100;
-  const qualidadeGeralStr = qualidadeGeralNum.toFixed(1) + '%';
+    return {
+      totalMonitorias: monTotal,
+      totalErros: errTotal,
+      totalProdutividade: prodTotal,
+      qualidadePct: qualityPct,
+      qualidadeStr: qualityPct.toFixed(1) + '%'
+    };
+  }, [monitorias, monitoriaErros, volumetria, startDate, endDate, selectedEsteira, selectedForma, baseFilteredData]);
+
+  const { 
+    totalMonitorias: totalMonitoriasGeral, 
+    totalErros: totalErrosGeral, 
+    totalProdutividade: totalProdutividadeGeral, 
+    qualidadePct: qualidadeGeralPct,
+    qualidadeStr: qualidadeGeralStr 
+  } = globalKpis;
 
   // Filter error items based on active criteria from monitoriaErros (with fallback)
   const filteredErrosTable = useMemo(() => {
@@ -321,12 +329,12 @@ export const HistoryPage = () => {
         <div className="bg-white border border-gray-200 p-3 rounded-lg flex items-center justify-between shadow-2xs">
           <div>
             <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Qualidade do Período</p>
-            <p className={`text-xl font-black mt-0.5 ${qualidadeGeralNum >= 95 ? 'text-[#001E62]' : 'text-red-600'}`}>
+            <p className={`text-xl font-black mt-0.5 ${qualidadeGeralPct >= 95 ? 'text-[#001E62]' : 'text-red-600'}`}>
               {qualidadeGeralStr}
             </p>
             <p className="text-[10px] text-gray-400 font-medium">Meta: 95.0%</p>
           </div>
-          <CheckCircle size={22} className={qualidadeGeralNum >= 95 ? 'text-[#001E62]/40' : 'text-red-500/40'} />
+          <CheckCircle size={22} className={qualidadeGeralPct >= 95 ? 'text-[#001E62]/40' : 'text-red-500/40'} />
         </div>
 
         {/* DIREITA: Quantidade de Feedbacks Realizados */}

@@ -55,10 +55,14 @@ export const OperacaoPage: React.FC = () => {
     endDate, 
     selectedEsteira,
     esteiraMappings,
-    volumetriaTipoDeDemanda, volumetriaPrioridades, volumetriaPendencias, volumetriaReprovas, volumetria, volumetriaMediaTmo, volumetriaStatus
+    volumetriaTipoDeDemanda, volumetriaPrioridades, volumetriaPendencias, volumetriaReprovas, volumetria, volumetriaMediaTmo, volumetriaStatus,
+    capacity
   } = useStore();
 
-
+  const isSpecialEsteira = (e: string) => {
+    const norm = (e || '').toUpperCase();
+    return norm.includes('PREMIUM') || norm.includes('VINTAGE PJ') || norm.includes('ABERTURA PJ');
+  };
 
   const filterSupabase = (arr: any[]) => {
     return (arr || []).filter(item => {
@@ -67,8 +71,20 @@ export const OperacaoPage: React.FC = () => {
         if (startDate && itemDate < startDate) return false;
         if (endDate && itemDate > endDate) return false;
       }
-      if (!matchesFilter(selectedEsteira, getVal(item, 'esteira'), 'TODAS')) return false;
-      return true;
+      
+      const itemEsteira = getVal(item, 'esteira');
+      
+      // Special rule: if filtering by a special esteira, include all special ones
+      if (Array.isArray(selectedEsteira)) {
+        if (selectedEsteira.includes('TODAS')) return true;
+        const hasSpecialInFilter = selectedEsteira.some(f => isSpecialEsteira(f));
+        if (hasSpecialInFilter && isSpecialEsteira(itemEsteira)) return true;
+        return selectedEsteira.includes(itemEsteira);
+      } else {
+        if (selectedEsteira === 'TODAS') return true;
+        if (isSpecialEsteira(selectedEsteira as string) && isSpecialEsteira(itemEsteira)) return true;
+        return selectedEsteira === itemEsteira;
+      }
     });
   };
 
@@ -77,8 +93,18 @@ export const OperacaoPage: React.FC = () => {
       const itemDate = item.DataProdutividade;
       if (startDate && itemDate && itemDate < startDate) return false;
       if (endDate && itemDate && itemDate > endDate) return false;
-      if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
-      return true;
+      
+      const itemEsteira = item.Esteira;
+      if (Array.isArray(selectedEsteira)) {
+        if (selectedEsteira.includes('TODAS')) return true;
+        const hasSpecialInFilter = selectedEsteira.some(f => isSpecialEsteira(f));
+        if (hasSpecialInFilter && isSpecialEsteira(itemEsteira)) return true;
+        return selectedEsteira.includes(itemEsteira);
+      } else {
+        if (selectedEsteira === 'TODAS') return true;
+        if (isSpecialEsteira(selectedEsteira as string) && isSpecialEsteira(itemEsteira)) return true;
+        return selectedEsteira === itemEsteira;
+      }
     });
   }, [productivityData, startDate, endDate, selectedEsteira]);
 
@@ -88,24 +114,70 @@ export const OperacaoPage: React.FC = () => {
         const itemDate = getVal(item, 'data');
         if (startDate && itemDate && itemDate < startDate) return false;
         if (endDate && itemDate && itemDate > endDate) return false;
-        if (!matchesFilter(selectedEsteira, getVal(item, 'esteira'), 'TODAS')) return false;
-        return true;
+        
+        const itemEsteira = getVal(item, 'esteira');
+        if (Array.isArray(selectedEsteira)) {
+          if (selectedEsteira.includes('TODAS')) return true;
+          const hasSpecialInFilter = selectedEsteira.some(f => isSpecialEsteira(f));
+          if (hasSpecialInFilter && isSpecialEsteira(itemEsteira)) return true;
+          return selectedEsteira.includes(itemEsteira);
+        } else {
+          if (selectedEsteira === 'TODAS') return true;
+          if (isSpecialEsteira(selectedEsteira as string) && isSpecialEsteira(itemEsteira)) return true;
+          return selectedEsteira === itemEsteira;
+        }
       });
     }
     return data.filter(item => {
       const itemDate = item.DataMonitoria;
       if (startDate && itemDate && itemDate < startDate) return false;
       if (endDate && itemDate && itemDate > endDate) return false;
-      if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
-      return true;
+      
+      const itemEsteira = item.Esteira;
+      if (Array.isArray(selectedEsteira)) {
+        if (selectedEsteira.includes('TODAS')) return true;
+        const hasSpecialInFilter = selectedEsteira.some(f => isSpecialEsteira(f));
+        if (hasSpecialInFilter && isSpecialEsteira(itemEsteira)) return true;
+        return selectedEsteira.includes(itemEsteira);
+      } else {
+        if (selectedEsteira === 'TODAS') return true;
+        if (isSpecialEsteira(selectedEsteira as string) && isSpecialEsteira(itemEsteira)) return true;
+        return selectedEsteira === itemEsteira;
+      }
     });
   }, [monitorias, data, startDate, endDate, selectedEsteira]);
+
+  const filterCapacity = (arr: any[], ignoreDate: boolean = false) => {
+    return (arr || []).filter(item => {
+      if (!ignoreDate) {
+        const itemDate = getVal(item, 'data');
+        if (itemDate && typeof itemDate === 'string' && itemDate.trim() !== '') {
+          if (startDate && itemDate < startDate) return false;
+          if (endDate && itemDate > endDate) return false;
+        }
+      }
+      
+      const itemEsteira = getVal(item, 'esteira');
+      
+      // Special rule: if filtering by a special esteira, include all special ones
+      if (Array.isArray(selectedEsteira)) {
+        if (selectedEsteira.includes('TODAS')) return true;
+        const hasSpecialInFilter = selectedEsteira.some(f => isSpecialEsteira(f));
+        if (hasSpecialInFilter && isSpecialEsteira(itemEsteira)) return true;
+        return selectedEsteira.includes(itemEsteira);
+      } else {
+        if (selectedEsteira === 'TODAS') return true;
+        if (isSpecialEsteira(selectedEsteira as string) && isSpecialEsteira(itemEsteira)) return true;
+        return selectedEsteira === itemEsteira;
+      }
+    });
+  };
 
   const kpis = useMemo(() => {
     const filtVolumetria = filterSupabase(volumetria);
     const totalVolume = filtVolumetria.reduce((acc, curr) => acc + (Number(getVal(curr, 'quantidade')) || 0), 0);
     
-const filtPrio = filterSupabase(volumetriaPrioridades);
+    const filtPrio = filterSupabase(volumetriaPrioridades);
     const prioVolume = filtPrio.reduce((acc, curr) => acc + (Number(getVal(curr, 'quantidade')) || 0), 0);
     const prioPercent = totalVolume > 0 ? ((prioVolume / totalVolume) * 100).toFixed(1).replace('.', ',') : '0,0';
 
@@ -128,10 +200,11 @@ const filtPrio = filterSupabase(volumetriaPrioridades);
       ? ((reprovadosCount / totalVolume) * 100).toFixed(1).replace('.', ',') 
       : '0,0';
 
-    const itemsWithTmo = filteredProd.filter(p => p.TmoMinutos !== undefined && p.TmoMinutos > 0);
-    const totalApuracaoTempo = itemsWithTmo.reduce((acc, curr) => acc + ((curr.TmoMinutos || 0) * (Number(curr.Quantidade) || 1)), 0);
-    const totalQtyWithTmo = itemsWithTmo.reduce((acc, curr) => acc + (Number(curr.Quantidade) || 1), 0);
-    const tmoAvg = totalQtyWithTmo > 0 ? (totalApuracaoTempo / totalQtyWithTmo).toFixed(1).replace('.', ',') : '0,0';
+    // Respect date filters for card as requested
+    const filtCapacity = filterCapacity(capacity, false);
+    const tmoTotalSum = filtCapacity.reduce((acc, curr) => acc + (Number(getVal(curr, 'tmoMinuto')) || 0), 0);
+    const tmoCount = filtCapacity.length;
+    const tmoAvg = tmoCount > 0 ? (tmoTotalSum / tmoCount).toFixed(1).replace('.', ',') : '0,0';
 
     const dayMap: Record<string, number> = {};
     filtVolumetria.forEach(p => {
@@ -156,7 +229,7 @@ const filtPrio = filterSupabase(volumetriaPrioridades);
     });
 
     return { totalVolume, prioVolume, prioPercent, totalMonitorias, prioMonitoriaPercent, pendReprovTotal, pendReprovPercent, reprovaPercent, pendentesCount, reprovadosCount, tmoAvg, peakDay, peakVol };
-  }, [volumetria, volumetriaPrioridades, volumetriaPendencias, volumetriaReprovas, filteredProd, filteredMonitoring, startDate, endDate, selectedEsteira]);
+  }, [volumetria, volumetriaPrioridades, volumetriaPendencias, volumetriaReprovas, capacity, filteredMonitoring, startDate, endDate, selectedEsteira]);
 
 const esteiraPrioData = useMemo(() => {
     const map: Record<string, { esteira: string; sim: number; nao: number; total: number }> = {};
@@ -232,23 +305,75 @@ const esteiraPrioData = useMemo(() => {
       .sort((a, b) => b.volume - a.volume);
   }, [volumetriaTipoDeDemanda, startDate, endDate, selectedEsteira]);
 
+  const formatMinutesToTime = (min: number) => {
+    if (min < 60) return `${Math.round(min)}m`;
+    const h = Math.floor(min / 60);
+    const m = Math.floor(min % 60);
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
+
   const tmoPorEsteira = useMemo(() => {
-    const map: Record<string, { totalQty: number; totalApuracao: number }> = {};
-    const filteredTmo = filterSupabase(volumetriaMediaTmo);
-    filteredTmo.forEach(p => {
+    // Ignore date filters, respect esteira filter
+    const filtCapacity = filterCapacity(capacity, true);
+    
+    // Get all unique esteiras from capacity to ensure bars appear
+    const allEsteiras = Array.from(new Set(capacity.map(p => getVal(p, 'esteira')))).filter(Boolean);
+    
+    const map: Record<string, { totalTmo: number; count: number }> = {};
+    
+    // Initialize map with all esteiras
+    allEsteiras.forEach(e => {
+        map[e] = { totalTmo: 0, count: 0 };
+    });
+
+    filtCapacity.forEach(p => {
       const e = getVal(p, 'esteira') || 'Geral';
-      const qty = Number(getVal(p, 'quantidade')) || 0;
-      const tmoTotal = Number(getVal(p, 'apuracaoDeTempo')) || 0;
-      if (!map[e]) map[e] = { totalQty: 0, totalApuracao: 0 };
-      map[e].totalQty += qty;
-      map[e].totalApuracao += tmoTotal;
+      const tmoStr = getVal(p, 'tmoMinuto') || '00:00:00';
+      
+      // Parse HH:mm:ss
+      let tmoMin = 0;
+      if (typeof tmoStr === 'string' && tmoStr.includes(':')) {
+        const parts = tmoStr.split(':');
+        const h = parseInt(parts[0], 10) || 0;
+        const m = parseInt(parts[1], 10) || 0;
+        const s = parseInt(parts[2], 10) || 0;
+        tmoMin = h * 60 + m + s / 60;
+      } else {
+        tmoMin = Number(tmoStr) || 0;
+      }
+      
+      if (!map[e]) map[e] = { totalTmo: 0, count: 0 };
+      map[e].totalTmo += tmoMin;
+      map[e].count += 1;
     });
 
     return Object.entries(map).map(([esteira, val]) => ({
       esteira,
-      tmoMedio: val.totalQty > 0 ? parseFloat((val.totalApuracao / val.totalQty).toFixed(1)) : 0
-    })).filter(item => item.tmoMedio > 0).sort((a, b) => b.tmoMedio - a.tmoMedio);
-  }, [volumetriaMediaTmo, startDate, endDate, selectedEsteira]);
+      tmoMedio: val.count > 0 ? parseFloat((val.totalTmo / val.count).toFixed(1)) : 0
+    })).sort((a, b) => b.tmoMedio - a.tmoMedio);
+  }, [capacity, selectedEsteira]);
+
+  const tmoMedioGeral = useMemo(() => {
+    const filtCapacity = filterCapacity(capacity, true);
+    if (filtCapacity.length === 0) return 0;
+    
+    const totalTmo = filtCapacity.reduce((acc, curr) => {
+        const tmoStr = getVal(curr, 'tmoMinuto') || '00:00:00';
+        let tmoMin = 0;
+        if (typeof tmoStr === 'string' && tmoStr.includes(':')) {
+            const parts = tmoStr.split(':');
+            const h = parseInt(parts[0], 10) || 0;
+            const m = parseInt(parts[1], 10) || 0;
+            const s = parseInt(parts[2], 10) || 0;
+            tmoMin = h * 60 + m + s / 60;
+        } else {
+            tmoMin = Number(tmoStr) || 0;
+        }
+        return acc + tmoMin;
+    }, 0);
+    
+    return totalTmo / filtCapacity.length;
+  }, [capacity, selectedEsteira]);
 
   return (
     <div className="w-full p-4 sm:p-6 md:p-8 bg-gray-50 text-gray-900 space-y-8">
@@ -269,12 +394,7 @@ const esteiraPrioData = useMemo(() => {
           </div>
           <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
             <span className="text-gray-500 font-medium text-[11px]">
-              Monitorias: <strong className="text-gray-800 font-bold">{kpis.totalMonitorias.toLocaleString('pt-BR')}</strong>
             </span>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-[#001E62] font-bold text-[11px]" title="Percentual de monitorias em relação à demanda prioritária">
-              <Filter size={11} className="text-[#001E62]" />
-              <span>{kpis.prioMonitoriaPercent}% Percentual do total</span>
-            </div>
           </div>
         </div>
 
@@ -321,7 +441,7 @@ const esteiraPrioData = useMemo(() => {
             </div>
           </div>
           <div>
-            <h3 className="text-3xl font-black text-gray-900 tracking-tight">{kpis.tmoAvg} <span className="text-sm font-bold text-gray-500">min</span></h3>
+            <h3 className="text-3xl font-black text-gray-900 tracking-tight">{tmoMedioGeral.toFixed(1).replace('.', ',')} <span className="text-sm font-bold text-gray-500">min</span></h3>
           </div>
           <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
             <span className="text-gray-500 font-medium text-[11px]">Média por item tratado</span>
@@ -476,10 +596,10 @@ const esteiraPrioData = useMemo(() => {
                     contentStyle={{ backgroundColor: '#ffffff', borderColor: '#001E62', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', color: '#001E62', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }} 
                     itemStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
                     labelStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }}
-                    formatter={(val: any) => [`${Number(val).toFixed(1)} minutos`, 'TMO Médio']}
+                    formatter={(val: any) => [formatMinutesToTime(Number(val)), 'TMO Médio']}
                   />
                   <Bar dataKey="tmoMedio" name="TMO Médio (min)" fill="#001E62" radius={[4, 4, 0, 0]} barSize={40}>
-                    <LabelList dataKey="tmoMedio" position="top" offset={6} fill="#001E62" fontSize={11} fontWeight="bold" formatter={(v: any) => `${Number(v).toFixed(1)}m`} />
+                    <LabelList dataKey="tmoMedio" position="top" offset={6} fill="#001E62" fontSize={11} fontWeight="bold" formatter={(v: any) => formatMinutesToTime(Number(v))} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
