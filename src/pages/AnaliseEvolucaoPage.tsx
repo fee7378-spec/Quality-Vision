@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import { TrendingUp, Grid, PieChart as PieIcon, AlertTriangle } from 'lucide-react';
 import { useStore, matchesFilter, matchesFormaFilter, getAnalystCode } from '../store/useStore';
+import { useTokenStore } from '../store/useTokenStore';
 import { AnalystModal } from '../components/AnalystModal';
 
 const MACRO_COLORS = ['#001E62', '#10b981', '#a855f7', '#06b6d4', '#f97316', '#ec4899', '#3b82f6', '#eab308'];
@@ -41,6 +42,9 @@ const CustomXAxisTick = (props: any) => {
 };
 
 export const AnaliseEvolucaoPage = () => {
+  const { accessType } = useTokenStore();
+  const isVisualizacao = accessType === 'visualizacao';
+
   const { 
     data, 
     monitorias,
@@ -61,6 +65,17 @@ export const AnaliseEvolucaoPage = () => {
     if (!obj) return undefined;
     const found = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
     return found ? obj[found] : undefined;
+  };
+
+  const getAnalystLabel = (item: any) => {
+    if (isVisualizacao) {
+      return getAnalystCode(item);
+    }
+    const rawName = getVal(item, 'analista') || item?.NomeAnalista || item?.nome || item?.Analista;
+    if (rawName && String(rawName).trim() && String(rawName).trim() !== '-' && String(rawName).trim().toLowerCase() !== 'não informado') {
+      return String(rawName).trim();
+    }
+    return getAnalystCode(item);
   };
 
   // Filter dataset by date and controls
@@ -371,7 +386,7 @@ export const AnaliseEvolucaoPage = () => {
           const val = getVal(d, 'esteira');
           return (val && String(val).trim()) ? String(val).trim() : 'Outros';
         }
-        return getAnalystCode(d);
+        return getAnalystLabel(d);
       }))).sort((a, b) => a.localeCompare(b));
 
       const columns = Array.from(new Set(filteredErros.map(d => {
@@ -389,7 +404,7 @@ export const AnaliseEvolucaoPage = () => {
       });
 
       filteredErros.forEach(item => {
-        const rawCat = isEsteiraMode ? getVal(item, 'esteira') : getAnalystCode(item);
+        const rawCat = isEsteiraMode ? getVal(item, 'esteira') : getAnalystLabel(item);
         const catKey = (rawCat && String(rawCat).trim()) ? String(rawCat).trim() : 'Outros';
         const dStr = getVal(item, 'data');
         const colKey = dStr ? String(dStr).slice(0, 7) : '2026-01';
@@ -404,7 +419,7 @@ export const AnaliseEvolucaoPage = () => {
 
     const categories = isEsteiraMode
       ? (Array.from(new Set(filteredData.map(d => d.Esteira))).filter(Boolean) as string[]).sort((a, b) => a.localeCompare(b))
-      : (Array.from(new Set(filteredData.map(d => getAnalystCode(d)))).filter(Boolean) as string[]).sort((a, b) => a.localeCompare(b));
+      : (Array.from(new Set(filteredData.map(d => getAnalystLabel(d)))).filter(Boolean) as string[]).sort((a, b) => a.localeCompare(b));
 
     const columns = Array.from(new Set(filteredData.map(d => d.DataMonitoria ? d.DataMonitoria.slice(0, 7) : '2026-07'))).sort() as string[];
 
@@ -418,7 +433,7 @@ export const AnaliseEvolucaoPage = () => {
     });
 
     filteredData.filter(d => isErrorItem(d)).forEach(item => {
-      const catKey = isEsteiraMode ? item.Esteira : getAnalystCode(item);
+      const catKey = isEsteiraMode ? item.Esteira : getAnalystLabel(item);
       const colKey = item.DataMonitoria ? item.DataMonitoria.slice(0, 7) : '2026-07';
 
       if (matrix[catKey] && matrix[catKey][colKey] !== undefined) {
@@ -427,7 +442,7 @@ export const AnaliseEvolucaoPage = () => {
     });
 
     return { categories, columns, matrix, isEsteiraMode };
-  }, [monitoriaErros, startDate, endDate, selectedEsteira, heatmapViewMode, filteredData, selectedForma]);
+  }, [monitoriaErros, startDate, endDate, selectedEsteira, heatmapViewMode, filteredData, selectedForma, isVisualizacao]);
 
   const getHeatmapColor = (count: number) => {
     if (count === 0) return 'bg-white text-gray-400 border-gray-200';
@@ -784,8 +799,8 @@ export const AnaliseEvolucaoPage = () => {
       {/* Analyst Erros & Reincidências Modal */}
       {selectedAnalystForModal && (
         <AnalystModal
-          analystCode={null}
-          analystName={selectedAnalystForModal.name}
+          analystCode={isVisualizacao ? selectedAnalystForModal.name : null}
+          analystName={!isVisualizacao ? selectedAnalystForModal.name : null}
           onClose={() => setSelectedAnalystForModal(null)}
         />
       )}

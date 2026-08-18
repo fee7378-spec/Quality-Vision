@@ -11,7 +11,6 @@ import { AnalistasPage } from './pages/AnalistasPage';
 import { AnaliseEvolucaoPage } from './pages/AnaliseEvolucaoPage';
 import { OperacaoPage } from './pages/OperacaoPage';
 import { CapacidadePage } from './pages/CapacidadePage';
-import { MetricasPage } from './pages/MetricasPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { useTokenStore } from './store/useTokenStore';
 import { AuthScreen } from './components/AuthScreen';

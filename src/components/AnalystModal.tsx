@@ -37,6 +37,8 @@ export const AnalystModal: React.FC<AnalystModalProps> = ({ analystCode, analyst
     const name = normalizeName(getVal(item, 'analista') || item.NomeAnalista);
     if (codeMatch && code === codeMatch) return true;
     if (nameMatch && name === nameMatch) return true;
+    if (nameMatch && code === nameMatch) return true;
+    if (codeMatch && name === codeMatch) return true;
     return false;
   };
 

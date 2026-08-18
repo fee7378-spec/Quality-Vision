@@ -131,6 +131,43 @@ export interface AnalystSummary {
   prodItems: ProductivityItem[];
 }
 
+export interface EsteiraSummary {
+  id: string;
+  nome: string;
+  supervisores: string[];
+  supervisoresStr: string;
+  totalAnalistas: number;
+  totalMonitorias: number;
+  totalProdutividade: number;
+  totalErros: number;
+  qualidadePct: number;
+  reincidencias: number;
+  tmoMedio: number | string;
+  metaDiaria: number;
+  analistas: AnalystSummary[];
+  items: MonitoringItem[];
+}
+
+export interface EsteiraDispersalData extends EsteiraSummary {
+  prodQuadrant: 'Q1' | 'Q2' | 'Q3' | 'Q4';
+  prodQuadrantName: string;
+  prodQuadrantColor: string;
+  prodQuadrantBg: string;
+  prodQuadrantBorder: string;
+  prodPercentile: number;
+  x: number;
+  y: number;
+  radiusPct: number;
+  angleDeg: number;
+  worstIndex: number;
+  metaPercent: number;
+  targetForPeriod: number;
+  q1Count: number;
+  q2Count: number;
+  q3Count: number;
+  q4Count: number;
+}
+
 
 const DONUT_PALETTE = ['#001E62', '#001E62', '#10b981', '#a855f7', '#06b6d4', '#f97316', '#ec4899', '#001E62'];
 
@@ -271,9 +308,13 @@ export const AnalistasPage = () => {
   const [popupAnalyst, setPopupAnalyst] = useState<AnalystSummary | null>(null);
   const [displayLimit, setDisplayLimit] = useState(15);
   const [rankingLimit, setRankingLimit] = useState<number>(10);
-  const [rankingCategory, setRankingCategory] = useState<'geral' | 'qualidade' | 'produtividade'>('geral');
+  const [rankingCategory, setRankingCategory] = useState<'geral' | 'qualidade' | 'produtividade' | 'esteira'>('geral');
   const [selectedDiagramAnalyst, setSelectedDiagramAnalyst] = useState<AnalystDispersalData | null>(null);
   const [hoveredDiagramAnalyst, setHoveredDiagramAnalyst] = useState<{ analyst: AnalystDispersalData; mouseX: number; mouseY: number } | null>(null);
+  const [selectedDiagramEsteira, setSelectedDiagramEsteira] = useState<EsteiraDispersalData | null>(null);
+  const [hoveredDiagramEsteira, setHoveredDiagramEsteira] = useState<{ esteira: EsteiraDispersalData; mouseX: number; mouseY: number } | null>(null);
+  const [selectedEsteiraModal, setSelectedEsteiraModal] = useState<EsteiraSummary | null>(null);
+  const [esteiraModalFilter, setEsteiraModalFilter] = useState<'geral' | 'qualidade' | 'produtividade'>('geral');
   const [selectedErrorDetail, setSelectedErrorDetail] = useState<any | null>(null);
 
   // Reset display limit when filters change
@@ -291,7 +332,9 @@ export const AnalistasPage = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (popupAnalyst) {
+        if (selectedEsteiraModal) {
+          setSelectedEsteiraModal(null);
+        } else if (popupAnalyst) {
           setPopupAnalyst(null);
         } else if (selectedAnalyst) {
           setSelectedAnalyst(null);
@@ -300,7 +343,7 @@ export const AnalistasPage = () => {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [popupAnalyst, selectedAnalyst]);
+  }, [selectedEsteiraModal, popupAnalyst, selectedAnalyst]);
 
   // Helper to test error status for items (considering selectedForma filter for errors)
   const isErrorItem = (item: any) => {
@@ -877,6 +920,285 @@ export const AnalistasPage = () => {
     return [...dispersalData].sort((a, b) => b.worstIndex - a.worstIndex);
   }, [dispersalData, rankingCategory]);
 
+  // Group by Esteira for Esteira Mode
+  const esteirasList = useMemo(() => {
+    const esteiraMap = new Map<string, AnalystSummary[]>();
+
+    analystsList.forEach(analyst => {
+      if (analyst.esteiras && analyst.esteiras.length > 0) {
+        analyst.esteiras.forEach(est => {
+          const estClean = String(est).trim();
+          if (estClean) {
+            if (!esteiraMap.has(estClean)) esteiraMap.set(estClean, []);
+            esteiraMap.get(estClean)!.push(analyst);
+          }
+        });
+      } else {
+        const fallback = 'Geral';
+        if (!esteiraMap.has(fallback)) esteiraMap.set(fallback, []);
+        esteiraMap.get(fallback)!.push(analyst);
+      }
+    });
+
+    const isDoubleCheck = Array.isArray(selectedForma) 
+      ? selectedForma.includes('Double Check') && selectedForma.length === 1 
+      : selectedForma === 'Double Check';
+
+    return Array.from(esteiraMap.entries()).map(([esteiraName, analystsInEsteira]): EsteiraSummary => {
+      const supSet = new Set<string>();
+      analystsInEsteira.forEach(a => {
+        if (a.supervisor && a.supervisor.trim()) {
+          supSet.add(a.supervisor.trim().toUpperCase());
+        }
+      });
+      const supervisores = Array.from(supSet).sort();
+      const supervisoresStr = supervisores.length > 0 
+        ? (supervisores.length === 1 ? supervisores[0] : supervisores.join(', ')) 
+        : 'SUPERVISOR GERAL';
+
+      const totalAnalistas = analystsInEsteira.length;
+
+      let totalProdutividade = 0;
+      let totalMonitorias = 0;
+      let totalErros = 0;
+      const allErrItems: MonitoringItem[] = [];
+
+      filteredVolumetria.forEach(v => {
+        const est = getVal(v, 'esteira');
+        if (est && String(est).trim().toUpperCase() === esteiraName.toUpperCase()) {
+          totalProdutividade += (Number(getVal(v, 'quantidade')) || Number(v.quantidade) || 0);
+        }
+      });
+      
+      filteredMonitorias.forEach(m => {
+        const est = getVal(m, 'esteira');
+        if (est && String(est).trim().toUpperCase() === esteiraName.toUpperCase()) {
+          totalMonitorias += (Number(getVal(m, 'quantidade')) || Number(m.quantidade) || 0);
+        }
+      });
+
+      filteredMonitoriaErros.forEach(e => {
+        const est = getVal(e, 'esteira');
+        if (est && String(est).trim().toUpperCase() === esteiraName.toUpperCase()) {
+          totalErros += 1;
+          allErrItems.push(e as any);
+        }
+      });
+
+      if (totalProdutividade === 0) {
+        totalProdutividade = analystsInEsteira.reduce((s, a) => s + a.totalProdutividade, 0);
+      }
+      if (totalMonitorias === 0) {
+        totalMonitorias = analystsInEsteira.reduce((s, a) => s + a.totalMonitorias, 0);
+      }
+      if (totalErros === 0) {
+        totalErros = analystsInEsteira.reduce((s, a) => s + a.totalErros, 0);
+      }
+
+      const reincidencias = analystsInEsteira.reduce((s, a) => s + a.reincidencias, 0);
+
+      const baseForQuality = isDoubleCheck ? totalProdutividade : totalMonitorias;
+      const qualidadePct = baseForQuality > 0
+        ? Number((((baseForQuality - totalErros) / baseForQuality) * 100).toFixed(1))
+        : 100;
+
+      let metaDiaria = 40;
+      let tmoMedioStr: number | string = "12.5";
+
+      const capItem = capacity.find(c => {
+        const est = getVal(c, 'esteira');
+        return est && String(est).trim().toUpperCase() === esteiraName.toUpperCase();
+      });
+
+      if (capItem) {
+        const tmoStr = getVal(capItem, 'tmoMinuto') || '00:00:00';
+        const horaStr = getVal(capItem, 'horaDiaria') || '08:00:00';
+        
+        const parseTime = (str: any) => {
+          if (typeof str !== 'string' || !str.includes(':')) return Number(str) || 0;
+          const parts = str.split(':');
+          const h = parseInt(parts[0], 10) || 0;
+          const m = parseInt(parts[1], 10) || 0;
+          const s = parseInt(parts[2], 10) || 0;
+          return h * 60 + m + s / 60;
+        };
+
+        const tmoMin = parseTime(tmoStr);
+        const horaMin = parseTime(horaStr);
+        
+        if (tmoMin > 0) {
+          metaDiaria = horaMin / tmoMin;
+          tmoMedioStr = tmoMin.toFixed(1);
+        }
+      }
+
+      return {
+        id: esteiraName,
+        nome: esteiraName,
+        supervisores,
+        supervisoresStr,
+        totalAnalistas,
+        totalMonitorias,
+        totalProdutividade,
+        totalErros,
+        qualidadePct,
+        reincidencias,
+        tmoMedio: tmoMedioStr,
+        metaDiaria,
+        analistas: analystsInEsteira,
+        items: allErrItems
+      };
+    });
+  }, [analystsList, filteredVolumetria, filteredMonitorias, filteredMonitoriaErros, capacity, selectedForma]);
+
+  const esteirasDispersalData = useMemo(() => {
+    if (esteirasList.length === 0) return [];
+
+    const getBusinessDaysInPeriod = () => {
+      if (!startDate || !endDate) return 22;
+      const d1 = new Date(startDate);
+      const d2 = new Date(endDate);
+      if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return 22;
+      let count = 0;
+      const cur = new Date(d1);
+      while (cur <= d2) {
+        const dayOfWeek = cur.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) count++;
+        cur.setDate(cur.getDate() + 1);
+      }
+      return Math.max(1, count);
+    };
+
+    const businessDays = getBusinessDaysInPeriod();
+
+    const esteirasWithQuad = esteirasList.map((esteira) => {
+      const targetPerAnalyst = esteira.metaDiaria * businessDays;
+      const targetForPeriod = Math.max(1, targetPerAnalyst * Math.max(1, esteira.totalAnalistas));
+      const metaPercent = (esteira.totalProdutividade / targetForPeriod) * 100;
+
+      let prodQuadrant: 'Q1' | 'Q2' | 'Q3' | 'Q4' = 'Q4';
+      let prodQuadrantName = 'Q4 • Pior (< 90% da Meta)';
+      let prodQuadrantColor = '#ef4444';
+      let prodQuadrantBg = 'bg-red-50 text-red-700 border-red-300';
+      let prodQuadrantBorder = 'border-red-800';
+      let angleMin = 190;
+      let angleMax = 260;
+
+      if (metaPercent >= 110) {
+        prodQuadrant = 'Q1';
+        prodQuadrantName = 'Q1 • Excelente (>= 110% da Meta)';
+        prodQuadrantColor = '#10b981';
+        prodQuadrantBg = 'bg-emerald-50 text-emerald-700 border-emerald-300';
+        prodQuadrantBorder = 'border-emerald-800';
+        angleMin = 100;
+        angleMax = 170;
+      } else if (metaPercent >= 100) {
+        prodQuadrant = 'Q2';
+        prodQuadrantName = 'Q2 • Meta Atingida (100% - 110%)';
+        prodQuadrantColor = '#001E62';
+        prodQuadrantBg = 'bg-blue-50/80 text-brand-blue-light border-gray-300';
+        prodQuadrantBorder = 'border-gray-300';
+        angleMin = 10;
+        angleMax = 80;
+      } else if (metaPercent >= 90) {
+        prodQuadrant = 'Q3';
+        prodQuadrantName = 'Q3 • Abaixo da Meta (90% - 100%)';
+        prodQuadrantColor = '#f97316';
+        prodQuadrantBg = 'bg-orange-50 text-orange-700 border-orange-300';
+        prodQuadrantBorder = 'border-orange-800';
+        angleMin = 280;
+        angleMax = 350;
+      }
+
+      let q1Count = 0;
+      let q2Count = 0;
+      let q3Count = 0;
+      let q4Count = 0;
+
+      esteira.analistas.forEach(a => {
+        const dAnalyst = dispersalData.find(d => d.id === a.id);
+        const q = dAnalyst ? dAnalyst.prodQuadrant : 'Q4';
+        if (q === 'Q1') q1Count++;
+        else if (q === 'Q2') q2Count++;
+        else if (q === 'Q3') q3Count++;
+        else q4Count++;
+      });
+
+      return {
+        esteira,
+        metaPercent,
+        targetForPeriod,
+        prodQuadrant,
+        prodQuadrantName,
+        prodQuadrantColor,
+        prodQuadrantBg,
+        prodQuadrantBorder,
+        angleMin,
+        angleMax,
+        q1Count,
+        q2Count,
+        q3Count,
+        q4Count
+      };
+    });
+
+    return esteirasWithQuad.map(({ esteira, metaPercent, targetForPeriod, prodQuadrant, prodQuadrantName, prodQuadrantColor, prodQuadrantBg, prodQuadrantBorder, angleMin, angleMax, q1Count, q2Count, q3Count, q4Count }) => {
+      const cx = 260;
+      const cy = 260;
+      const Rmax = 210;
+      const Rmin = 18;
+
+      const qualityFraction = Math.max(0, Math.min(100, esteira.qualidadePct - 50)) / 50;
+      const r = Rmin + qualityFraction * (Rmax - Rmin);
+
+      const quadrantGroup = esteirasWithQuad
+        .filter(item => item.prodQuadrant === prodQuadrant)
+        .sort((a, b) => b.esteira.totalProdutividade - a.esteira.totalProdutividade);
+
+      const subIndex = Math.max(0, quadrantGroup.findIndex(item => item.esteira.id === esteira.id));
+      const subCount = Math.max(1, quadrantGroup.length);
+      const subFraction = subCount > 1 ? subIndex / (subCount - 1) : 0.5;
+
+      const angleDeg = angleMin + subFraction * (angleMax - angleMin);
+      const angleRad = (angleDeg * Math.PI) / 180;
+
+      const x = cx + r * Math.cos(angleRad);
+      const y = cy - r * Math.sin(angleRad);
+
+      const quadrantPenalty = prodQuadrant === 'Q4' ? 400 : prodQuadrant === 'Q3' ? 300 : prodQuadrant === 'Q2' ? 200 : 100;
+      const qualityLossPenalty = (100 - esteira.qualidadePct) * 10;
+      const errorsPenalty = esteira.totalErros * 15;
+      const reincidenciasPenalty = esteira.reincidencias * 20;
+
+      const worstIndex = quadrantPenalty + qualityLossPenalty + errorsPenalty + reincidenciasPenalty;
+
+      return {
+        ...esteira,
+        metaPercent,
+        targetForPeriod,
+        prodQuadrant,
+        prodQuadrantName,
+        prodQuadrantColor,
+        prodQuadrantBg,
+        prodQuadrantBorder,
+        prodPercentile: metaPercent / 100,
+        x,
+        y,
+        radiusPct: esteira.qualidadePct,
+        angleDeg,
+        worstIndex,
+        q1Count,
+        q2Count,
+        q3Count,
+        q4Count
+      } as EsteiraDispersalData;
+    });
+  }, [esteirasList, dispersalData, startDate, endDate]);
+
+  const esteirasRankingData = useMemo(() => {
+    return [...esteirasDispersalData].sort((a, b) => b.worstIndex - a.worstIndex);
+  }, [esteirasDispersalData]);
+
   return (
     <div className="w-full bg-gray-50 p-4 sm:p-6 md:p-8 space-y-8 text-gray-900 relative">
       {/* Navigation Tabs Switcher & Top-Right Active Analysts counter */}
@@ -929,7 +1251,12 @@ export const AnalistasPage = () => {
               </div>
               <div>
                 <p className="text-2xl font-black text-gray-900">
-                  {dispersalData.filter(d => d.prodQuadrant === 'Q1').length} <span className="text-xs font-normal text-gray-500">analistas</span>
+                  {rankingCategory === 'esteira'
+                    ? esteirasDispersalData.filter(d => d.prodQuadrant === 'Q1').length
+                    : dispersalData.filter(d => d.prodQuadrant === 'Q1').length}{' '}
+                  <span className="text-xs font-normal text-gray-500">
+                    {rankingCategory === 'esteira' ? 'esteiras' : 'analistas'}
+                  </span>
                 </p>
                 <p className="text-[11px] text-gray-500 mt-1">Alta Produtividade (&gt;= 110%)</p>
               </div>
@@ -945,7 +1272,12 @@ export const AnalistasPage = () => {
               </div>
               <div>
                 <p className="text-2xl font-black text-gray-900">
-                  {dispersalData.filter(d => d.prodQuadrant === 'Q2').length} <span className="text-xs font-normal text-gray-500">analistas</span>
+                  {rankingCategory === 'esteira'
+                    ? esteirasDispersalData.filter(d => d.prodQuadrant === 'Q2').length
+                    : dispersalData.filter(d => d.prodQuadrant === 'Q2').length}{' '}
+                  <span className="text-xs font-normal text-gray-500">
+                    {rankingCategory === 'esteira' ? 'esteiras' : 'analistas'}
+                  </span>
                 </p>
                 <p className="text-[11px] text-gray-500 mt-1">Meta Batida (100% a 110%)</p>
               </div>
@@ -961,7 +1293,12 @@ export const AnalistasPage = () => {
               </div>
               <div>
                 <p className="text-2xl font-black text-gray-900">
-                  {dispersalData.filter(d => d.prodQuadrant === 'Q3').length} <span className="text-xs font-normal text-gray-500">analistas</span>
+                  {rankingCategory === 'esteira'
+                    ? esteirasDispersalData.filter(d => d.prodQuadrant === 'Q3').length
+                    : dispersalData.filter(d => d.prodQuadrant === 'Q3').length}{' '}
+                  <span className="text-xs font-normal text-gray-500">
+                    {rankingCategory === 'esteira' ? 'esteiras' : 'analistas'}
+                  </span>
                 </p>
                 <p className="text-[11px] text-gray-500 mt-1">Abaixo da Meta (90% a 100%)</p>
               </div>
@@ -977,7 +1314,12 @@ export const AnalistasPage = () => {
               </div>
               <div>
                 <p className="text-2xl font-black text-gray-900">
-                  {dispersalData.filter(d => d.prodQuadrant === 'Q4').length} <span className="text-xs font-normal text-gray-500">analistas</span>
+                  {rankingCategory === 'esteira'
+                    ? esteirasDispersalData.filter(d => d.prodQuadrant === 'Q4').length
+                    : dispersalData.filter(d => d.prodQuadrant === 'Q4').length}{' '}
+                  <span className="text-xs font-normal text-gray-500">
+                    {rankingCategory === 'esteira' ? 'esteiras' : 'analistas'}
+                  </span>
                 </p>
                 <p className="text-[11px] text-gray-500 mt-1">Produtividade Crítica (&lt; 90%)</p>
               </div>
@@ -990,10 +1332,10 @@ export const AnalistasPage = () => {
               <div>
                 <h3 className="text-lg font-bold text-brand-blue flex items-center gap-2 uppercase">
                   <Activity className="text-brand-blue" size={20} />
-                  DIAGRAMA DE DISPERSÃO — PRODUTIVIDADE X QUALIDADE
+                  DIAGRAMA DE DISPERSÃO — {rankingCategory === 'esteira' ? 'ESTEIRAS DE ATENDIMENTO' : 'PRODUTIVIDADE X QUALIDADE'}
                 </h3>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Mapeamento em 4 quadrantes de produtividade com raio radial representando a taxa de qualidade (Centro = 0% → Borda = 100%)
+                  Mapeamento de {rankingCategory === 'esteira' ? 'esteiras' : 'analistas'} em 4 quadrantes de produtividade com raio radial representando a taxa de qualidade (Centro = 0% → Borda = 100%)
                 </p>
               </div>
 
@@ -1042,15 +1384,12 @@ export const AnalistasPage = () => {
                   <circle cx="260" cy="260" r="210" fill="url(#polarGrad)" stroke="#d1d5db" strokeWidth="2" />
 
                   {/* Concentric Dashed Quality Rings */}
-                  {/* 62.5% Ring */}
                   <circle cx="260" cy="260" r="63.75" fill="none" stroke="#e5e7eb" strokeWidth="1" strokeDasharray="3 3" />
                   <text x="260" y="193" textAnchor="middle" fill="#9ca3af" fontSize="9" fontWeight="bold">62.5% Qualidade</text>
 
-                  {/* 75% Ring */}
                   <circle cx="260" cy="260" r="112.5" fill="none" stroke="#e5e7eb" strokeWidth="1" strokeDasharray="4 4" />
                   <text x="260" y="144" textAnchor="middle" fill="#9ca3af" fontSize="9" fontWeight="bold">75.0% Qualidade</text>
 
-                  {/* 87.5% Ring */}
                   <circle cx="260" cy="260" r="161.25" fill="none" stroke="#d1d5db" strokeWidth="1" strokeDasharray="4 4" />
                   <text x="260" y="95" textAnchor="middle" fill="#6b7280" fontSize="10" fontWeight="bold">87.5% Qualidade</text>
 
@@ -1062,177 +1401,255 @@ export const AnalistasPage = () => {
                   <line x1="260" y1="50" x2="260" y2="470" stroke="#9ca3af" strokeWidth="1.5" strokeDasharray="6 4" />
                   <line x1="50" y1="260" x2="470" y2="260" stroke="#9ca3af" strokeWidth="1.5" strokeDasharray="6 4" />
 
-                  {/* Quadrant Titles - Positioned in outer corners so they never overlap analyst dots */}
-                  {/* Q1: Top-Left */}
+                  {/* Quadrant Titles */}
                   <g transform="translate(65, 26)">
                     <rect x="-55" y="-13" width="110" height="26" rx="6" fill="#ecfdf5" stroke="#6ee7b7" strokeWidth="1" />
                     <text x="0" y="4" textAnchor="middle" fill="#047857" fontSize="11" fontWeight="extrabold">Q1 • &ge; 110%</text>
                   </g>
 
-                  {/* Q2: Top-Right */}
                   <g transform="translate(455, 26)">
                     <rect x="-60" y="-13" width="120" height="26" rx="6" fill="#eff6ff" stroke="#93c5fd" strokeWidth="1" />
                     <text x="0" y="4" textAnchor="middle" fill="#001E62" fontSize="11" fontWeight="extrabold">Q2 • 100% - 110%</text>
                   </g>
 
-                  {/* Q3: Bottom-Right */}
                   <g transform="translate(455, 494)">
                     <rect x="-60" y="-13" width="120" height="26" rx="6" fill="#fff7ed" stroke="#fdba74" strokeWidth="1" />
                     <text x="0" y="4" textAnchor="middle" fill="#c2410c" fontSize="11" fontWeight="extrabold">Q3 • 90% - 100%</text>
                   </g>
 
-                  {/* Q4: Bottom-Left */}
                   <g transform="translate(65, 494)">
                     <rect x="-50" y="-13" width="100" height="26" rx="6" fill="#fef2f2" stroke="#fca5a5" strokeWidth="1" />
                     <text x="0" y="4" textAnchor="middle" fill="#b91c1c" fontSize="11" fontWeight="extrabold">Q4 • &lt; 90%</text>
                   </g>
 
-                  {/* Analyst Dots (Bolinhas - Totalmente fixas e sem vibração no hover) */}
-                  {dispersalData.map((item) => {
-                    const isSelected = selectedDiagramAnalyst?.id === item.id;
-                    const isSearched = analystSearchQuery.trim().length > 0 && (
-                      item.nome.toLowerCase().includes(analystSearchQuery.toLowerCase()) || 
-                      item.codigo.toLowerCase().includes(analystSearchQuery.toLowerCase())
-                    );
+                  {/* Scatter Dots */}
+                  {rankingCategory === 'esteira' ? (
+                    esteirasDispersalData.map((item) => {
+                      const isSelected = selectedDiagramEsteira?.id === item.id;
+                      return (
+                        <g 
+                          key={item.id}
+                          onClick={() => setSelectedDiagramEsteira(item)}
+                          onMouseEnter={(e) => setHoveredDiagramEsteira({ esteira: item, mouseX: e.clientX, mouseY: e.clientY })}
+                          onMouseLeave={() => setHoveredDiagramEsteira(null)}
+                          className="cursor-pointer group"
+                        >
+                          {isSelected && (
+                            <>
+                              <circle cx={item.x} cy={item.y} r="24" fill="none" stroke={item.prodQuadrantColor} strokeWidth="1.5" className="opacity-25" />
+                              <circle cx={item.x} cy={item.y} r="18" fill="none" stroke={item.prodQuadrantColor} strokeWidth="2" strokeDasharray="3 2" className="opacity-90" />
+                            </>
+                          )}
+                          <circle cx={item.x} cy={item.y} r={isSelected ? "13" : "10"} fill="none" stroke="#000000" strokeWidth="1" />
+                          <circle cx={item.x} cy={item.y} r={isSelected ? "12" : "9"} fill={item.prodQuadrantColor} stroke="#ffffff" strokeWidth="1.2" className="transition-all duration-150" filter="url(#dotGlow)" />
+                        </g>
+                      );
+                    })
+                  ) : (
+                    dispersalData.map((item) => {
+                      const isSelected = selectedDiagramAnalyst?.id === item.id;
+                      const isSearched = analystSearchQuery.trim().length > 0 && (
+                        item.nome.toLowerCase().includes(analystSearchQuery.toLowerCase()) || 
+                        item.codigo.toLowerCase().includes(analystSearchQuery.toLowerCase())
+                      );
 
-                    return (
-                      <g 
-                        key={item.id}
-                        onClick={() => setSelectedDiagramAnalyst(item)}
-                        onMouseEnter={(e) => setHoveredDiagramAnalyst({ analyst: item, mouseX: e.clientX, mouseY: e.clientY })}
-                        onMouseLeave={() => setHoveredDiagramAnalyst(null)}
-                        className="cursor-pointer group"
-                      >
-                        {(isSelected || isSearched) && (
-                          <>
-                            <circle 
-                              cx={item.x} 
-                              cy={item.y} 
-                              r="22" 
-                              fill="none" 
-                              stroke={isSearched ? "#001E62" : item.prodQuadrantColor} 
-                              strokeWidth="1.5" 
-                              className="opacity-25" 
-                            />
-                            <circle 
-                              cx={item.x} 
-                              cy={item.y} 
-                              r="16" 
-                              fill="none" 
-                              stroke={isSearched ? "#001E62" : item.prodQuadrantColor} 
-                              strokeWidth="2" 
-                              strokeDasharray="3 2"
-                              className="opacity-90" 
-                            />
-                          </>
-                        )}
-
-                        {/* Outer thin black ring */}
-                        <circle 
-                          cx={item.x} 
-                          cy={item.y} 
-                          r={isSelected || isSearched ? "12" : "9.5"} 
-                          fill="none"
-                          stroke="#000000" 
-                          strokeWidth="1"
-                        />
-                        {/* Inner circle with thin white border */}
-                        <circle 
-                          cx={item.x} 
-                          cy={item.y} 
-                          r={isSelected || isSearched ? "11" : "8.5"} 
-                          fill={isSearched ? "#001E62" : item.prodQuadrantColor} 
-                          stroke="#ffffff" 
-                          strokeWidth="1.2"
-                          className="transition-all duration-150"
-                          filter="url(#dotGlow)"
-                        />
-                      </g>
-                    );
-                  })}
+                      return (
+                        <g 
+                          key={item.id}
+                          onClick={() => setSelectedDiagramAnalyst(item)}
+                          onMouseEnter={(e) => setHoveredDiagramAnalyst({ analyst: item, mouseX: e.clientX, mouseY: e.clientY })}
+                          onMouseLeave={() => setHoveredDiagramAnalyst(null)}
+                          className="cursor-pointer group"
+                        >
+                          {(isSelected || isSearched) && (
+                            <>
+                              <circle cx={item.x} cy={item.y} r="22" fill="none" stroke={isSearched ? "#001E62" : item.prodQuadrantColor} strokeWidth="1.5" className="opacity-25" />
+                              <circle cx={item.x} cy={item.y} r="16" fill="none" stroke={isSearched ? "#001E62" : item.prodQuadrantColor} strokeWidth="2" strokeDasharray="3 2" className="opacity-90" />
+                            </>
+                          )}
+                          <circle cx={item.x} cy={item.y} r={isSelected || isSearched ? "12" : "9.5"} fill="none" stroke="#000000" strokeWidth="1" />
+                          <circle cx={item.x} cy={item.y} r={isSelected || isSearched ? "11" : "8.5"} fill={isSearched ? "#001E62" : item.prodQuadrantColor} stroke="#ffffff" strokeWidth="1.2" className="transition-all duration-150" filter="url(#dotGlow)" />
+                        </g>
+                      );
+                    })
+                  )}
                 </svg>
               </div>
 
-              {/* Selected Analyst Side Card */}
+              {/* Selected Side Card */}
               <div className="w-full lg:w-[380px] bg-gray-50 border border-gray-200 p-5 rounded-2xl space-y-4 shadow-xl">
-                {selectedDiagramAnalyst ? (
-                  <div className="space-y-4 animate-in fade-in duration-200">
-                    <div className="flex items-center justify-between border-b border-gray-200 pb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-white border border-gray-300 flex items-center justify-center font-bold text-brand-blue text-sm shrink-0">
-                          {selectedDiagramAnalyst.nome.slice(0, 2).toUpperCase()}
+                {rankingCategory === 'esteira' ? (
+                  selectedDiagramEsteira ? (
+                    <div className="space-y-4 animate-in fade-in duration-200">
+                      <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-white border border-gray-300 flex items-center justify-center font-bold text-brand-blue text-sm shrink-0">
+                            <Layers size={18} />
+                          </div>
+                          <div className="overflow-hidden min-w-0">
+                            <h4 className="text-sm font-bold text-gray-900 truncate" title={selectedDiagramEsteira.nome}>{selectedDiagramEsteira.nome}</h4>
+                            <div className="flex items-center gap-1 mt-1 flex-wrap">
+                              <span className="text-[10px] text-gray-400 font-bold uppercase shrink-0">Sups:</span>
+                              {selectedDiagramEsteira.supervisores.slice(0, 2).map((sup, idx) => (
+                                <span key={idx} className="px-1.5 py-0.5 rounded-md bg-white text-gray-700 text-[10px] font-semibold border border-gray-200 max-w-[130px] truncate" title={sup}>
+                                  {sup}
+                                </span>
+                              ))}
+                              {selectedDiagramEsteira.supervisores.length > 2 && (
+                                <span 
+                                  className="px-1.5 py-0.5 rounded-md bg-brand-blue/10 text-brand-blue text-[10px] font-extrabold border border-brand-blue/20 cursor-help"
+                                  title={`Todos os supervisores:\n• ${selectedDiagramEsteira.supervisores.join('\n• ')}`}
+                                >
+                                  +{selectedDiagramEsteira.supervisores.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="text-sm font-bold text-gray-900">{selectedDiagramAnalyst.nome}</h4>
-                          <p className="text-[11px] font-mono text-gray-500">{selectedDiagramAnalyst.codigo} • Sup: {selectedDiagramAnalyst.supervisor}</p>
+                        <button 
+                          onClick={() => setSelectedDiagramEsteira(null)}
+                          className="p-1 text-gray-400 hover:text-gray-900 cursor-pointer"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Quadrante de Produtividade:</span>
+                        <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${selectedDiagramEsteira.prodQuadrantBg}`}>
+                          {selectedDiagramEsteira.prodQuadrantName}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-center text-xs">
+                        <div className="bg-white p-2.5 rounded-lg border border-gray-200">
+                          <p className="text-[10px] text-gray-400 uppercase font-semibold">Qualidade</p>
+                          <p className={`text-base font-extrabold mt-0.5 ${getQualityColorClass(selectedDiagramEsteira.qualidadePct)}`}>
+                            {selectedDiagramEsteira.qualidadePct}%
+                          </p>
+                        </div>
+
+                        <div className="bg-white p-2.5 rounded-lg border border-gray-200">
+                          <p className="text-[10px] text-gray-400 uppercase font-semibold">Produção</p>
+                          <p className="text-base font-extrabold text-blue-500 mt-0.5">
+                            {selectedDiagramEsteira.totalProdutividade} <span className="text-[10px] text-gray-500 font-normal">un.</span>
+                          </p>
+                        </div>
+
+                        <div className="bg-white p-2.5 rounded-lg border border-gray-200">
+                          <p className="text-[10px] text-gray-400 uppercase font-semibold">Total Monitorias</p>
+                          <p className="text-base font-extrabold text-gray-900 mt-0.5">
+                            {selectedDiagramEsteira.totalMonitorias}
+                          </p>
+                        </div>
+
+                        <div className="bg-white p-2.5 rounded-lg border border-gray-200">
+                          <p className="text-[10px] text-gray-400 uppercase font-semibold">Erros Registrados</p>
+                          <p className="text-base font-extrabold text-red-600 mt-0.5">
+                            {selectedDiagramEsteira.totalErros}
+                          </p>
                         </div>
                       </div>
-                      <button 
-                        onClick={() => setSelectedDiagramAnalyst(null)}
-                        className="p-1 text-gray-400 hover:text-gray-900"
+
+                      <button
+                        onClick={() => setSelectedEsteiraModal(selectedDiagramEsteira)}
+                        className="w-full py-2.5 px-4 bg-brand-blue-dark text-white hover:bg-brand-blue font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
                       >
-                        <X size={16} />
+                        <AlertTriangle size={15} />
+                        Analisar Esteira e Ofensores
                       </button>
                     </div>
-
-                    {/* Quadrant Badge */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500">Quadrante de Produtividade:</span>
-                      <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${selectedDiagramAnalyst.prodQuadrantBg}`}>
-                        {selectedDiagramAnalyst.prodQuadrantName}
-                      </span>
+                  ) : (
+                    <div className="p-8 text-center space-y-3">
+                      <Layers size={32} className="mx-auto text-brand-blue/80 animate-pulse" />
+                      <p className="text-xs font-bold text-gray-900">Clique em qualquer esteira no diagrama</p>
+                      <p className="text-[11px] text-gray-500 leading-relaxed">
+                        Selecione uma esteira para visualizar o desempenho consolidado dos seus analistas e abrir o ranking de ofensores da esteira.
+                      </p>
                     </div>
-
-                    {/* Metrics Grid */}
-                    <div className="grid grid-cols-2 gap-2 text-center text-xs">
-                      <div className="bg-white p-2.5 rounded-lg border border-gray-200">
-                        <p className="text-[10px] text-gray-400 uppercase font-semibold">Qualidade</p>
-                        <p className={`text-base font-extrabold mt-0.5 ${getQualityColorClass(selectedDiagramAnalyst.qualidadePct)}`}>
-                          {selectedDiagramAnalyst.qualidadePct}%
-                        </p>
-                      </div>
-
-                      <div className="bg-white p-2.5 rounded-lg border border-gray-200">
-                        <p className="text-[10px] text-gray-400 uppercase font-semibold">Produção</p>
-                        <p className="text-base font-extrabold text-blue-400 mt-0.5">
-                          {selectedDiagramAnalyst.totalProdutividade} <span className="text-[10px] text-gray-500 font-normal">un.</span>
-                        </p>
-                      </div>
-
-                      <div className="bg-white p-2.5 rounded-lg border border-gray-200">
-                        <p className="text-[10px] text-gray-400 uppercase font-semibold">Total Monitorias</p>
-                        <p className="text-base font-extrabold text-gray-900 mt-0.5">
-                          {selectedDiagramAnalyst.totalMonitorias}
-                        </p>
-                      </div>
-
-                      <div className="bg-white p-2.5 rounded-lg border border-gray-200">
-                        <p className="text-[10px] text-gray-400 uppercase font-semibold">Erros Registrados</p>
-                        <p className="text-base font-extrabold text-red-600 mt-0.5">
-                          {selectedDiagramAnalyst.totalErros}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Action button */}
-                    <button
-                      onClick={() => {
-                        setSelectedAnalyst(selectedDiagramAnalyst);
-                      }}
-                      className="w-full py-2.5 px-4 bg-white text-brand-blue border border-brand-blue hover:bg-brand-blue hover:text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <Users size={15} />
-                      Abrir Análise Individual Completa
-                    </button>
-                  </div>
+                  )
                 ) : (
-                  <div className="p-8 text-center space-y-3">
-                    <Crosshair size={32} className="mx-auto text-brand-blue/80 animate-pulse" />
-                    <p className="text-xs font-bold text-gray-900">Clique em qualquer unidade no diagrama</p>
-                    <p className="text-[11px] text-gray-500 leading-relaxed">
-                      Selecione um analista no Diagrama de Dispersão para inspecionar seus dados de produtividade, qualidade e acessar sua ficha individual.
-                    </p>
-                  </div>
+                  selectedDiagramAnalyst ? (
+                    <div className="space-y-4 animate-in fade-in duration-200">
+                      <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-white border border-gray-300 flex items-center justify-center font-bold text-brand-blue text-sm shrink-0">
+                            {selectedDiagramAnalyst.nome.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-gray-900">{selectedDiagramAnalyst.nome}</h4>
+                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                              <span className="px-1.5 py-0.5 rounded-md bg-gray-200/80 text-gray-800 text-[10px] font-mono font-extrabold border border-gray-300 shrink-0">
+                                {selectedDiagramAnalyst.codigo}
+                              </span>
+                              <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-brand-blue text-[10px] font-semibold border border-blue-200/80 max-w-[200px] truncate" title={`Supervisor: ${selectedDiagramAnalyst.supervisor}`}>
+                                Sup: {selectedDiagramAnalyst.supervisor}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => setSelectedDiagramAnalyst(null)}
+                          className="p-1 text-gray-400 hover:text-gray-900 cursor-pointer"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Quadrante de Produtividade:</span>
+                        <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${selectedDiagramAnalyst.prodQuadrantBg}`}>
+                          {selectedDiagramAnalyst.prodQuadrantName}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-center text-xs">
+                        <div className="bg-white p-2.5 rounded-lg border border-gray-200">
+                          <p className="text-[10px] text-gray-400 uppercase font-semibold">Qualidade</p>
+                          <p className={`text-base font-extrabold mt-0.5 ${getQualityColorClass(selectedDiagramAnalyst.qualidadePct)}`}>
+                            {selectedDiagramAnalyst.qualidadePct}%
+                          </p>
+                        </div>
+
+                        <div className="bg-white p-2.5 rounded-lg border border-gray-200">
+                          <p className="text-[10px] text-gray-400 uppercase font-semibold">Produção</p>
+                          <p className="text-base font-extrabold text-blue-400 mt-0.5">
+                            {selectedDiagramAnalyst.totalProdutividade} <span className="text-[10px] text-gray-500 font-normal">un.</span>
+                          </p>
+                        </div>
+
+                        <div className="bg-white p-2.5 rounded-lg border border-gray-200">
+                          <p className="text-[10px] text-gray-400 uppercase font-semibold">Total Monitorias</p>
+                          <p className="text-base font-extrabold text-gray-900 mt-0.5">
+                            {selectedDiagramAnalyst.totalMonitorias}
+                          </p>
+                        </div>
+
+                        <div className="bg-white p-2.5 rounded-lg border border-gray-200">
+                          <p className="text-[10px] text-gray-400 uppercase font-semibold">Erros Registrados</p>
+                          <p className="text-base font-extrabold text-red-600 mt-0.5">
+                            {selectedDiagramAnalyst.totalErros}
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => setSelectedAnalyst(selectedDiagramAnalyst)}
+                        className="w-full py-2.5 px-4 bg-white text-brand-blue border border-brand-blue hover:bg-brand-blue hover:text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <Users size={15} />
+                        Abrir Análise Individual Completa
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-8 text-center space-y-3">
+                      <Crosshair size={32} className="mx-auto text-brand-blue/80 animate-pulse" />
+                      <p className="text-xs font-bold text-gray-900">Clique em qualquer unidade no diagrama</p>
+                      <p className="text-[11px] text-gray-500 leading-relaxed">
+                        Selecione um analista no Diagrama de Dispersão para inspecionar seus dados de produtividade, qualidade e acessar sua ficha individual.
+                      </p>
+                    </div>
+                  )
                 )}
               </div>
             </div>
@@ -1244,15 +1661,14 @@ export const AnalistasPage = () => {
               <div>
                 <h3 className="text-lg font-bold text-brand-blue flex items-center gap-2 uppercase">
                   <AlertTriangle size={20} className="text-red-500" />
-                  RANKING DE OFENSORES
+                  RANKING DE OFENSORES {rankingCategory === 'esteira' ? 'POR ESTEIRA' : ''}
                 </h3>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Classificação de acompanhamento prioritário de analistas
+                  Classificação de acompanhamento prioritário de {rankingCategory === 'esteira' ? 'esteiras de atendimento' : 'analistas'}
                 </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
-                {/* Heatmap-style view filter selector with small cards (Geral, Qualidade, Produtividade) */}
                 <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200">
                   <button
                     type="button"
@@ -1296,95 +1712,184 @@ export const AnalistasPage = () => {
                   >
                     Produtividade
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRankingCategory('esteira');
+                      setRankingLimit(10);
+                    }}
+                    className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      rankingCategory === 'esteira'
+                        ? 'bg-brand-blue-dark text-white shadow-sm font-extrabold'
+                        : 'text-gray-500 hover:text-gray-900'
+                    }`}
+                  >
+                    <Layers size={13} />
+                    Esteira
+                  </button>
                 </div>
               </div>
             </div>
 
             {/* Ranking List Table / Cards */}
             <div className="space-y-3">
-              {rankingData.slice(0, rankingLimit).map((analyst, index) => {
-                const rankNum = index + 1;
-                const isTop3 = rankNum <= 3;
-                const isSearched = analystSearchQuery.trim().length > 0 && (
-                  analyst.nome.toLowerCase().includes(analystSearchQuery.toLowerCase()) || 
-                  analyst.codigo.toLowerCase().includes(analystSearchQuery.toLowerCase())
-                );
-                return (
-                  <div
-                    key={analyst.id}
-                    className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row items-center justify-between gap-4 ${
-                      isSearched
-                        ? 'bg-blue-50/30 border-brand-blue ring-1 ring-brand-blue/50 shadow-lg'
-                        : isTop3 
+              {rankingCategory === 'esteira' ? (
+                esteirasRankingData.slice(0, rankingLimit).map((esteira, index) => {
+                  const rankNum = index + 1;
+                  const isTop3 = rankNum <= 3;
+                  return (
+                    <div
+                      key={esteira.id}
+                      className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row items-center justify-between gap-4 ${
+                        isTop3 
                           ? 'bg-red-50 border-red-300 hover:border-red-600/80' 
                           : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    {/* Rank Badge & Name */}
-                    <div className="flex items-center gap-3.5 w-full md:w-[320px]">
-                      <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-extrabold text-xs shrink-0 ${
-                        isSearched
-                          ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/30'
-                          : isTop3 
-                            ? 'bg-red-600 text-gray-900 shadow-lg shadow-red-600/30' 
-                            : 'bg-gray-100 text-gray-700'
-                      }`}>
-                        #{rankNum}
-                      </span>
-
-                      <div className="overflow-hidden min-w-0">
-                        <h4 className="text-sm font-bold text-gray-900 truncate" title={analyst.nome}>{analyst.nome}</h4>
-                        <p className="text-[11px] font-mono text-gray-500">{analyst.codigo} • Sup: {analyst.supervisor}</p>
-                      </div>
-                    </div>
-
-                    {/* Quadrant & Quality Badge */}
-                    <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
-                      <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${analyst.prodQuadrantBg}`}>
-                        {analyst.prodQuadrantName}
-                      </span>
-
-                      <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${getQualityBadgeClass(analyst.qualidadePct)}`}>
-                        Qualidade: {analyst.qualidadePct}%
-                      </span>
-                    </div>
-
-                    {/* Volume & Erros Metrics */}
-                    <div className="flex items-center gap-6 text-xs text-gray-700 w-full md:w-auto justify-around md:justify-start">
-                      <div>
-                        <span className="text-gray-400 text-[10px] uppercase font-semibold block">Produção</span>
-                        <strong className="text-blue-400 font-bold">{analyst.totalProdutividade} un.</strong>
-                      </div>
-
-                      <div>
-                        <span className="text-gray-400 text-[10px] uppercase font-semibold block">Erros</span>
-                        <strong className="text-red-600 font-bold">{analyst.totalErros} ({analyst.reincidencias} reinc.)</strong>
-                      </div>
-                    </div>
-
-                    {/* Action Button */}
-                    <button
-                      onClick={() => {
-                        setSelectedAnalyst(analyst);
-                      }}
-                      className="w-full md:w-auto px-4 py-2 bg-white hover:bg-gray-100 text-brand-blue border border-gray-300 hover:border-brand-blue-dark/60 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                      }`}
                     >
-                      Analisar <ChevronRight size={14} />
-                    </button>
-                  </div>
-                );
-              })}
+                      <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                        <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-extrabold text-xs shrink-0 ${
+                          isTop3 
+                            ? 'bg-red-600 text-white shadow-lg shadow-red-600/30' 
+                            : 'bg-gray-200 text-gray-700'
+                        }`}>
+                          #{rankNum}
+                        </span>
+
+                        <div className="overflow-hidden min-w-0">
+                          <h4 className="text-sm font-bold text-gray-900 truncate" title={esteira.nome}>{esteira.nome}</h4>
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            <span className="text-[11px] text-gray-500 font-medium">
+                              {esteira.totalAnalistas} analista(s)
+                            </span>
+                            <span className="text-gray-300">•</span>
+                            {esteira.supervisores.slice(0, 2).map((sup, idx) => (
+                              <span key={idx} className="px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-700 text-[10px] font-semibold border border-gray-200 max-w-[140px] truncate" title={sup}>
+                                {sup}
+                              </span>
+                            ))}
+                            {esteira.supervisores.length > 2 && (
+                              <span 
+                                className="px-1.5 py-0.5 rounded-md bg-brand-blue/10 text-brand-blue text-[10px] font-extrabold border border-brand-blue/20 cursor-help"
+                                title={`Todos os supervisores:\n• ${esteira.supervisores.join('\n• ')}`}
+                              >
+                                +{esteira.supervisores.length - 2} sups.
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end shrink-0">
+                        <div className="flex items-center justify-around gap-4 px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm min-w-[240px]">
+                          <div className="text-center px-1">
+                            <span className="text-xs font-extrabold uppercase text-emerald-700 block tracking-wider">Q1</span>
+                            <span className="text-base font-black text-gray-900">{esteira.q1Count}</span>
+                          </div>
+                          <div className="h-6 w-px bg-gray-200" />
+                          <div className="text-center px-1">
+                            <span className="text-xs font-extrabold uppercase text-brand-blue block tracking-wider">Q2</span>
+                            <span className="text-base font-black text-gray-900">{esteira.q2Count}</span>
+                          </div>
+                          <div className="h-6 w-px bg-gray-200" />
+                          <div className="text-center px-1">
+                            <span className="text-xs font-extrabold uppercase text-orange-600 block tracking-wider">Q3</span>
+                            <span className="text-base font-black text-gray-900">{esteira.q3Count}</span>
+                          </div>
+                          <div className="h-6 w-px bg-gray-200" />
+                          <div className="text-center px-1">
+                            <span className="text-xs font-extrabold uppercase text-red-600 block tracking-wider">Q4</span>
+                            <span className="text-base font-black text-gray-900">{esteira.q4Count}</span>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => setSelectedEsteiraModal(esteira)}
+                          className="px-4 py-2 bg-brand-blue-dark text-white hover:bg-brand-blue font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                        >
+                          Analisar <ChevronRight size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                rankingData.slice(0, rankingLimit).map((analyst, index) => {
+                  const rankNum = index + 1;
+                  const isTop3 = rankNum <= 3;
+                  const isSearched = analystSearchQuery.trim().length > 0 && (
+                    analyst.nome.toLowerCase().includes(analystSearchQuery.toLowerCase()) || 
+                    analyst.codigo.toLowerCase().includes(analystSearchQuery.toLowerCase())
+                  );
+                  const quadNum = (analyst.prodQuadrant || 'Q2').replace('Q', '');
+                  return (
+                    <div
+                      key={analyst.id}
+                      className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row items-center justify-between gap-4 ${
+                        isSearched
+                          ? 'bg-blue-50/30 border-brand-blue ring-1 ring-brand-blue/50 shadow-lg'
+                          : isTop3 
+                            ? 'bg-red-50 border-red-300 hover:border-red-600/80' 
+                            : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                        <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-extrabold text-xs shrink-0 ${
+                          isSearched
+                            ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/30'
+                            : isTop3 
+                              ? 'bg-red-600 text-white shadow-lg shadow-red-600/30' 
+                              : 'bg-gray-200 text-gray-700'
+                        }`}>
+                          #{rankNum}
+                        </span>
+
+                        <div className="overflow-hidden min-w-0">
+                          <h4 className="text-sm font-bold text-gray-900 truncate" title={analyst.nome}>{analyst.nome}</h4>
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            <span className="px-1.5 py-0.5 rounded-md bg-gray-200/80 text-gray-800 text-[10px] font-mono font-extrabold border border-gray-300 shrink-0">
+                              {analyst.codigo}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-brand-blue text-[10px] font-semibold border border-blue-200/80 max-w-[200px] truncate" title={`Supervisor: ${analyst.supervisor}`}>
+                              Sup: {analyst.supervisor}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end shrink-0">
+                        <div className="flex flex-col items-center md:items-end justify-center gap-1 text-center md:text-right">
+                          <span className={`px-2.5 py-0.5 rounded-md text-xs font-bold border text-center ${analyst.prodQuadrantBg || 'bg-blue-50 text-brand-blue border-gray-300'}`}>
+                            Quadrante - {quadNum}
+                          </span>
+
+                          <span className={`px-2.5 py-0.5 rounded-md text-xs font-bold border text-center ${getQualityBadgeClass(analyst.qualidadePct)}`}>
+                            Qualidade : {analyst.qualidadePct}%
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={() => setSelectedAnalyst(analyst)}
+                          className="px-4 py-2 bg-white hover:bg-gray-100 text-brand-blue border border-gray-300 hover:border-brand-blue-dark/60 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                        >
+                          Ficha <ChevronRight size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
 
-            {/* Card button to load 10 more piores */}
-            {rankingLimit < rankingData.length && (
-              <div className="pt-2">
+            {/* Load More Ranking Button */}
+            {((rankingCategory === 'esteira' && esteirasRankingData.length > rankingLimit) ||
+              (rankingCategory !== 'esteira' && rankingData.length > rankingLimit)) && (
+              <div className="text-center pt-2">
                 <button
-                  type="button"
-                  onClick={() => setRankingLimit(prev => prev + 10)}
-                  className="w-full py-2.5 px-4 bg-white hover:bg-gray-100 text-brand-blue border border-gray-300 hover:border-brand-blue-dark/60 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                  onClick={() => setRankingLimit(prev => prev + 15)}
+                  className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs rounded-xl transition-all cursor-pointer border border-gray-300 inline-flex items-center gap-2"
                 >
-                  Exibir mais 10 analistas
+                  <span>Carregar Mais Registros no Ranking</span>
+                  <ChevronDown size={15} />
                 </button>
               </div>
             )}
@@ -1506,10 +2011,13 @@ export const AnalistasPage = () => {
                   <h3 className="text-sm font-bold text-gray-900 group-hover:text-brand-blue transition-colors truncate" title={analyst.nome}>
                     {analyst.nome}
                   </h3>
-                  <div className="flex items-center gap-1.5 text-[11px] text-gray-500 font-mono mt-0.5 flex-wrap">
-                    <span className="shrink-0">{analyst.codigo}</span>
-                    <span>•</span>
-                    <span className="truncate" title={`Sup: ${analyst.supervisor}`}>Sup: {analyst.supervisor}</span>
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    <span className="px-1.5 py-0.5 rounded-md bg-gray-200/80 text-gray-800 text-[10px] font-mono font-extrabold border border-gray-300 shrink-0">
+                      {analyst.codigo}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-brand-blue text-[10px] font-semibold border border-blue-200/80 max-w-[180px] truncate" title={`Supervisor: ${analyst.supervisor}`}>
+                      Sup: {analyst.supervisor}
+                    </span>
                   </div>
                   {/* Esteiras em quadradinhos individuais lado a lado */}
                   <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
@@ -1628,10 +2136,14 @@ export const AnalistasPage = () => {
                         <span className="text-[10px] uppercase text-gray-400">Média entre erros:</span> <strong className="text-brand-blue">{selectedAnalyst.mediaDiasEntreErros} dias</strong>
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-gray-500 mt-1 font-mono">
-                      <span>{selectedAnalyst.codigo}</span>
-                      <span>•</span>
-                      <span>Supervisor: {selectedAnalyst.supervisor}</span>
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <span className="px-2.5 py-1 rounded-md bg-gray-200/80 text-gray-800 text-xs font-mono font-extrabold border border-gray-300 shrink-0">
+                        {selectedAnalyst.codigo}
+                      </span>
+                      <span className="px-2.5 py-1 rounded-md bg-blue-50 text-brand-blue text-xs font-semibold border border-blue-200/80 flex items-center gap-1.5 shrink-0">
+                        <UserCheck size={14} className="text-brand-blue" />
+                        Supervisor: {selectedAnalyst.supervisor}
+                      </span>
                     </div>
                     <div className="mt-2 flex items-center gap-1.5 flex-wrap">
                       <span className="text-[11px] text-gray-500 font-semibold mr-1">Esteiras:</span>
@@ -1966,8 +2478,17 @@ export const AnalistasPage = () => {
         >
           <div className="flex items-center justify-between border-b border-gray-200 pb-1.5">
             <div className="overflow-hidden pr-2">
-              <h5 className="font-extrabold text-[#001E62] text-xs truncate">{hoveredDiagramAnalyst.analyst.nome}</h5>
-              <span className="text-[10px] text-gray-500 font-mono">{hoveredDiagramAnalyst.analyst.codigo}</span>
+              <h5 className="font-extrabold text-[#001E62] text-xs truncate" title={hoveredDiagramAnalyst.analyst.nome}>
+                {hoveredDiagramAnalyst.analyst.nome}
+              </h5>
+              <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                <span className="text-[9px] font-mono font-extrabold text-gray-800 bg-gray-100 px-1 py-0.5 rounded border border-gray-200">
+                  {hoveredDiagramAnalyst.analyst.codigo}
+                </span>
+                <span className="text-[9px] font-semibold text-brand-blue bg-blue-50 px-1 py-0.5 rounded border border-blue-200 truncate max-w-[110px]" title={`Supervisor: ${hoveredDiagramAnalyst.analyst.supervisor}`}>
+                  Sup: {hoveredDiagramAnalyst.analyst.supervisor}
+                </span>
+              </div>
             </div>
             <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold border shrink-0 ${hoveredDiagramAnalyst.analyst.prodQuadrantBg}`}>
               {hoveredDiagramAnalyst.analyst.prodQuadrant}
@@ -2007,6 +2528,296 @@ export const AnalistasPage = () => {
           <p className="text-[9px] text-[#001E62] text-center font-bold pt-0.5">
             Clique no ponto para ver a ficha
           </p>
+        </div>
+      )}
+
+      {/* Custom Clean Hover Popover Tooltip for Diagram Esteira Dots */}
+      {hoveredDiagramEsteira && (
+        <div 
+          className="fixed z-50 pointer-events-none transform -translate-x-1/2 -translate-y-full mb-3 bg-white border border-[#001E62] p-3 rounded-xl shadow-2xl text-xs space-y-2 w-60 animate-in fade-in zoom-in-95 duration-150"
+          style={{
+            left: `${hoveredDiagramEsteira.mouseX}px`,
+            top: `${hoveredDiagramEsteira.mouseY - 8}px`
+          }}
+        >
+          <div className="flex items-center justify-between border-b border-gray-200 pb-1.5">
+            <div className="overflow-hidden pr-2">
+              <h5 className="font-extrabold text-[#001E62] text-xs truncate" title={hoveredDiagramEsteira.esteira.nome}>
+                {hoveredDiagramEsteira.esteira.nome}
+              </h5>
+              <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                <span className="text-[9px] text-gray-400 font-bold uppercase">Sup:</span>
+                <span className="text-[10px] text-gray-700 font-semibold truncate max-w-[120px]" title={hoveredDiagramEsteira.esteira.supervisores[0]}>
+                  {hoveredDiagramEsteira.esteira.supervisores[0]}
+                </span>
+                {hoveredDiagramEsteira.esteira.supervisores.length > 1 && (
+                  <span className="text-[9px] font-extrabold text-brand-blue bg-blue-50 px-1 py-0.5 rounded border border-blue-200">
+                    +{hoveredDiagramEsteira.esteira.supervisores.length - 1}
+                  </span>
+                )}
+              </div>
+            </div>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold border shrink-0 ${hoveredDiagramEsteira.esteira.prodQuadrantBg}`}>
+              {hoveredDiagramEsteira.esteira.prodQuadrant}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+            <div className="bg-gray-50 p-1.5 rounded-lg border border-gray-200">
+              <span className="text-gray-400 text-[9px] block font-semibold uppercase">Qualidade</span>
+              <span className={`font-black text-xs ${getQualityColorClass(hoveredDiagramEsteira.esteira.qualidadePct)}`}>
+                {hoveredDiagramEsteira.esteira.qualidadePct}%
+              </span>
+            </div>
+
+            <div className="bg-gray-50 p-1.5 rounded-lg border border-gray-200">
+              <span className="text-gray-400 text-[9px] block font-semibold uppercase">Analistas</span>
+              <span className="font-black text-xs text-[#001E62]">
+                {hoveredDiagramEsteira.esteira.totalAnalistas}
+              </span>
+            </div>
+
+            <div className="bg-gray-50 p-1.5 rounded-lg border border-gray-200">
+              <span className="text-gray-400 text-[9px] block font-semibold uppercase">Produção</span>
+              <span className="font-black text-xs text-blue-600">
+                {hoveredDiagramEsteira.esteira.totalProdutividade} un.
+              </span>
+            </div>
+
+            <div className="bg-gray-50 p-1.5 rounded-lg border border-gray-200">
+              <span className="text-gray-400 text-[9px] block font-semibold uppercase">Erros</span>
+              <span className="font-black text-xs text-red-600">
+                {hoveredDiagramEsteira.esteira.totalErros}
+              </span>
+            </div>
+          </div>
+
+          <p className="text-[9px] text-[#001E62] text-center font-bold pt-0.5">
+            Clique no ponto para analisar esta esteira
+          </p>
+        </div>
+      )}
+
+      {/* DETAILED ESTEIRA MODAL WITH TOP METRICS & OFFENDER RANKING */}
+      {selectedEsteiraModal && (
+        <div className="fixed inset-0 bg-gray-50/85 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 animate-in fade-in duration-200">
+          <div className="w-full max-w-5xl bg-white border border-gray-200 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 text-gray-900 flex flex-col max-h-[90vh] overflow-hidden relative">
+            <div className="p-6 sm:p-8 overflow-y-auto custom-scrollbar space-y-8 flex-1">
+              {/* Modal Header */}
+              <div className="flex items-start justify-between border-b border-gray-200 pb-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-brand-blue/10 border border-brand-blue/20 flex items-center justify-center font-bold text-xl text-brand-blue shrink-0">
+                    <Layers size={28} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <h2 className="text-xl font-bold text-gray-900">{selectedEsteiraModal.nome}</h2>
+                      <span className="px-3 py-1.5 rounded-sm text-xs font-semibold text-gray-700 bg-gray-50 border border-gray-200 flex items-center gap-1.5">
+                        <Users size={13} className="text-brand-blue" />
+                        <strong className="text-brand-blue">{selectedEsteiraModal.totalAnalistas} analista(s) atuantes</strong>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <span className="text-xs font-semibold text-gray-500 flex items-center gap-1.5 shrink-0">
+                        <UserCheck size={14} className="text-brand-blue" />
+                        Supervisor(es):
+                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {selectedEsteiraModal.supervisores.map((sup, idx) => (
+                          <span 
+                            key={idx}
+                            className="px-2.5 py-1 rounded-md bg-gray-100 text-gray-800 text-xs font-semibold border border-gray-200/80 shadow-2xs"
+                          >
+                            {sup}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setSelectedEsteiraModal(null)}
+                  className="p-2 text-gray-500 hover:text-gray-900 bg-gray-50 border border-gray-200 rounded-xl hover:border-gray-300 transition-colors cursor-pointer"
+                  title="Fechar Modal de Esteira"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* TOP KPI CARDS FOR ESTEIRA */}
+              <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 sm:gap-4">
+                <div className="bg-gray-50 border border-gray-200 p-4 rounded-2xl text-center space-y-1">
+                  <p className="text-[10px] sm:text-[11px] text-gray-400 uppercase font-bold tracking-wider">Produtividade</p>
+                  <p className="text-xl sm:text-2xl font-extrabold text-blue-500">{selectedEsteiraModal.totalProdutividade}</p>
+                </div>
+
+                <div className="bg-gray-50 border border-gray-200 p-4 rounded-2xl text-center space-y-1">
+                  <p className="text-[10px] sm:text-[11px] text-gray-400 uppercase font-bold tracking-wider">Monitorias</p>
+                  <p className="text-xl sm:text-2xl font-extrabold text-gray-900">{selectedEsteiraModal.totalMonitorias}</p>
+                </div>
+
+                <div className="bg-gray-50 border border-gray-200 p-4 rounded-2xl text-center space-y-1">
+                  <p className="text-[10px] sm:text-[11px] text-gray-400 uppercase font-bold tracking-wider">Qualidade</p>
+                  <p className={`text-xl sm:text-2xl font-extrabold ${getQualityColorClass(selectedEsteiraModal.qualidadePct)}`}>{selectedEsteiraModal.qualidadePct}%</p>
+                </div>
+
+                <div className="bg-gray-50 border border-gray-200 p-4 rounded-2xl text-center space-y-1">
+                  <p className="text-[10px] sm:text-[11px] text-gray-400 uppercase font-bold tracking-wider">Erros</p>
+                  <p className="text-xl sm:text-2xl font-extrabold text-gray-900">{selectedEsteiraModal.totalErros}</p>
+                </div>
+
+                <div className="bg-gray-50 border border-gray-200 p-4 rounded-2xl text-center space-y-1">
+                  <p className="text-[10px] sm:text-[11px] text-gray-400 uppercase font-bold tracking-wider">Reincidências</p>
+                  <p className="text-xl sm:text-2xl font-extrabold text-red-600">{selectedEsteiraModal.reincidencias}</p>
+                </div>
+                
+                <div className="bg-gray-50 border border-gray-200 p-4 rounded-2xl text-center space-y-1">
+                  <p className="text-[10px] sm:text-[11px] text-gray-400 uppercase font-bold tracking-wider">TMO</p>
+                  <p className="text-xl sm:text-2xl font-extrabold text-gray-700">{selectedEsteiraModal.tmoMedio}m</p>
+                </div>
+              </div>
+
+              {/* RANKING DOS PRINCIPAIS OFENSORES DA ESTEIRA */}
+              <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-6 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-4">
+                  <div>
+                    <h3 className="text-base font-bold text-brand-blue flex items-center gap-2 uppercase">
+                      <AlertTriangle size={18} className="text-red-500" />
+                      RANKING DOS PRINCIPAIS OFENSORES DA ESTEIRA ({selectedEsteiraModal.nome})
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Analistas da esteira classificados por nível de ofensa
+                    </p>
+                  </div>
+
+                  {/* Filter bar inside Esteira Modal: Geral, Qualidade, Produtividade */}
+                  <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200">
+                    <button
+                      type="button"
+                      onClick={() => setEsteiraModalFilter('geral')}
+                      className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                        esteiraModalFilter === 'geral'
+                          ? 'bg-brand-blue-dark text-white shadow-sm font-extrabold'
+                          : 'text-gray-500 hover:text-gray-900'
+                      }`}
+                    >
+                      Geral
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEsteiraModalFilter('qualidade')}
+                      className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                        esteiraModalFilter === 'qualidade'
+                          ? 'bg-brand-blue-dark text-white shadow-sm font-extrabold'
+                          : 'text-gray-500 hover:text-gray-900'
+                      }`}
+                    >
+                      Qualidade
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEsteiraModalFilter('produtividade')}
+                      className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                        esteiraModalFilter === 'produtividade'
+                          ? 'bg-brand-blue-dark text-white shadow-sm font-extrabold'
+                          : 'text-gray-500 hover:text-gray-900'
+                      }`}
+                    >
+                      Produtividade
+                    </button>
+                  </div>
+                </div>
+
+                {/* Analysts list for this esteira */}
+                <div className="space-y-3">
+                  {(() => {
+                    const mappedAnalysts = selectedEsteiraModal.analistas.map(a => {
+                      const disp = dispersalData.find(d => d.id === a.id) || {
+                        ...a,
+                        worstIndex: (100 - a.qualidadePct) * 10 + a.totalErros * 15,
+                        prodQuadrantName: 'Q2 • Meta Atingida',
+                        prodQuadrantBg: 'bg-blue-50 text-brand-blue border-gray-300'
+                      };
+                      return disp;
+                    });
+
+                    let sorted = [...mappedAnalysts];
+                    if (esteiraModalFilter === 'qualidade') {
+                      sorted.sort((a, b) => {
+                        if (a.qualidadePct !== b.qualidadePct) return a.qualidadePct - b.qualidadePct;
+                        return b.totalErros - a.totalErros;
+                      });
+                    } else if (esteiraModalFilter === 'produtividade') {
+                      sorted.sort((a, b) => {
+                        if (a.totalProdutividade !== b.totalProdutividade) return a.totalProdutividade - b.totalProdutividade;
+                        return a.qualidadePct - b.qualidadePct;
+                      });
+                    } else {
+                      sorted.sort((a, b) => b.worstIndex - a.worstIndex);
+                    }
+
+                    return sorted.map((analyst, index) => {
+                      const rankNum = index + 1;
+                      const isTop3 = rankNum <= 3;
+                      const quadNum = (analyst.prodQuadrant || 'Q2').replace('Q', '');
+                      return (
+                        <div
+                          key={analyst.id}
+                          className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row items-center justify-between gap-4 ${
+                            isTop3 
+                              ? 'bg-red-50 border-red-300 hover:border-red-600/80' 
+                              : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                            <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-extrabold text-xs shrink-0 ${
+                              isTop3 
+                                ? 'bg-red-600 text-white shadow-md shadow-red-600/30' 
+                                : 'bg-gray-200 text-gray-700'
+                            }`}>
+                              #{rankNum}
+                            </span>
+
+                            <div className="overflow-hidden min-w-0">
+                              <h4 className="text-sm font-bold text-gray-900 truncate" title={analyst.nome}>{analyst.nome}</h4>
+                              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                <span className="px-1.5 py-0.5 rounded-md bg-gray-200/80 text-gray-800 text-[10px] font-mono font-extrabold border border-gray-300 shrink-0">
+                                  {analyst.codigo}
+                                </span>
+                                <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-brand-blue text-[10px] font-semibold border border-blue-200/80 max-w-[200px] truncate" title={`Supervisor: ${analyst.supervisor}`}>
+                                  Sup: {analyst.supervisor}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end shrink-0">
+                            <div className="flex flex-col items-center md:items-end justify-center gap-1 text-center md:text-right">
+                              <span className={`px-2.5 py-0.5 rounded-md text-xs font-bold border text-center ${analyst.prodQuadrantBg || 'bg-blue-50 text-brand-blue border-gray-300'}`}>
+                                Quadrante - {quadNum}
+                              </span>
+
+                              <span className={`px-2.5 py-0.5 rounded-md text-xs font-bold border text-center ${getQualityBadgeClass(analyst.qualidadePct)}`}>
+                                Qualidade : {analyst.qualidadePct}%
+                              </span>
+                            </div>
+
+                            <button
+                              onClick={() => setSelectedAnalyst(analyst)}
+                              className="px-4 py-2 bg-white hover:bg-gray-100 text-brand-blue border border-gray-300 hover:border-brand-blue-dark/60 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                            >
+                              Ficha <ChevronRight size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

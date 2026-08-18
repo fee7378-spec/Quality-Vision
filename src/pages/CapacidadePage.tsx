@@ -90,7 +90,6 @@ export const CapacidadePage: React.FC = () => {
   }, [selectedEsteira, esteiraParams, workingDaysInMonth]);
 
   const mediaDiariaUtil = totalProdutividade / (diasUteisPassados || 1);
-  const provisaoFechamento = Math.round(mediaDiariaUtil * diasUteisCompleto);
 
   // 1. Capacity Table matching user print
   const capacityTableData = useMemo(() => {
@@ -284,6 +283,7 @@ export const CapacidadePage: React.FC = () => {
 
   const latestMonth = momData[momData.length - 1] || { volumeRealizado: 0, provisaoProjetada: 0, momGrowth: '0', daysWorked: 1, avgDailyRate: 0 };
   const prevMonth = momData[momData.length - 2] || { volumeRealizado: 0 };
+  const provisaoFechamento = latestMonth.provisaoProjetada;
 
   const capacidadeNominal = Math.round(capacityTableData.totals.capDia * diasUteisPassados);
 
@@ -328,9 +328,9 @@ export const CapacidadePage: React.FC = () => {
                 <h3 className="text-3xl font-black text-[#001E62] tracking-tight">{provisaoFechamento.toLocaleString('pt-BR')}</h3>
               </div>
               <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-                <span className="text-gray-500 font-medium text-[11px]">Projeção ({diasUteisPassados}d úteis passados / {diasUteisCompleto}d úteis)</span>
+                <span className="text-gray-500 font-medium text-[11px]">Projeção ({latestMonth.daysWorked}d úteis passados / {diasUteisCompleto}d úteis)</span>
                 <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[#001E62] font-bold text-[11px]">
-                  <span>{Math.round(mediaDiariaUtil).toLocaleString('pt-BR')} / dia útil</span>
+                  <span>{latestMonth.avgDailyRate.toLocaleString('pt-BR')} / dia útil</span>
                 </div>
               </div>
             </div>
