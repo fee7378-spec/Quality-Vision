@@ -12,13 +12,20 @@ import { AnaliseEvolucaoPage } from './pages/AnaliseEvolucaoPage';
 import { OperacaoPage } from './pages/OperacaoPage';
 import { CapacidadePage } from './pages/CapacidadePage';
 import { HistoryPage } from './pages/HistoryPage';
+import { SettingsPage } from './pages/SettingsPage';
 import { useTokenStore } from './store/useTokenStore';
+import { useThemeStore } from './store/useThemeStore';
 import { AuthScreen } from './components/AuthScreen';
 import { ExpiredTokenModal } from './components/ExpiredTokenModal';
 import { Loader2 } from 'lucide-react';
 
 export default function App() {
   const { isLoggedIn, isInitialized, initSessionFromStorage, checkTokenStatus } = useTokenStore();
+  const { theme, setTheme } = useThemeStore();
+
+  useEffect(() => {
+    setTheme(theme);
+  }, []);
 
   useEffect(() => {
     initSessionFromStorage();
@@ -58,6 +65,7 @@ export default function App() {
           <Route path="/analise" element={<AnaliseEvolucaoPage />} />
           <Route path="/analistas" element={<AnalistasPage />} />
           <Route path="/history" element={<HistoryPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </DashboardLayout>

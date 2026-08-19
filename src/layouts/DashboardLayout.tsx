@@ -21,9 +21,9 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             {children}
           </div>
         </main>
-        <footer className="w-full h-16 border-t border-gray-200 bg-gray-50 shrink-0 px-6 flex items-center justify-center z-10">
+        <footer className="w-full h-16 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#0b0f19] shrink-0 px-6 flex items-center justify-center z-10">
           <div className="flex items-center justify-center">
-            <span className="text-xs font-bold text-brand-blue tracking-wider">
+            <span className="text-xs font-bold text-brand-blue dark:text-blue-400 tracking-wider">
               © Developed by Felipe Nascimento
             </span>
           </div>

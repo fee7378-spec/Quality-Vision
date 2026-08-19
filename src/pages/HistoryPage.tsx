@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useStore, matchesFilter, matchesFormaFilter, getTabuladorName, getAnalystCode, getSupervisorCode, getMonitorCode, getVal } from '../store/useStore';
 import { useTokenStore } from '../store/useTokenStore';
-import { History, Download, AlertTriangle, CheckCircle, Calendar, MessageSquareCheck, Eye, X } from 'lucide-react';
+import { History, Download, AlertTriangle, CheckCircle, Calendar, MessageSquareCheck, Eye, X, ClipboardCheck } from 'lucide-react';
 import { ErrorDetailModal } from '../components/ErrorDetailModal';
 
 export const HistoryPage = () => {
@@ -53,6 +53,20 @@ export const HistoryPage = () => {
       return true;
     });
   }, [data, startDate, endDate, selectedEsteira, selectedForma]);
+
+  const totalMonitoriasPeriod = useMemo(() => {
+    return monitorias
+      .filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        const itemEsteira = getVal(item, 'esteira');
+        if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+        return true;
+      })
+      .reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || Number(item.quantidade) || 0), 0);
+  }, [monitorias, startDate, endDate, selectedEsteira]);
 
   // Consolidate global KPI calculations to reduce redundant loops
   const globalKpis = useMemo(() => {
@@ -289,70 +303,66 @@ export const HistoryPage = () => {
   const errorCount = totalErrosGeral;
 
   return (
-    <div className="p-3 sm:p-4 space-y-4 bg-gray-50 text-gray-900 w-full max-w-full text-xs">
-      {/* Header Banner & Stats */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-gray-200 p-3.5 rounded-lg shadow-xs">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-brand-blue/10 border border-brand-blue/20 text-[#001E62] rounded-md">
-            <History size={18} />
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-[#001E62] tracking-wide uppercase">Histórico de Erros</h2>
-            <p className="text-[11px] text-gray-500">Visão compacta das monitorias, planos de ação e inconsistências</p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Export CSV */}
-          <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-3 py-1 bg-white text-[#001E62] border border-[#001E62] rounded-md text-[11px] font-bold hover:bg-[#001E62] hover:text-white active:scale-95 transition-all cursor-pointer shadow-2xs"
-          >
-            <Download size={13} className="stroke-[2.5]" />
-            Exportar CSV
-          </button>
-        </div>
+    <div className="p-3 sm:p-4 space-y-4 bg-gray-50 dark:bg-[#0b0f19] text-gray-900 dark:text-white w-full max-w-full text-xs animate-in fade-in duration-200">
+      {/* Header & Export Solto Acima */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleExportCSV}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#192238] text-[#001E62] dark:text-blue-400 border border-[#001E62] dark:border-blue-500/50 rounded-md text-[11px] font-bold hover:bg-[#001E62] hover:text-white dark:hover:bg-blue-600 dark:hover:text-white active:scale-95 transition-all cursor-pointer shadow-2xs"
+        >
+          <Download size={13} className="stroke-[2.5]" />
+          Exportar CSV
+        </button>
       </div>
 
-      {/* KPI Stats Bar - 3 Cards in requested layout order: Erros (Esquerda) | Qualidade (Meio) | Feedbacks (Direita) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {/* ESQUERDA: Erros Registrados */}
-        <div className="bg-white border border-gray-200 p-3 rounded-lg flex items-center justify-between shadow-2xs">
+      {/* KPI Stats Bar - 4 Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        {/* Card 1: Monitorias */}
+        <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-3 rounded-lg flex items-center justify-between shadow-2xs">
           <div>
-            <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Erros Registrados</p>
-            <p className="text-xl font-black text-red-600 mt-0.5">{errorCount.toLocaleString('pt-BR')}</p>
+            <p className="text-[10px] text-gray-500 dark:text-white font-semibold uppercase tracking-wider">Monitorias</p>
+            <p className="text-xl font-black text-brand-blue dark:text-blue-400 mt-0.5">{totalMonitoriasPeriod.toLocaleString('pt-BR')}</p>
           </div>
-          <AlertTriangle size={22} className="text-red-500/40" />
+          <ClipboardCheck size={22} className="text-brand-blue/40 dark:text-blue-400/40" />
         </div>
 
-        {/* MEIO: Qualidade do Período (mesma fórmula da Visão Geral) */}
-        <div className="bg-white border border-gray-200 p-3 rounded-lg flex items-center justify-between shadow-2xs">
+        {/* Card 2: Erros Registrados */}
+        <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-3 rounded-lg flex items-center justify-between shadow-2xs">
           <div>
-            <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Qualidade do Período</p>
-            <p className={`text-xl font-black mt-0.5 ${qualidadeGeralPct >= 95 ? 'text-[#001E62]' : 'text-red-600'}`}>
+            <p className="text-[10px] text-gray-500 dark:text-white font-semibold uppercase tracking-wider">Erros Registrados</p>
+            <p className="text-xl font-black text-red-600 dark:text-red-400 mt-0.5">{errorCount.toLocaleString('pt-BR')}</p>
+          </div>
+          <AlertTriangle size={22} className="text-red-500/40 dark:text-red-400/40" />
+        </div>
+
+        {/* Card 3: Qualidade do Período */}
+        <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-3 rounded-lg flex items-center justify-between shadow-2xs">
+          <div>
+            <p className="text-[10px] text-gray-500 dark:text-white font-semibold uppercase tracking-wider">Qualidade do Período</p>
+            <p className={`text-xl font-black mt-0.5 ${qualidadeGeralPct >= 95 ? 'text-[#001E62] dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
               {qualidadeGeralStr}
             </p>
-            <p className="text-[10px] text-gray-400 font-medium">Meta: 95.0%</p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-400 font-medium">Meta: 95.0%</p>
           </div>
-          <CheckCircle size={22} className={qualidadeGeralPct >= 95 ? 'text-[#001E62]/40' : 'text-red-500/40'} />
+          <CheckCircle size={22} className={qualidadeGeralPct >= 95 ? 'text-[#001E62]/40 dark:text-emerald-400/40' : 'text-red-500/40 dark:text-red-400/40'} />
         </div>
 
-        {/* DIREITA: Quantidade de Feedbacks Realizados */}
-        <div className="bg-white border border-gray-200 p-3 rounded-lg flex items-center justify-between shadow-2xs">
+        {/* Card 4: Feedbacks Realizados */}
+        <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-3 rounded-lg flex items-center justify-between shadow-2xs">
           <div>
-            <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Feedbacks Realizados</p>
-            <p className="text-xl font-black text-[#001E62] mt-0.5">{feedbackCount.toLocaleString('pt-BR')}</p>
-            <p className="text-[10px] text-gray-400 font-medium">Linhas preenchidas</p>
+            <p className="text-[10px] text-gray-500 dark:text-white font-semibold uppercase tracking-wider">Feedbacks Realizados</p>
+            <p className="text-xl font-black text-[#001E62] dark:text-blue-400 mt-0.5">{feedbackCount.toLocaleString('pt-BR')}</p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-400 font-medium">Planos de ação tomados</p>
           </div>
-          <MessageSquareCheck size={22} className="text-[#001E62]/40" />
+          <MessageSquareCheck size={22} className="text-[#001E62]/40 dark:text-blue-400/40" />
         </div>
       </div>
 
       {/* Main Table - Compact */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-2xs">
+      <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden shadow-2xs">
         <div className="overflow-x-auto w-full">
-          <table className="w-full text-left text-[11px] text-gray-700 min-w-[1000px] border-collapse">
-            <thead className="bg-gray-100 text-gray-600 uppercase font-bold tracking-wider border-b border-gray-200 select-none">
+          <table className="w-full text-left text-[11px] text-gray-700 dark:text-gray-300 min-w-[1000px] border-collapse">
+            <thead className="bg-gray-100 dark:bg-[#192238] text-gray-600 dark:text-gray-300 uppercase font-bold tracking-wider border-b border-gray-200 dark:border-gray-800 select-none">
               <tr>
                 <th className="py-2 px-2 text-center w-8"></th>
                 <th className="py-2 px-2.5">Data</th>
@@ -367,10 +377,10 @@ export const HistoryPage = () => {
                 <th className="py-2 px-2.5 text-center">Data Plano</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 font-medium">
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-800 font-medium">
               {filteredErrosTable.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="py-10 text-center text-gray-400 italic">
+                  <td colSpan={11} className="py-10 text-center text-gray-400 dark:text-gray-500 italic">
                     Nenhum registro encontrado para os filtros selecionados.
                   </td>
                 </tr>
@@ -393,42 +403,42 @@ export const HistoryPage = () => {
                     <tr 
                       key={rowId}
                       onClick={() => setSelectedModalItem(item)}
-                      className="hover:bg-blue-50/70 transition-colors cursor-pointer select-none even:bg-gray-50/40"
+                      className="hover:bg-blue-50/70 dark:hover:bg-blue-900/30 transition-colors cursor-pointer select-none even:bg-gray-50/40 dark:even:bg-[#192238]/30"
                       title="Clique para abrir os detalhes completos em um pop-up modal"
                     >
                       <td className="py-2 px-2 text-center text-gray-400">
-                        <Eye size={14} className="text-[#001E62] hover:scale-110 transition-transform" />
+                        <Eye size={14} className="text-[#001E62] dark:text-blue-400 hover:scale-110 transition-transform" />
                       </td>
-                      <td className="py-2 px-2.5 text-gray-900 font-semibold whitespace-nowrap">
+                      <td className="py-2 px-2.5 text-gray-900 dark:text-white font-semibold whitespace-nowrap">
                         <div className="flex items-center gap-1">
-                          <Calendar size={12} className="text-[#001E62] shrink-0" />
+                          <Calendar size={12} className="text-[#001E62] dark:text-blue-400 shrink-0" />
                           <span>{formatDateBR(itemDate)}</span>
                         </div>
                       </td>
-                      <td className="py-2 px-2.5 font-bold text-gray-900 whitespace-nowrap max-w-[150px] truncate" title={itemAnalista}>
+                      <td className="py-2 px-2.5 font-bold text-gray-900 dark:text-white whitespace-nowrap max-w-[150px] truncate" title={itemAnalista}>
                         {itemAnalista}
                         {!isVisualizacao && (
-                          <span className="block text-[9px] text-gray-400 font-mono font-normal truncate">{itemCode}</span>
+                          <span className="block text-[9px] text-gray-400 dark:text-gray-500 font-mono font-normal truncate">{itemCode}</span>
                         )}
                       </td>
-                      <td className="py-2 px-2.5 text-gray-700 whitespace-nowrap max-w-[120px] truncate" title={itemSup}>{itemSup}</td>
-                      <td className="py-2 px-2.5 text-gray-500 whitespace-nowrap max-w-[110px] truncate" title={itemMon}>{itemMon}</td>
-                      <td className="py-2 px-2.5 text-gray-800 font-medium whitespace-nowrap max-w-[130px] truncate" title={esteiraLabel}>{esteiraLabel}</td>
+                      <td className="py-2 px-2.5 text-gray-700 dark:text-gray-300 whitespace-nowrap max-w-[120px] truncate" title={itemSup}>{itemSup}</td>
+                      <td className="py-2 px-2.5 text-gray-500 dark:text-gray-400 whitespace-nowrap max-w-[110px] truncate" title={itemMon}>{itemMon}</td>
+                      <td className="py-2 px-2.5 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap max-w-[130px] truncate" title={esteiraLabel}>{esteiraLabel}</td>
                       <td className="py-2 px-2.5 max-w-[140px] truncate">
-                        <span className="inline-block px-1.5 py-0.5 rounded bg-gray-100 text-gray-800 text-[10px] font-semibold truncate max-w-[130px]">
+                        <span className="inline-block px-1.5 py-0.5 rounded bg-gray-100 dark:bg-[#192238] text-gray-800 dark:text-gray-200 border border-gray-200/60 dark:border-gray-700 text-[10px] font-semibold truncate max-w-[130px]">
                           {itemTag}
                         </span>
                       </td>
-                      <td className="py-2 px-2.5 text-gray-600 max-w-[130px] truncate" title={itemMacro}>{itemMacro}</td>
+                      <td className="py-2 px-2.5 text-gray-600 dark:text-gray-400 max-w-[130px] truncate" title={itemMacro}>{itemMacro}</td>
                       <td className="py-2 px-2.5 text-center whitespace-nowrap">
-                        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold whitespace-nowrap shadow-xs bg-red-50 text-red-600 border border-red-200">
+                        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold whitespace-nowrap shadow-xs bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/60">
                           0% • Erro
                         </span>
                       </td>
-                      <td className="py-2 px-2.5 text-gray-700 max-w-[200px] truncate" title={itemPlano}>
+                      <td className="py-2 px-2.5 text-gray-700 dark:text-gray-300 max-w-[200px] truncate" title={itemPlano}>
                         {itemPlano}
                       </td>
-                      <td className="py-2 px-2.5 text-center text-gray-700 font-medium whitespace-nowrap">
+                      <td className="py-2 px-2.5 text-center text-gray-700 dark:text-gray-300 font-medium whitespace-nowrap">
                         {formatDateBR(itemFbDate)}
                       </td>
                     </tr>
@@ -440,10 +450,10 @@ export const HistoryPage = () => {
         </div>
         
         {filteredErrosTable.length > visibleCount && (
-          <div className="p-3 border-t border-gray-200 bg-gray-50/50 flex justify-center">
+          <div className="p-3 border-t border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-[#192238]/50 flex justify-center">
             <button
               onClick={() => setVisibleCount(prev => prev + 15)}
-              className="px-4 py-1.5 bg-white border border-[#001E62]/30 text-[#001E62] rounded-md text-xs font-bold shadow-xs hover:bg-[#001E62]/5 hover:border-[#001E62] transition-colors"
+              className="px-4 py-1.5 bg-white dark:bg-[#131b2e] border border-[#001E62]/30 dark:border-blue-500/40 text-[#001E62] dark:text-blue-400 rounded-md text-xs font-bold shadow-xs hover:bg-[#001E62]/5 dark:hover:bg-blue-900/30 hover:border-[#001E62] transition-colors cursor-pointer"
             >
               Exibir mais 15 erros
             </button>

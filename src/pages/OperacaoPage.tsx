@@ -29,7 +29,7 @@ const CustomXAxisTick = (props: any) => {
 
   return (
     <g transform={`translate(${x},${y})`}>
-      <text x={0} y={0} dy={4} textAnchor="middle" fill="#001E62" fontSize={11} fontWeight="600">
+      <text x={0} y={0} dy={4} textAnchor="middle" fill="#cbd5e1" fontSize={11} fontWeight="600">
         {lines.slice(0, 3).map((line, index) => (
           <tspan x={0} dy={index === 0 ? 10 : 13} key={index}>
             {line}
@@ -376,76 +376,76 @@ const esteiraPrioData = useMemo(() => {
   }, [capacity, selectedEsteira]);
 
   return (
-    <div className="w-full p-4 sm:p-6 md:p-8 bg-gray-50 text-gray-900 space-y-8">
+    <div className="w-full p-4 sm:p-6 md:p-8 bg-gray-50 dark:bg-transparent text-gray-900 dark:text-white space-y-8">
 
 
       {/* KPI Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
+        <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-5 rounded-xl hover:border-[#001E62]/40 dark:hover:border-blue-500/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">PRIORIDADES</span>
-            <div className="p-1.5 rounded-lg bg-blue-50 border border-blue-100">
-              <Target size={18} className="text-[#001E62]" />
+            <span className="text-gray-500 dark:text-white text-xs font-bold uppercase tracking-wider">PRIORIDADES</span>
+            <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-[#192238] border border-blue-100 dark:border-gray-700">
+              <Target size={18} className="text-[#001E62] dark:text-blue-400" />
             </div>
           </div>
           <div>
-            <h3 className="text-3xl font-black text-gray-900 tracking-tight">{kpis.prioVolume.toLocaleString('pt-BR')}</h3>
-            <p className="text-[11px] text-gray-500 font-medium mt-0.5">Demanda prioritária ({kpis.prioPercent}% do volume total)</p>
+            <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">{kpis.prioVolume.toLocaleString('pt-BR')}</h3>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium mt-0.5">Demanda prioritária ({kpis.prioPercent}% do volume total)</p>
           </div>
-          <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-            <span className="text-gray-500 font-medium text-[11px]">
+          <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs">
+            <span className="text-gray-500 dark:text-gray-400 font-medium text-[11px]">
             </span>
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
+        <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-5 rounded-xl hover:border-[#001E62]/40 dark:hover:border-blue-500/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">REPROVAS</span>
-            <div className="p-1.5 rounded-lg bg-red-50 border border-red-100">
-              <AlertTriangle size={18} className="text-red-600" />
+            <span className="text-gray-500 dark:text-white text-xs font-bold uppercase tracking-wider">REPROVAS</span>
+            <div className="p-1.5 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-800">
+              <AlertTriangle size={18} className="text-red-600 dark:text-red-400" />
             </div>
           </div>
           <div>
-            <h3 className="text-3xl font-black text-[#001E62] tracking-tight">{kpis.reprovaPercent}%</h3>
+            <h3 className="text-3xl font-black text-[#001E62] dark:text-red-400 tracking-tight">{kpis.reprovaPercent}%</h3>
           </div>
-          <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-            <span className="text-gray-500 font-medium text-[11px]">
-              Quantidade de reprovas: <strong className="text-red-600 font-bold">{kpis.reprovadosCount.toLocaleString('pt-BR')}</strong>
+          <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs">
+            <span className="text-gray-500 dark:text-gray-400 font-medium text-[11px]">
+              Quantidade de reprovas: <strong className="text-red-600 dark:text-red-400 font-bold">{kpis.reprovadosCount.toLocaleString('pt-BR')}</strong>
             </span>
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
+        <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-5 rounded-xl hover:border-[#001E62]/40 dark:hover:border-blue-500/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">PICO DE PRODUÇÃO</span>
-            <div className="p-1.5 rounded-lg bg-gray-50 border border-gray-100">
-              <Calendar size={18} className="text-[#001E62]" />
+            <span className="text-gray-500 dark:text-white text-xs font-bold uppercase tracking-wider">PICO DE PRODUÇÃO</span>
+            <div className="p-1.5 rounded-lg bg-gray-50 dark:bg-[#192238] border border-gray-100 dark:border-gray-700">
+              <Calendar size={18} className="text-[#001E62] dark:text-blue-400" />
             </div>
           </div>
           <div>
-            <h3 className="text-2xl font-black text-gray-900 tracking-tight">{kpis.peakDay}</h3>
+            <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{kpis.peakDay}</h3>
           </div>
-          <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-            <span className="text-gray-500 font-medium text-[11px]">Volume no dia de pico</span>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold text-[11px]">
+          <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs">
+            <span className="text-gray-500 dark:text-gray-400 font-medium text-[11px]">Volume no dia de pico</span>
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 font-bold text-[11px]">
               <span>{kpis.peakVol.toLocaleString('pt-BR')}</span>
             </div>
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
+        <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-5 rounded-xl hover:border-[#001E62]/40 dark:hover:border-blue-500/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">TMO MÉDIO OPERACIONAL</span>
-            <div className="p-1.5 rounded-lg bg-gray-50 border border-gray-100">
-              <Clock size={18} className="text-[#001E62]" />
+            <span className="text-gray-500 dark:text-white text-xs font-bold uppercase tracking-wider">TMO MÉDIO OPERACIONAL</span>
+            <div className="p-1.5 rounded-lg bg-gray-50 dark:bg-[#192238] border border-gray-100 dark:border-gray-700">
+              <Clock size={18} className="text-[#001E62] dark:text-blue-400" />
             </div>
           </div>
           <div>
-            <h3 className="text-3xl font-black text-gray-900 tracking-tight">{tmoMedioGeral.toFixed(1).replace('.', ',')} <span className="text-sm font-bold text-gray-500">min</span></h3>
+            <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">{tmoMedioGeral.toFixed(1).replace('.', ',')} <span className="text-sm font-bold text-gray-500 dark:text-gray-400">min</span></h3>
           </div>
-          <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-            <span className="text-gray-500 font-medium text-[11px]">Média por item tratado</span>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-[#001E62] font-bold text-[11px]">
+          <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs">
+            <span className="text-gray-500 dark:text-gray-400 font-medium text-[11px]">Média por item tratado</span>
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-[#001E62] dark:text-blue-300 font-bold text-[11px]">
               <span>Média Operacional</span>
             </div>
           </div>
@@ -453,22 +453,22 @@ const esteiraPrioData = useMemo(() => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-7 bg-white border border-gray-200 p-6 rounded-md space-y-4">
+        <div className="lg:col-span-7 bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-6 rounded-md space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h3 className="text-brand-blue font-bold text-base flex items-center gap-2 uppercase">
-                <BarChart2 size={18} className="text-brand-blue" />
+              <h3 className="text-brand-blue dark:text-white font-bold text-base flex items-center gap-2 uppercase">
+                <BarChart2 size={18} className="text-brand-blue dark:text-blue-400" />
                 VOLUMETRIA DE PRIORIDADES
               </h3>
             </div>
-            <div className="flex items-center gap-4 bg-gray-50/70 border border-gray-200 px-3.5 py-1.5 rounded-md self-start sm:self-auto flex-shrink-0">
+            <div className="flex items-center gap-4 bg-gray-50/70 dark:bg-[#192238] border border-gray-200 dark:border-gray-700 px-3.5 py-1.5 rounded-md self-start sm:self-auto flex-shrink-0">
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-sm bg-[#001E62] inline-block" />
-                <span className="text-xs font-bold text-gray-900">Prioridade (SIM)</span>
+                <span className="w-3 h-3 rounded-sm bg-blue-500 inline-block" />
+                <span className="text-xs font-bold text-gray-900 dark:text-gray-200">Prioridade (SIM)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-sm bg-[#EEF2FF] border border-[#001E62] inline-block" />
-                <span className="text-xs font-bold text-gray-900">Normal (NÃO)</span>
+                <span className="w-3 h-3 rounded-sm bg-white border border-gray-300 dark:border-gray-500 inline-block" />
+                <span className="text-xs font-bold text-gray-900 dark:text-gray-200">Normal (NÃO)</span>
               </div>
             </div>
           </div>
@@ -477,26 +477,26 @@ const esteiraPrioData = useMemo(() => {
             <div style={{ minWidth: Math.max(800, esteiraPrioData.length * 160), height: 350 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={esteiraPrioData} margin={{ top: 25, right: 20, left: 10, bottom: 25 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                   <XAxis 
                     dataKey="esteira" 
-                    stroke="#6b7280" 
+                    stroke="#94a3b8" 
                     interval={0}
                     tick={<CustomXAxisTick />}
                     height={55}
                   />
-                  <YAxis stroke="#6b7280" tick={{ fontSize: 11 }} />
+                  <YAxis stroke="#94a3b8" tick={{ fontSize: 11, fill: '#cbd5e1' }} />
                   <Tooltip 
-                    cursor={{ fill: 'transparent' }}
-                    contentStyle={{ backgroundColor: '#ffffff', borderColor: '#001E62', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', color: '#001E62', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }} 
-                    itemStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
-                    labelStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }}
+                    cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                    contentStyle={{ backgroundColor: '#131b2e', borderColor: '#243049', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', color: '#ffffff', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)' }} 
+                    itemStyle={{ color: '#ffffff', fontSize: '11px', fontWeight: 'bold' }} 
+                    labelStyle={{ color: '#60a5fa', fontSize: '11px', fontWeight: 'bold' }} 
                   />
-                  <Bar dataKey="sim" name="Prioridade (SIM)" fill="#001E62" radius={[4, 4, 0, 0]} barSize={34}>
-                    <LabelList dataKey="sim" position="top" offset={6} fill="#001E62" fontSize={11} fontWeight="bold" />
+                  <Bar dataKey="sim" name="Prioridade (SIM)" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={34}>
+                    <LabelList dataKey="sim" position="top" offset={6} fill="#ffffff" fontSize={11} fontWeight="bold" />
                   </Bar>
-                  <Bar dataKey="nao" name="Normal (NÃO)" fill="#EEF2FF" stroke="#001E62" strokeWidth={1} radius={[4, 4, 0, 0]} barSize={34}>
-                    <LabelList dataKey="nao" position="top" offset={6} fill="#001E62" fontSize={11} fontWeight="bold" />
+                  <Bar dataKey="nao" name="Normal (NÃO)" fill="#ffffff" radius={[4, 4, 0, 0]} barSize={34}>
+                    <LabelList dataKey="nao" position="top" offset={6} fill="#ffffff" fontSize={11} fontWeight="bold" />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -504,10 +504,10 @@ const esteiraPrioData = useMemo(() => {
           </div>
         </div>
 
-        <div className="lg:col-span-5 bg-white border border-gray-200 p-6 rounded-md space-y-4 flex flex-col justify-between">
+        <div className="lg:col-span-5 bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-6 rounded-md space-y-4 flex flex-col justify-between">
           <div>
-            <h3 className="text-brand-blue font-bold text-base flex items-center gap-2 uppercase">
-              <ShieldAlert size={18} className="text-brand-blue" />
+            <h3 className="text-brand-blue dark:text-white font-bold text-base flex items-center gap-2 uppercase">
+              <ShieldAlert size={18} className="text-brand-blue dark:text-blue-400" />
               PRINCIPAIS MOTIVOS DE REPROVAS
             </h3>
             <p className="text-[11px] text-gray-400 mt-0.5">Top 10 motivos mais frequentes no período selecionado</p>
@@ -516,25 +516,25 @@ const esteiraPrioData = useMemo(() => {
           <div className="space-y-1.5 text-xs flex-1">
             {topMotivos.length > 0 ? (
               topMotivos.map((m, idx) => (
-                <div key={idx} className="flex items-center justify-between bg-gray-50 border border-gray-200 px-3 py-1.5 rounded text-gray-700 hover:border-brand-blue/30 transition-colors">
+                <div key={idx} className="flex items-center justify-between bg-gray-50 dark:bg-[#192238] border border-gray-200 dark:border-gray-700/60 px-3 py-1.5 rounded text-gray-700 dark:text-gray-200 hover:border-brand-blue/30 transition-colors">
                   <span className="truncate pr-2 font-medium">{idx + 1}. {m.motivo}</span>
-                  <span className="font-bold text-brand-blue bg-brand-blue-dark/10 px-2 py-0.5 rounded text-[11px] border border-brand-blue-dark/20 flex-shrink-0">
+                  <span className="font-bold text-brand-blue dark:text-blue-400 bg-brand-blue-dark/10 dark:bg-blue-950/40 px-2 py-0.5 rounded text-[11px] border border-brand-blue-dark/20 dark:border-blue-800 flex-shrink-0">
                     {m.count.toLocaleString('pt-BR')} ocorrência(s)
                   </span>
                 </div>
               ))
             ) : (
-              <p className="text-xs text-gray-400 italic py-4">Nenhum motivo de reprova registrado.</p>
+              <p className="text-xs text-gray-400 py-4 text-center">Nenhum motivo de reprova registrado.</p>
             )}
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-5 bg-white border border-gray-200 p-6 rounded-md space-y-4">
+        <div className="lg:col-span-5 bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-6 rounded-md space-y-4">
           <div>
-            <h3 className="text-brand-blue font-bold text-base flex items-center gap-2 uppercase">
-              <Activity size={18} className="text-brand-blue" />
+            <h3 className="text-brand-blue dark:text-white font-bold text-base flex items-center gap-2 uppercase">
+              <Activity size={18} className="text-brand-blue dark:text-blue-400" />
               VOLUMETRIA DE TIPOS DE DEMANDA
             </h3>
           </div>
@@ -544,19 +544,19 @@ const esteiraPrioData = useMemo(() => {
                 const maxVol = atividadeVolume[0]?.volume || 1;
                 const percent = Math.round((item.volume / maxVol) * 100);
                 return (
-                  <div key={index} className="bg-gray-50 border border-gray-200 p-3 rounded-md space-y-1.5">
+                  <div key={index} className="bg-gray-50 dark:bg-[#192238] border border-gray-200 dark:border-gray-700/60 p-3 rounded-md space-y-1.5">
                     <div className="flex items-center justify-between text-xs gap-2">
-                      <span className="font-semibold text-gray-900 truncate max-w-[78%] flex items-center gap-1.5">
-                        <span className="font-bold text-brand-blue bg-brand-blue-dark/10 border border-brand-blue-dark/20 px-1.5 py-0.5 rounded text-[11px] flex-shrink-0">
+                      <span className="font-semibold text-gray-900 dark:text-gray-100 truncate max-w-[78%] flex items-center gap-1.5">
+                        <span className="font-bold text-brand-blue dark:text-blue-400 bg-brand-blue-dark/10 dark:bg-blue-950/40 border border-brand-blue-dark/20 dark:border-blue-800 px-1.5 py-0.5 rounded text-[11px] flex-shrink-0">
                           {index + 1}º
                         </span>
                         <span className="truncate">{item.atividade}</span>
                       </span>
-                      <span className="font-bold text-brand-blue flex-shrink-0">{item.volume}</span>
+                      <span className="font-bold text-blue-600 dark:text-blue-400 flex-shrink-0">{item.volume}</span>
                     </div>
-                    <div className="w-full bg-white rounded-full h-2 overflow-hidden border border-gray-200">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden border border-gray-300 dark:border-gray-600">
                       <div 
-                        className="bg-brand-blue-dark h-full rounded-full transition-all duration-500" 
+                        className="bg-blue-600 dark:bg-blue-400 h-full rounded-full transition-all duration-500" 
                         style={{ width: `${percent}%` }}
                       />
                     </div>
@@ -569,11 +569,11 @@ const esteiraPrioData = useMemo(() => {
           </div>
         </div>
 
-        <div className="lg:col-span-7 bg-white border border-gray-200 p-6 rounded-md space-y-4">
+        <div className="lg:col-span-7 bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-6 rounded-md space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h3 className="text-brand-blue font-bold text-base flex items-center gap-2 uppercase">
-                <Clock size={18} className="text-brand-blue" />
+              <h3 className="text-brand-blue dark:text-white font-bold text-base flex items-center gap-2 uppercase">
+                <Clock size={18} className="text-brand-blue dark:text-blue-400" />
                 TEMPO MÉDIO DE OPERAÇÃO POR ESTEIRAS
               </h3>
             </div>
@@ -582,24 +582,24 @@ const esteiraPrioData = useMemo(() => {
             <div style={{ minWidth: Math.max(1000, tmoPorEsteira.length * 300), height: 350 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={tmoPorEsteira} margin={{ top: 25, right: 20, left: 10, bottom: 25 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                   <XAxis 
                     dataKey="esteira" 
-                    stroke="#6b7280" 
+                    stroke="#94a3b8" 
                     interval={0}
                     tick={<CustomXAxisTick />}
                     height={55}
                   />
-                  <YAxis stroke="#6b7280" tick={{ fontSize: 11 }} unit=" min" />
+                  <YAxis stroke="#94a3b8" tick={{ fontSize: 11, fill: '#cbd5e1' }} unit=" min" />
                   <Tooltip 
-                    cursor={{ fill: 'transparent' }}
-                    contentStyle={{ backgroundColor: '#ffffff', borderColor: '#001E62', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', color: '#001E62', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }} 
-                    itemStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
-                    labelStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }}
+                    cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                    contentStyle={{ backgroundColor: '#131b2e', borderColor: '#243049', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', color: '#ffffff', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)' }} 
+                    itemStyle={{ color: '#ffffff', fontSize: '11px', fontWeight: 'bold' }} 
+                    labelStyle={{ color: '#60a5fa', fontSize: '11px', fontWeight: 'bold' }}
                     formatter={(val: any) => [formatMinutesToTime(Number(val)), 'TMO Médio']}
                   />
-                  <Bar dataKey="tmoMedio" name="TMO Médio (min)" fill="#001E62" radius={[4, 4, 0, 0]} barSize={40}>
-                    <LabelList dataKey="tmoMedio" position="top" offset={6} fill="#001E62" fontSize={11} fontWeight="bold" formatter={(v: any) => formatMinutesToTime(Number(v))} />
+                  <Bar dataKey="tmoMedio" name="TMO Médio (min)" fill="#ffffff" radius={[4, 4, 0, 0]} barSize={40}>
+                    <LabelList dataKey="tmoMedio" position="top" offset={6} fill="#ffffff" fontSize={11} fontWeight="bold" formatter={(v: any) => formatMinutesToTime(Number(v))} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>

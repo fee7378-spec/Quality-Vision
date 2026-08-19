@@ -124,14 +124,14 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                   key={opt}
                   onClick={() => handleToggleOption(opt)}
                   className={`flex items-center justify-between px-2 py-1.5 rounded cursor-pointer transition-colors select-none ${
-                    isChecked ? 'bg-brand-blue/10 text-brand-blue-light font-semibold' : 'text-gray-700 hover:bg-white'
+                    isChecked ? 'bg-brand-blue/10 text-brand-blue-light font-semibold' : 'text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
                 >
                   <span className="truncate pr-2">{opt}</span>
                   <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
-                    isChecked ? 'bg-white border-[#001E62] text-[#001E62]' : 'border-gray-300 bg-white'
+                    isChecked ? 'bg-white dark:bg-blue-600 border-[#001E62] dark:border-blue-500 text-[#001E62] dark:text-white' : 'border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-700'
                   }`}>
-                    {isChecked && <Check size={11} className="stroke-[3] text-[#001E62]" />}
+                    {isChecked && <Check size={11} className="stroke-[3] text-[#001E62] dark:text-white" />}
                   </div>
                 </label>
               );

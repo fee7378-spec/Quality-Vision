@@ -957,6 +957,15 @@ export const useStore = create<AppState>((set, get) => ({
   },
   resetToCurrentMonth: () => {
     const current = getCurrentMonthRange();
-    set({ startDate: current.start, endDate: current.end });
+    set({ 
+      startDate: current.start, 
+      endDate: current.end,
+      selectedTag: 'TODAS',
+      selectedMacro: 'TODOS',
+      selectedEsteira: ['TODAS'],
+      selectedForma: ['TODAS'],
+      selectedSupervisor: ['TODOS'],
+      analystSearchQuery: ''
+    });
   }
 }));

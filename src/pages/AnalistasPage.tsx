@@ -1200,17 +1200,17 @@ export const AnalistasPage = () => {
   }, [esteirasDispersalData]);
 
   return (
-    <div className="w-full bg-gray-50 p-4 sm:p-6 md:p-8 space-y-8 text-gray-900 relative">
+    <div className="w-full bg-gray-50 dark:bg-transparent p-4 sm:p-6 md:p-8 space-y-8 text-gray-900 dark:text-white relative">
       {/* Navigation Tabs Switcher & Top-Right Active Analysts counter */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-5">
         {/* Left: Tab Selector Switcher */}
-        <div className="flex items-center gap-2 bg-white border border-gray-200 p-1.5 rounded-xl shrink-0 shadow-lg">
+        <div className="flex items-center gap-2 bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-1.5 rounded-xl shrink-0 shadow-lg">
           <button
             onClick={() => setActiveTab('individual')}
             className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'individual' 
-                ? 'bg-brand-blue-dark text-white shadow-md shadow-brand-blue/20' 
-                : 'text-gray-500 hover:text-gray-900'
+                ? 'bg-brand-blue-dark dark:bg-blue-600 text-white shadow-md shadow-brand-blue/20' 
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
             <Users size={15} />
@@ -1220,8 +1220,8 @@ export const AnalistasPage = () => {
             onClick={() => setActiveTab('dispersao')}
             className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'dispersao' 
-                ? 'bg-brand-blue-dark text-white shadow-md shadow-brand-blue/20' 
-                : 'text-gray-500 hover:text-gray-900'
+                ? 'bg-brand-blue-dark dark:bg-blue-600 text-white shadow-md shadow-brand-blue/20' 
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
             <Activity size={15} />
@@ -1230,9 +1230,9 @@ export const AnalistasPage = () => {
         </div>
 
         {/* Right side: Active Analysts counter (placed on top right per prompt) */}
-        <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 bg-white/60 border border-gray-200 px-3.5 py-2 rounded-xl self-end sm:self-auto">
-          <Users size={14} className="text-brand-blue" />
-          <span><strong className="text-gray-900">{filteredAnalysts.length}</strong> analistas ativos nesta base</span>
+        <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300 bg-white/80 dark:bg-[#192238] border border-gray-200 dark:border-gray-700/80 px-3.5 py-2 rounded-xl self-end sm:self-auto shadow-xs">
+          <Users size={14} className="text-brand-blue dark:text-blue-400" />
+          <span><strong className="text-gray-900 dark:text-white font-bold">{filteredAnalysts.length}</strong> analistas ativos nesta base</span>
         </div>
       </div>
 
@@ -1242,99 +1242,99 @@ export const AnalistasPage = () => {
           {/* Quadrant Summary KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Q1 Positivo */}
-            <div className="bg-white border border-emerald-300 p-4 rounded-xl space-y-2 relative overflow-hidden">
+            <div className="bg-white dark:bg-[#131b2e] border border-emerald-300 dark:border-emerald-800/80 p-4 rounded-xl space-y-2 relative overflow-hidden">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-extrabold uppercase px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-700 border border-emerald-300">
+                <span className="text-[11px] font-extrabold uppercase px-2.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
                   Q1 • 110%+ da Meta
                 </span>
-                <TrendingUp size={18} className="text-emerald-600" />
+                <TrendingUp size={18} className="text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
-                <p className="text-2xl font-black text-gray-900">
+                <p className="text-2xl font-black text-gray-900 dark:text-white">
                   {rankingCategory === 'esteira'
                     ? esteirasDispersalData.filter(d => d.prodQuadrant === 'Q1').length
                     : dispersalData.filter(d => d.prodQuadrant === 'Q1').length}{' '}
-                  <span className="text-xs font-normal text-gray-500">
+                  <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
                     {rankingCategory === 'esteira' ? 'esteiras' : 'analistas'}
                   </span>
                 </p>
-                <p className="text-[11px] text-gray-500 mt-1">Alta Produtividade (&gt;= 110%)</p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Alta Produtividade (&gt;= 110%)</p>
               </div>
             </div>
 
             {/* Q2 Mediano */}
-            <div className="bg-white border border-blue-300 p-4 rounded-xl space-y-2 relative overflow-hidden">
+            <div className="bg-white dark:bg-[#131b2e] border border-blue-300 dark:border-blue-800/80 p-4 rounded-xl space-y-2 relative overflow-hidden">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-extrabold uppercase px-2.5 py-0.5 rounded-md bg-blue-50 text-brand-blue-light border border-gray-300">
+                <span className="text-[11px] font-extrabold uppercase px-2.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/50 text-brand-blue-light dark:text-blue-300 border border-gray-300 dark:border-blue-700">
                   Q2 • 100% - 110% da Meta
                 </span>
-                <BarChart2 size={18} className="text-brand-blue-light" />
+                <BarChart2 size={18} className="text-brand-blue-light dark:text-blue-400" />
               </div>
               <div>
-                <p className="text-2xl font-black text-gray-900">
+                <p className="text-2xl font-black text-gray-900 dark:text-white">
                   {rankingCategory === 'esteira'
                     ? esteirasDispersalData.filter(d => d.prodQuadrant === 'Q2').length
                     : dispersalData.filter(d => d.prodQuadrant === 'Q2').length}{' '}
-                  <span className="text-xs font-normal text-gray-500">
+                  <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
                     {rankingCategory === 'esteira' ? 'esteiras' : 'analistas'}
                   </span>
                 </p>
-                <p className="text-[11px] text-gray-500 mt-1">Meta Batida (100% a 110%)</p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Meta Batida (100% a 110%)</p>
               </div>
             </div>
 
             {/* Q3 Ruim */}
-            <div className="bg-white border border-orange-300 p-4 rounded-xl space-y-2 relative overflow-hidden">
+            <div className="bg-white dark:bg-[#131b2e] border border-orange-300 dark:border-orange-800/80 p-4 rounded-xl space-y-2 relative overflow-hidden">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-extrabold uppercase px-2.5 py-0.5 rounded-md bg-orange-100 text-orange-700 border border-orange-300">
+                <span className="text-[11px] font-extrabold uppercase px-2.5 py-0.5 rounded-md bg-orange-100 dark:bg-orange-950/50 text-orange-700 dark:text-orange-300 border border-orange-300 dark:border-orange-700">
                   Q3 • 90% - 100% da Meta
                 </span>
-                <AlertTriangle size={18} className="text-orange-600" />
+                <AlertTriangle size={18} className="text-orange-600 dark:text-orange-400" />
               </div>
               <div>
-                <p className="text-2xl font-black text-gray-900">
+                <p className="text-2xl font-black text-gray-900 dark:text-white">
                   {rankingCategory === 'esteira'
                     ? esteirasDispersalData.filter(d => d.prodQuadrant === 'Q3').length
                     : dispersalData.filter(d => d.prodQuadrant === 'Q3').length}{' '}
-                  <span className="text-xs font-normal text-gray-500">
+                  <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
                     {rankingCategory === 'esteira' ? 'esteiras' : 'analistas'}
                   </span>
                 </p>
-                <p className="text-[11px] text-gray-500 mt-1">Abaixo da Meta (90% a 100%)</p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Abaixo da Meta (90% a 100%)</p>
               </div>
             </div>
 
             {/* Q4 Pior */}
-            <div className="bg-white border border-red-300 p-4 rounded-xl space-y-2 relative overflow-hidden">
+            <div className="bg-white dark:bg-[#131b2e] border border-red-300 dark:border-red-800/80 p-4 rounded-xl space-y-2 relative overflow-hidden">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-extrabold uppercase px-2.5 py-0.5 rounded-md bg-red-100 text-red-700 border border-red-300">
+                <span className="text-[11px] font-extrabold uppercase px-2.5 py-0.5 rounded-md bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700">
                   Q4 • &lt; 90% da Meta
                 </span>
-                <ShieldAlert size={18} className="text-red-600" />
+                <ShieldAlert size={18} className="text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <p className="text-2xl font-black text-gray-900">
+                <p className="text-2xl font-black text-gray-900 dark:text-white">
                   {rankingCategory === 'esteira'
                     ? esteirasDispersalData.filter(d => d.prodQuadrant === 'Q4').length
                     : dispersalData.filter(d => d.prodQuadrant === 'Q4').length}{' '}
-                  <span className="text-xs font-normal text-gray-500">
+                  <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
                     {rankingCategory === 'esteira' ? 'esteiras' : 'analistas'}
                   </span>
                 </p>
-                <p className="text-[11px] text-gray-500 mt-1">Produtividade Crítica (&lt; 90%)</p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Produtividade Crítica (&lt; 90%)</p>
               </div>
             </div>
           </div>
 
           {/* DISPERSAL SCATTER CHART CARD */}
-          <div className="bg-white border border-gray-200 p-6 rounded-2xl space-y-6 shadow-xl">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-4">
+          <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-6 rounded-2xl space-y-6 shadow-xl">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-4">
               <div>
-                <h3 className="text-lg font-bold text-brand-blue flex items-center gap-2 uppercase">
-                  <Activity className="text-brand-blue" size={20} />
+                <h3 className="text-lg font-bold text-brand-blue dark:text-white flex items-center gap-2 uppercase">
+                  <Activity className="text-brand-blue dark:text-blue-400" size={20} />
                   DIAGRAMA DE DISPERSÃO — {rankingCategory === 'esteira' ? 'ESTEIRAS DE ATENDIMENTO' : 'PRODUTIVIDADE X QUALIDADE'}
                 </h3>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                   Mapeamento de {rankingCategory === 'esteira' ? 'esteiras' : 'analistas'} em 4 quadrantes de produtividade com raio radial representando a taxa de qualidade (Centro = 0% → Borda = 100%)
                 </p>
               </div>
@@ -1522,30 +1522,30 @@ export const AnalistasPage = () => {
                       </div>
 
                       <div className="grid grid-cols-2 gap-2 text-center text-xs">
-                        <div className="bg-white p-2.5 rounded-lg border border-gray-200">
-                          <p className="text-[10px] text-gray-400 uppercase font-semibold">Qualidade</p>
+                        <div className="bg-white dark:bg-[#192238] p-2.5 rounded-lg border border-gray-200 dark:border-gray-700">
+                          <p className="text-[10px] text-gray-400 dark:text-gray-300 uppercase font-semibold">Qualidade</p>
                           <p className={`text-base font-extrabold mt-0.5 ${getQualityColorClass(selectedDiagramEsteira.qualidadePct)}`}>
                             {selectedDiagramEsteira.qualidadePct}%
                           </p>
                         </div>
 
-                        <div className="bg-white p-2.5 rounded-lg border border-gray-200">
-                          <p className="text-[10px] text-gray-400 uppercase font-semibold">Produção</p>
-                          <p className="text-base font-extrabold text-blue-500 mt-0.5">
-                            {selectedDiagramEsteira.totalProdutividade} <span className="text-[10px] text-gray-500 font-normal">un.</span>
+                        <div className="bg-white dark:bg-[#192238] p-2.5 rounded-lg border border-gray-200 dark:border-gray-700">
+                          <p className="text-[10px] text-gray-400 dark:text-gray-300 uppercase font-semibold">Produção</p>
+                          <p className="text-base font-extrabold text-blue-500 dark:text-blue-400 mt-0.5">
+                            {selectedDiagramEsteira.totalProdutividade} <span className="text-[10px] text-gray-500 dark:text-gray-400 font-normal">un.</span>
                           </p>
                         </div>
 
-                        <div className="bg-white p-2.5 rounded-lg border border-gray-200">
-                          <p className="text-[10px] text-gray-400 uppercase font-semibold">Total Monitorias</p>
-                          <p className="text-base font-extrabold text-gray-900 mt-0.5">
+                        <div className="bg-white dark:bg-[#192238] p-2.5 rounded-lg border border-gray-200 dark:border-gray-700">
+                          <p className="text-[10px] text-gray-400 dark:text-gray-300 uppercase font-semibold">Total Monitorias</p>
+                          <p className="text-base font-extrabold text-gray-900 dark:text-white mt-0.5">
                             {selectedDiagramEsteira.totalMonitorias}
                           </p>
                         </div>
 
-                        <div className="bg-white p-2.5 rounded-lg border border-gray-200">
-                          <p className="text-[10px] text-gray-400 uppercase font-semibold">Erros Registrados</p>
-                          <p className="text-base font-extrabold text-red-600 mt-0.5">
+                        <div className="bg-white dark:bg-[#192238] p-2.5 rounded-lg border border-gray-200 dark:border-gray-700">
+                          <p className="text-[10px] text-gray-400 dark:text-gray-300 uppercase font-semibold">Erros Registrados</p>
+                          <p className="text-base font-extrabold text-red-600 dark:text-red-400 mt-0.5">
                             {selectedDiagramEsteira.totalErros}
                           </p>
                         </div>
@@ -1562,27 +1562,27 @@ export const AnalistasPage = () => {
                   ) : (
                     <div className="p-8 text-center space-y-3">
                       <Layers size={32} className="mx-auto text-brand-blue/80 animate-pulse" />
-                      <p className="text-xs font-bold text-gray-900">Clique em qualquer esteira no diagrama</p>
-                      <p className="text-[11px] text-gray-500 leading-relaxed">
-                        Selecione uma esteira para visualizar o desempenho consolidado dos seus analistas e abrir o ranking de ofensores da esteira.
+                      <p className="text-xs font-bold text-gray-900 dark:text-white">Clique em qualquer esteira no diagrama</p>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
+                        Selecione uma esteira para visualizar o desempenho consolidado dos seus analistas e abrir o visual de analistas da esteira.
                       </p>
                     </div>
                   )
                 ) : (
                   selectedDiagramAnalyst ? (
                     <div className="space-y-4 animate-in fade-in duration-200">
-                      <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                      <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 pb-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-white border border-gray-300 flex items-center justify-center font-bold text-brand-blue text-sm shrink-0">
+                          <div className="w-10 h-10 rounded-xl bg-white dark:bg-[#192238] border border-gray-300 dark:border-gray-700 flex items-center justify-center font-bold text-brand-blue dark:text-blue-400 text-sm shrink-0">
                             {selectedDiagramAnalyst.nome.slice(0, 2).toUpperCase()}
                           </div>
                           <div>
-                            <h4 className="text-sm font-bold text-gray-900">{selectedDiagramAnalyst.nome}</h4>
+                            <h4 className="text-sm font-bold text-gray-900 dark:text-white">{selectedDiagramAnalyst.nome}</h4>
                             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                              <span className="px-1.5 py-0.5 rounded-md bg-gray-200/80 text-gray-800 text-[10px] font-mono font-extrabold border border-gray-300 shrink-0">
+                              <span className="px-1.5 py-0.5 rounded-md bg-gray-200/80 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-[10px] font-mono font-extrabold border border-gray-300 dark:border-gray-700 shrink-0">
                                 {selectedDiagramAnalyst.codigo}
                               </span>
-                              <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-brand-blue text-[10px] font-semibold border border-blue-200/80 max-w-[200px] truncate" title={`Supervisor: ${selectedDiagramAnalyst.supervisor}`}>
+                              <span className="px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/50 text-brand-blue dark:text-blue-300 text-[10px] font-semibold border border-blue-200/80 dark:border-blue-800 max-w-[200px] truncate" title={`Supervisor: ${selectedDiagramAnalyst.supervisor}`}>
                                 Sup: {selectedDiagramAnalyst.supervisor}
                               </span>
                             </div>
@@ -1590,44 +1590,44 @@ export const AnalistasPage = () => {
                         </div>
                         <button 
                           onClick={() => setSelectedDiagramAnalyst(null)}
-                          className="p-1 text-gray-400 hover:text-gray-900 cursor-pointer"
+                          className="p-1 text-gray-400 hover:text-gray-900 dark:hover:text-white cursor-pointer"
                         >
                           <X size={16} />
                         </button>
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500">Quadrante de Produtividade:</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">Quadrante de Produtividade:</span>
                         <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${selectedDiagramAnalyst.prodQuadrantBg}`}>
                           {selectedDiagramAnalyst.prodQuadrantName}
                         </span>
                       </div>
 
                       <div className="grid grid-cols-2 gap-2 text-center text-xs">
-                        <div className="bg-white p-2.5 rounded-lg border border-gray-200">
-                          <p className="text-[10px] text-gray-400 uppercase font-semibold">Qualidade</p>
+                        <div className="bg-white dark:bg-[#192238] p-2.5 rounded-lg border border-gray-200 dark:border-gray-700">
+                          <p className="text-[10px] text-gray-400 dark:text-gray-300 uppercase font-semibold">Qualidade</p>
                           <p className={`text-base font-extrabold mt-0.5 ${getQualityColorClass(selectedDiagramAnalyst.qualidadePct)}`}>
                             {selectedDiagramAnalyst.qualidadePct}%
                           </p>
                         </div>
 
-                        <div className="bg-white p-2.5 rounded-lg border border-gray-200">
-                          <p className="text-[10px] text-gray-400 uppercase font-semibold">Produção</p>
+                        <div className="bg-white dark:bg-[#192238] p-2.5 rounded-lg border border-gray-200 dark:border-gray-700">
+                          <p className="text-[10px] text-gray-400 dark:text-gray-300 uppercase font-semibold">Produção</p>
                           <p className="text-base font-extrabold text-blue-400 mt-0.5">
-                            {selectedDiagramAnalyst.totalProdutividade} <span className="text-[10px] text-gray-500 font-normal">un.</span>
+                            {selectedDiagramAnalyst.totalProdutividade} <span className="text-[10px] text-gray-500 dark:text-gray-400 font-normal">un.</span>
                           </p>
                         </div>
 
-                        <div className="bg-white p-2.5 rounded-lg border border-gray-200">
-                          <p className="text-[10px] text-gray-400 uppercase font-semibold">Total Monitorias</p>
-                          <p className="text-base font-extrabold text-gray-900 mt-0.5">
+                        <div className="bg-white dark:bg-[#192238] p-2.5 rounded-lg border border-gray-200 dark:border-gray-700">
+                          <p className="text-[10px] text-gray-400 dark:text-gray-300 uppercase font-semibold">Total Monitorias</p>
+                          <p className="text-base font-extrabold text-gray-900 dark:text-white mt-0.5">
                             {selectedDiagramAnalyst.totalMonitorias}
                           </p>
                         </div>
 
-                        <div className="bg-white p-2.5 rounded-lg border border-gray-200">
-                          <p className="text-[10px] text-gray-400 uppercase font-semibold">Erros Registrados</p>
-                          <p className="text-base font-extrabold text-red-600 mt-0.5">
+                        <div className="bg-white dark:bg-[#192238] p-2.5 rounded-lg border border-gray-200 dark:border-gray-700">
+                          <p className="text-[10px] text-gray-400 dark:text-gray-300 uppercase font-semibold">Erros Registrados</p>
+                          <p className="text-base font-extrabold text-red-600 dark:text-red-400 mt-0.5">
                             {selectedDiagramAnalyst.totalErros}
                           </p>
                         </div>
@@ -1635,7 +1635,7 @@ export const AnalistasPage = () => {
 
                       <button
                         onClick={() => setSelectedAnalyst(selectedDiagramAnalyst)}
-                        className="w-full py-2.5 px-4 bg-white text-brand-blue border border-brand-blue hover:bg-brand-blue hover:text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                        className="w-full py-2.5 px-4 bg-white dark:bg-[#192238] text-brand-blue dark:text-blue-400 border border-brand-blue dark:border-blue-500/50 hover:bg-brand-blue hover:text-white dark:hover:bg-blue-600 dark:hover:text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
                       >
                         <Users size={15} />
                         Abrir Análise Individual Completa
@@ -1644,8 +1644,8 @@ export const AnalistasPage = () => {
                   ) : (
                     <div className="p-8 text-center space-y-3">
                       <Crosshair size={32} className="mx-auto text-brand-blue/80 animate-pulse" />
-                      <p className="text-xs font-bold text-gray-900">Clique em qualquer unidade no diagrama</p>
-                      <p className="text-[11px] text-gray-500 leading-relaxed">
+                      <p className="text-xs font-bold text-gray-900 dark:text-white">Clique em qualquer unidade no diagrama</p>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
                         Selecione um analista no Diagrama de Dispersão para inspecionar seus dados de produtividade, qualidade e acessar sua ficha individual.
                       </p>
                     </div>
@@ -1655,15 +1655,15 @@ export const AnalistasPage = () => {
             </div>
           </div>
 
-          {/* RANKING DE OFENSORES */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-6 shadow-xl">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-4">
+          {/* VISUAL DE ANALISTAS */}
+          <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 rounded-2xl p-6 space-y-6 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-4">
               <div>
-                <h3 className="text-lg font-bold text-brand-blue flex items-center gap-2 uppercase">
+                <h3 className="text-lg font-bold text-brand-blue dark:text-white flex items-center gap-2 uppercase">
                   <AlertTriangle size={20} className="text-red-500" />
-                  RANKING DE OFENSORES {rankingCategory === 'esteira' ? 'POR ESTEIRA' : ''}
+                  VISUAL DE ANALISTAS {rankingCategory === 'esteira' ? 'POR ESTEIRA' : ''}
                 </h3>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                   Classificação de acompanhamento prioritário de {rankingCategory === 'esteira' ? 'esteiras de atendimento' : 'analistas'}
                 </p>
               </div>
@@ -1900,92 +1900,92 @@ export const AnalistasPage = () => {
         <div className="space-y-8 animate-in fade-in duration-300">
 
       {/* Matriz Centralizada de Regras de Acompanhamento & Feedbacks */}
-      <div className="bg-white border border-gray-200 p-5 rounded-2xl space-y-4">
+      <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-5 rounded-2xl space-y-4">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-gray-50 border border-gray-200 rounded-xl text-brand-blue">
+          <div className="p-2 bg-gray-50 dark:bg-[#192238] border border-gray-200 dark:border-gray-700 rounded-xl text-brand-blue dark:text-blue-400">
             <Layers size={18} />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-brand-blue uppercase">MATRIZ DE QUADRANTES</h3>
-            <p className="text-xs text-gray-500">Diretrizes de acompanhamento e medidas operacionais:</p>
+            <h3 className="text-sm font-bold text-brand-blue dark:text-white uppercase">MATRIZ DE QUADRANTES</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Diretrizes de acompanhamento e medidas operacionais:</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
           {/* 0 Conforme */}
-          <div className="bg-gray-50 border border-emerald-300 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
+          <div className="bg-gray-50 dark:bg-[#192238] border border-emerald-300 dark:border-emerald-700 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
             <div className="flex flex-col items-center justify-center space-y-1 w-full flex-1">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 font-extrabold text-[10px] border border-emerald-300 mb-0.5">0</span>
-              <h4 className="text-xs font-bold text-emerald-600">Conforme</h4>
-              <p className="text-[11px] text-gray-500 leading-tight">Monitorias sem erros</p>
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-extrabold text-[10px] border border-emerald-300 dark:border-emerald-700 mb-0.5">0</span>
+              <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Conforme</h4>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">Monitorias sem erros</p>
             </div>
-            <div className="w-full border-t border-emerald-300 my-2" />
-            <p className="text-xs font-bold text-emerald-600 whitespace-nowrap">
+            <div className="w-full border-t border-emerald-300 dark:border-emerald-700 my-2" />
+            <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
               {quadrantStats[0].qty} analistas ({quadrantStats[0].pct})
             </p>
           </div>
 
           {/* 1º Quadrante */}
-          <div className="bg-gray-50 border border-blue-300 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
+          <div className="bg-gray-50 dark:bg-[#192238] border border-blue-300 dark:border-blue-700 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
             <div className="flex flex-col items-center justify-center space-y-1 w-full flex-1">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-50 text-brand-blue font-extrabold text-[10px] border border-gray-300/80 mb-0.5">1</span>
-              <h4 className="text-xs font-bold text-brand-blue">1º Quadrante</h4>
-              <p className="text-[11px] text-gray-500 leading-tight">Feedback</p>
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-50 dark:bg-blue-950 text-brand-blue dark:text-blue-300 font-extrabold text-[10px] border border-gray-300/80 dark:border-blue-700 mb-0.5">1</span>
+              <h4 className="text-xs font-bold text-brand-blue dark:text-blue-400">1º Quadrante</h4>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">Feedback</p>
             </div>
-            <div className="w-full border-t border-blue-300 my-2" />
-            <p className="text-xs font-bold text-brand-blue whitespace-nowrap">
+            <div className="w-full border-t border-blue-300 dark:border-blue-700 my-2" />
+            <p className="text-xs font-bold text-brand-blue dark:text-blue-300 whitespace-nowrap">
               {quadrantStats[1].qty} analistas ({quadrantStats[1].pct})
             </p>
           </div>
 
           {/* 2º Quadrante */}
-          <div className="bg-gray-50 border border-blue-300 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
+          <div className="bg-gray-50 dark:bg-[#192238] border border-blue-300 dark:border-blue-700 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
             <div className="flex flex-col items-center justify-center space-y-1 w-full flex-1">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-50 text-brand-blue font-extrabold text-[10px] border border-gray-300/80 mb-0.5">2</span>
-              <h4 className="text-xs font-bold text-brand-blue">2º Quadrante</h4>
-              <p className="text-[11px] text-gray-500 leading-tight">Análise de reincidência + lado a lado</p>
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-50 dark:bg-blue-950 text-brand-blue dark:text-blue-300 font-extrabold text-[10px] border border-gray-300/80 dark:border-blue-700 mb-0.5">2</span>
+              <h4 className="text-xs font-bold text-brand-blue dark:text-blue-400">2º Quadrante</h4>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">Análise de reincidência + lado a lado</p>
             </div>
-            <div className="w-full border-t border-blue-300 my-2" />
-            <p className="text-xs font-bold text-brand-blue whitespace-nowrap">
+            <div className="w-full border-t border-blue-300 dark:border-blue-700 my-2" />
+            <p className="text-xs font-bold text-brand-blue dark:text-blue-300 whitespace-nowrap">
               {quadrantStats[2].qty} analistas ({quadrantStats[2].pct})
             </p>
           </div>
 
           {/* 3º Quadrante */}
-          <div className="bg-gray-50 border border-orange-300 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
+          <div className="bg-gray-50 dark:bg-[#192238] border border-orange-300 dark:border-orange-700 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
             <div className="flex flex-col items-center justify-center space-y-1 w-full flex-1">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-100 text-orange-700 font-extrabold text-[10px] border border-orange-300 mb-0.5">3</span>
-              <h4 className="text-xs font-bold text-orange-600">3º Quadrante</h4>
-              <p className="text-[11px] text-gray-500 leading-tight">Feedback formal + Medida disciplinar</p>
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300 font-extrabold text-[10px] border border-orange-300 dark:border-orange-700 mb-0.5">3</span>
+              <h4 className="text-xs font-bold text-orange-600 dark:text-orange-400">3º Quadrante</h4>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">Feedback formal + Medida disciplinar</p>
             </div>
-            <div className="w-full border-t border-orange-300 my-2" />
-            <p className="text-xs font-bold text-orange-600 whitespace-nowrap">
+            <div className="w-full border-t border-orange-300 dark:border-orange-700 my-2" />
+            <p className="text-xs font-bold text-orange-600 dark:text-orange-400 whitespace-nowrap">
               {quadrantStats[3].qty} analistas ({quadrantStats[3].pct})
             </p>
           </div>
 
           {/* 4º Quadrante */}
-          <div className="bg-gray-50 border border-red-300 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
+          <div className="bg-gray-50 dark:bg-[#192238] border border-red-300 dark:border-red-700 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
             <div className="flex flex-col items-center justify-center space-y-1 w-full flex-1">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-700 font-extrabold text-[10px] border border-red-300 mb-0.5">4</span>
-              <h4 className="text-xs font-bold text-red-600">4º Quadrante</h4>
-              <p className="text-[11px] text-gray-500 leading-tight">Avaliação de gestão + Medidas adm.</p>
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 font-extrabold text-[10px] border border-red-300 dark:border-red-700 mb-0.5">4</span>
+              <h4 className="text-xs font-bold text-red-600 dark:text-red-400">4º Quadrante</h4>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">Avaliação de gestão + Medidas adm.</p>
             </div>
-            <div className="w-full border-t border-red-300 my-2" />
-            <p className="text-xs font-bold text-red-600 whitespace-nowrap">
+            <div className="w-full border-t border-red-300 dark:border-red-700 my-2" />
+            <p className="text-xs font-bold text-red-600 dark:text-red-400 whitespace-nowrap">
               {quadrantStats[4].qty} analistas ({quadrantStats[4].pct})
             </p>
           </div>
 
           {/* >4 Persistência */}
-          <div className="bg-gray-50 border border-rose-300 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
+          <div className="bg-gray-50 dark:bg-[#192238] border border-rose-300 dark:border-rose-700 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
             <div className="flex flex-col items-center justify-center space-y-1 w-full flex-1">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-rose-100 text-rose-700 font-extrabold text-[10px] border border-rose-300 mb-0.5">&gt;4</span>
-              <h4 className="text-xs font-extrabold text-rose-700">Persistência</h4>
-              <p className="text-[11px] text-gray-500 leading-tight">Avaliação da gestão</p>
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 font-extrabold text-[10px] border border-rose-300 dark:border-rose-700 mb-0.5">&gt;4</span>
+              <h4 className="text-xs font-extrabold text-rose-700 dark:text-rose-400">Persistência</h4>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">Avaliação da gestão</p>
             </div>
-            <div className="w-full border-t border-rose-300 my-2" />
-            <p className="text-xs font-bold text-rose-700 whitespace-nowrap">
+            <div className="w-full border-t border-rose-300 dark:border-rose-700 my-2" />
+            <p className="text-xs font-bold text-rose-700 dark:text-rose-400 whitespace-nowrap">
               {quadrantStats[5].qty} analistas ({quadrantStats[5].pct})
             </p>
           </div>
@@ -2000,22 +2000,22 @@ export const AnalistasPage = () => {
               <div
                 key={analyst.id}
                 onClick={() => setSelectedAnalyst(analyst)}
-                className="w-full bg-white border border-gray-200 hover:border-brand-blue-dark/50 p-4 sm:p-5 rounded-2xl cursor-pointer transition-all duration-200 hover:shadow-xl flex flex-col xl:flex-row items-center justify-between gap-4 xl:gap-6 group"
+                className="w-full bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 hover:border-brand-blue-dark/50 dark:hover:border-blue-500/50 p-4 sm:p-5 rounded-2xl cursor-pointer transition-all duration-200 hover:shadow-xl flex flex-col xl:flex-row items-center justify-between gap-4 xl:gap-6 group"
               >
               {/* Left: Avatar, Name, Code, Supervisor & Individual Esteira Boxes */}
               <div className="flex items-center gap-3.5 w-full xl:w-[350px] shrink-0 overflow-hidden">
-                <div className="w-11 h-11 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center font-bold text-sm text-brand-blue group-hover:border-brand-blue-dark transition-colors flex-shrink-0">
+                <div className="w-11 h-11 rounded-xl bg-gray-50 dark:bg-[#192238] border border-gray-200 dark:border-gray-700 flex items-center justify-center font-bold text-sm text-brand-blue dark:text-blue-400 group-hover:border-brand-blue-dark transition-colors flex-shrink-0">
                   {analyst.nome.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="overflow-hidden min-w-0">
-                  <h3 className="text-sm font-bold text-gray-900 group-hover:text-brand-blue transition-colors truncate" title={analyst.nome}>
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-brand-blue dark:group-hover:text-blue-400 transition-colors truncate" title={analyst.nome}>
                     {analyst.nome}
                   </h3>
                   <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                    <span className="px-1.5 py-0.5 rounded-md bg-gray-200/80 text-gray-800 text-[10px] font-mono font-extrabold border border-gray-300 shrink-0">
+                    <span className="px-1.5 py-0.5 rounded-md bg-gray-200/80 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-[10px] font-mono font-extrabold border border-gray-300 dark:border-gray-700 shrink-0">
                       {analyst.codigo}
                     </span>
-                    <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-brand-blue text-[10px] font-semibold border border-blue-200/80 max-w-[180px] truncate" title={`Supervisor: ${analyst.supervisor}`}>
+                    <span className="px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/50 text-brand-blue dark:text-blue-300 text-[10px] font-semibold border border-blue-200/80 dark:border-blue-800 max-w-[180px] truncate" title={`Supervisor: ${analyst.supervisor}`}>
                       Sup: {analyst.supervisor}
                     </span>
                   </div>
@@ -2025,27 +2025,27 @@ export const AnalistasPage = () => {
                       analyst.esteiras.map((e, idx) => (
                         <span 
                           key={idx} 
-                          className="text-[10px] font-semibold text-gray-700 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-md inline-block whitespace-nowrap"
+                          className="text-[10px] font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-[#192238] border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded-md inline-block whitespace-nowrap"
                         >
                           {e}
                         </span>
                       ))
                     ) : (
-                      <span className="text-[10px] text-gray-400 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-md">Sem Esteira</span>
+                      <span className="text-[10px] text-gray-400 bg-gray-50 dark:bg-[#192238] border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded-md">Sem Esteira</span>
                     )}
                   </div>
                 </div>
               </div>
 
               {/* Middle: Metrics Bar */}
-              <div className="w-full xl:w-[480px] shrink-0 bg-gray-50 border border-gray-200/80 px-3 py-2.5 rounded-sm grid grid-cols-6 gap-2 text-center">
+              <div className="w-full xl:w-[480px] shrink-0 bg-gray-50 dark:bg-[#192238] border border-gray-200/80 dark:border-gray-700/80 px-3 py-2.5 rounded-sm grid grid-cols-6 gap-2 text-center">
                 <div>
                   <p className="text-[10px] text-gray-400 uppercase font-semibold">Prod.</p>
-                  <p className="text-sm font-bold text-blue-500 mt-0.5">{analyst.totalProdutividade}</p>
+                  <p className="text-sm font-bold text-blue-500 dark:text-blue-400 mt-0.5">{analyst.totalProdutividade}</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-400 uppercase font-semibold">Monit.</p>
-                  <p className="text-sm font-bold text-gray-900 mt-0.5">{analyst.totalMonitorias}</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white mt-0.5">{analyst.totalMonitorias}</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-400 uppercase font-semibold">Quali.</p>
@@ -2053,15 +2053,15 @@ export const AnalistasPage = () => {
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-400 uppercase font-semibold">Erros</p>
-                  <p className="text-sm font-bold text-gray-900 mt-0.5">{analyst.totalErros}</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white mt-0.5">{analyst.totalErros}</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-400 uppercase font-semibold">Reincid.</p>
-                  <p className="text-sm font-bold text-red-600 mt-0.5">{analyst.reincidencias}</p>
+                  <p className="text-sm font-bold text-red-600 dark:text-red-400 mt-0.5">{analyst.reincidencias}</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-400 uppercase font-semibold">TMO</p>
-                  <p className="text-sm font-bold text-gray-700 mt-0.5">{analyst.tmoMedio}m</p>
+                  <p className="text-sm font-bold text-gray-700 dark:text-gray-300 mt-0.5">{analyst.tmoMedio}m</p>
                 </div>
               </div>
 
@@ -2086,8 +2086,8 @@ export const AnalistasPage = () => {
               </div>
 
               {/* Right: Chevron */}
-              <div className="w-full xl:w-[170px] shrink-0 flex items-center justify-between xl:justify-end gap-3 border-t xl:border-t-0 border-gray-200/60 pt-3 xl:pt-0">
-                <span className="flex items-center gap-1 text-brand-blue font-semibold text-xs group-hover:translate-x-1 transition-transform bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-sm">
+              <div className="w-full xl:w-[170px] shrink-0 flex items-center justify-between xl:justify-end gap-3 border-t xl:border-t-0 border-gray-200/60 dark:border-gray-800 pt-3 xl:pt-0">
+                <span className="flex items-center gap-1 text-brand-blue dark:text-blue-400 font-semibold text-xs group-hover:translate-x-1 transition-transform bg-gray-50 dark:bg-[#192238] border border-gray-200 dark:border-gray-700 px-3 py-1.5 rounded-sm">
                   Detalhes <ChevronRight size={14} />
                 </span>
               </div>
@@ -2097,7 +2097,7 @@ export const AnalistasPage = () => {
             <div className="flex justify-center mt-4">
               <button
                 onClick={() => setDisplayLimit(prev => prev + 50)}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-900 text-sm font-semibold py-2 px-6 rounded-md transition-colors border border-gray-300 hover:border-gray-400 shadow-sm"
+                className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white text-sm font-semibold py-2 px-6 rounded-md transition-colors border border-gray-300 dark:border-gray-700 hover:border-gray-400 shadow-sm"
               >
                 Exibir mais 50 analistas
               </button>
@@ -2105,11 +2105,11 @@ export const AnalistasPage = () => {
           )}
           </>
         ) : (
-          <div className="w-full bg-white border border-gray-200 p-12 rounded-2xl text-center space-y-3">
+          <div className="w-full bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-12 rounded-2xl text-center space-y-3">
             <Users size={40} className="mx-auto text-gray-400" />
-            <h3 className="text-lg font-bold text-gray-900">Nenhum analista encontrado</h3>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Nenhum analista encontrado</h3>
             <p className="text-xs text-gray-400">
-              Verifique os filtros aplicados ou importe a base na aba <strong className="text-gray-700">Importar Base</strong>.
+              Verifique os filtros aplicados ou importe a base na aba <strong className="text-gray-700 dark:text-gray-300">Importar Base</strong>.
             </p>
           </div>
         )}
@@ -2119,8 +2119,8 @@ export const AnalistasPage = () => {
 
       {/* DETAILED ANALYST FULL POPUP MODAL */}
       {selectedAnalyst && (
-        <div className="fixed inset-0 bg-gray-50/85 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 animate-in fade-in duration-200">
-          <div className="w-full max-w-5xl bg-white border border-gray-200 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 text-gray-900 flex flex-col max-h-[90vh] overflow-hidden relative">
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 animate-in fade-in duration-200">
+          <div className="w-full max-w-5xl bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 text-gray-900 dark:text-gray-100 flex flex-col max-h-[90vh] overflow-hidden relative">
             <div className="p-6 sm:p-8 overflow-y-auto custom-scrollbar space-y-8 flex-1">
               {/* Modal Header */}
               <div className="flex items-start justify-between border-b border-gray-200 pb-6">
@@ -2369,8 +2369,8 @@ export const AnalistasPage = () => {
 
       {/* POP-UP MODAL: Erros e Reincidências */}
       {popupAnalyst && (
-        <div className="fixed inset-0 bg-gray-50/80 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-all">
-          <div className="w-full max-w-2xl bg-white rounded-2xl p-6 sm:p-8 space-y-6 animate-in zoom-in-95 duration-200 text-gray-900 max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-all">
+          <div className="w-full max-w-2xl bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 rounded-2xl p-6 sm:p-8 space-y-6 animate-in zoom-in-95 duration-200 text-gray-900 dark:text-gray-100 max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
             {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-gray-200 pb-4">
               <div>
@@ -2600,8 +2600,8 @@ export const AnalistasPage = () => {
 
       {/* DETAILED ESTEIRA MODAL WITH TOP METRICS & OFFENDER RANKING */}
       {selectedEsteiraModal && (
-        <div className="fixed inset-0 bg-gray-50/85 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 animate-in fade-in duration-200">
-          <div className="w-full max-w-5xl bg-white border border-gray-200 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 text-gray-900 flex flex-col max-h-[90vh] overflow-hidden relative">
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 animate-in fade-in duration-200">
+          <div className="w-full max-w-5xl bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 text-gray-900 dark:text-gray-100 flex flex-col max-h-[90vh] overflow-hidden relative">
             <div className="p-6 sm:p-8 overflow-y-auto custom-scrollbar space-y-8 flex-1">
               {/* Modal Header */}
               <div className="flex items-start justify-between border-b border-gray-200 pb-6">

@@ -462,77 +462,77 @@ export const DashboardPage = () => {
   }, [volumetria, startDate, endDate, selectedEsteira]);
 
   return (
-    <div className="w-full bg-gray-50 p-4 sm:p-6 md:p-8 space-y-8 text-gray-900">
+    <div className="w-full bg-gray-50 dark:bg-transparent p-4 sm:p-6 md:p-8 space-y-8 text-gray-900 dark:text-white">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
+        <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-5 rounded-xl hover:border-[#001E62]/40 dark:hover:border-blue-500/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">PRODUTIVIDADE</p>
-            <div className="p-1.5 rounded-lg bg-gray-50 border border-gray-100">
-              <Briefcase size={18} className="text-[#001E62]" />
+            <p className="text-gray-500 dark:text-white text-xs font-bold uppercase tracking-wider">PRODUTIVIDADE</p>
+            <div className="p-1.5 rounded-lg bg-gray-50 dark:bg-[#192238] border border-gray-100 dark:border-gray-700">
+              <Briefcase size={18} className="text-[#001E62] dark:text-blue-400" />
             </div>
           </div>
           <div>
-            <h3 className="text-3xl font-black text-gray-900 tracking-tight">{totalProdutividade.toLocaleString('pt-BR')}</h3>
+            <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">{totalProdutividade.toLocaleString('pt-BR')}</h3>
           </div>
-          <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-            <span className="text-gray-500 font-medium text-[11px]">Volume total no período</span>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-[#001E62] font-bold text-[11px]">
+          <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs">
+            <span className="text-gray-500 dark:text-gray-400 font-medium text-[11px]">Volume total no período</span>
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-[#001E62] dark:text-blue-300 font-bold text-[11px]">
               <span>Casos tratados</span>
             </div>
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
+        <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-5 rounded-xl hover:border-[#001E62]/40 dark:hover:border-blue-500/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">MONITORIAS</p>
-            <div className="p-1.5 rounded-lg bg-gray-50 border border-gray-100">
-              <BarChart3 size={18} className="text-[#001E62]" />
+            <p className="text-gray-500 dark:text-white text-xs font-bold uppercase tracking-wider">MONITORIAS</p>
+            <div className="p-1.5 rounded-lg bg-gray-50 dark:bg-[#192238] border border-gray-100 dark:border-gray-700">
+              <BarChart3 size={18} className="text-[#001E62] dark:text-blue-400" />
             </div>
           </div>
           <div>
-            <h3 className="text-3xl font-black text-gray-900 tracking-tight">{totalMonitorias}</h3>
+            <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">{totalMonitorias}</h3>
           </div>
-          <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-            <span className="text-gray-500 font-medium text-[11px]">Amostragem auditada</span>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-[#001E62] font-bold text-[11px]">
+          <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs">
+            <span className="text-gray-500 dark:text-gray-400 font-medium text-[11px]">Amostragem auditada</span>
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-[#001E62] dark:text-blue-300 font-bold text-[11px]">
               <span>Avaliações</span>
             </div>
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
+        <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-5 rounded-xl hover:border-[#001E62]/40 dark:hover:border-blue-500/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">QUALIDADE</p>
-            <div className="p-1.5 rounded-lg bg-gray-50 border border-gray-100">
+            <p className="text-gray-500 dark:text-white text-xs font-bold uppercase tracking-wider">QUALIDADE</p>
+            <div className="p-1.5 rounded-lg bg-gray-50 dark:bg-[#192238] border border-gray-100 dark:border-gray-700">
               <CheckCircle2 size={18} className={getQualityColor(qualidadePct)} />
             </div>
           </div>
           <div>
             <h3 className={`text-3xl font-black tracking-tight ${getQualityColor(qualidadePct)}`}>{qualidade}</h3>
           </div>
-          <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-            <span className="text-gray-500 font-medium text-[11px]">Qualidade operacional</span>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[#001E62] font-bold text-[11px]">
-              <Target size={12} className="text-[#001E62]" />
+          <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs">
+            <span className="text-gray-500 dark:text-gray-400 font-medium text-[11px]">Qualidade operacional</span>
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-[#192238] border border-slate-200 dark:border-gray-700 text-[#001E62] dark:text-blue-300 font-bold text-[11px]">
+              <Target size={12} className="text-[#001E62] dark:text-blue-400" />
               <span>Meta: 95,0%</span>
             </div>
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
+        <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-5 rounded-xl hover:border-[#001E62]/40 dark:hover:border-blue-500/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">ERROS APONTADOS</p>
-            <div className="p-1.5 rounded-lg bg-red-50 border border-red-100">
-              <AlertCircle size={18} className="text-red-600" />
+            <p className="text-gray-500 dark:text-white text-xs font-bold uppercase tracking-wider">ERROS APONTADOS</p>
+            <div className="p-1.5 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-800">
+              <AlertCircle size={18} className="text-red-600 dark:text-red-400" />
             </div>
           </div>
           <div>
-            <h3 className="text-3xl font-black text-gray-900 tracking-tight">{totalErros}</h3>
+            <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">{totalErros}</h3>
           </div>
-          <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-            <span className="text-gray-500 font-medium text-[11px]">Desvios em auditoria</span>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-50 border border-red-200 text-red-700 font-bold text-[11px]">
+          <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs">
+            <span className="text-gray-500 dark:text-gray-400 font-medium text-[11px]">Desvios em auditoria</span>
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 font-bold text-[11px]">
               <span>Não Conformidades</span>
             </div>
           </div>
@@ -540,21 +540,21 @@ export const DashboardPage = () => {
       </div>
 
       {/* SECTION 3: Evolução Diária */}
-      <div className="bg-white border border-gray-200 p-6 rounded-md space-y-4">
+      <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-6 rounded-md space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-brand-blue font-bold text-base flex items-center gap-2 uppercase">
-              <Calendar size={18} className="text-brand-blue" />
+            <h3 className="text-brand-blue dark:text-white font-bold text-base flex items-center gap-2 uppercase">
+              <Calendar size={18} className="text-brand-blue dark:text-blue-400" />
               EVOLUÇÃO DA PRODUTIVIDADE
             </h3>
           </div>
-          <div className="flex items-center gap-4 text-xs font-semibold">
-            <div className="flex items-center gap-1.5 text-brand-blue">
-              <span className="w-3 h-3 rounded-full bg-[#001E62] inline-block" />
+          <div className="flex items-center gap-3 bg-gray-50/70 dark:bg-[#192238] border border-gray-200 dark:border-gray-700 px-3 py-1 rounded-md text-xs font-bold">
+            <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" />
               <span>Casos Tratados</span>
             </div>
-            <div className="flex items-center gap-1.5 text-gray-600 font-bold">
-              <span className="w-3 h-0.5 border-t-2 border-dashed border-gray-600 inline-block" />
+            <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+              <span className="w-2.5 h-2.5 rounded-full bg-gray-400 inline-block" />
               <span>Meta de Produção</span>
             </div>
           </div>
@@ -563,20 +563,20 @@ export const DashboardPage = () => {
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={evolucaoDiaria} margin={{ top: 25, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="label" stroke="#6b7280" tick={{ fontSize: 11 }} padding={{ left: 35, right: 35 }} />
-              <YAxis stroke="#6b7280" tick={{ fontSize: 11 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+              <XAxis dataKey="label" stroke="#94a3b8" tick={{ fontSize: 11, fill: '#cbd5e1' }} padding={{ left: 35, right: 35 }} />
+              <YAxis stroke="#94a3b8" tick={{ fontSize: 11, fill: '#cbd5e1' }} />
               <Tooltip 
-                cursor={{ stroke: '#001E62', strokeDasharray: '3 3' }} 
-                contentStyle={{ backgroundColor: '#ffffff', borderColor: '#001E62', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', color: '#001E62', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }} 
-                itemStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
-                labelStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
+                cursor={{ stroke: '#3b82f6', strokeDasharray: '3 3' }} 
+                contentStyle={{ backgroundColor: '#131b2e', borderColor: '#243049', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', color: '#ffffff', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)' }} 
+                itemStyle={{ color: '#ffffff', fontSize: '11px', fontWeight: 'bold' }} 
+                labelStyle={{ color: '#60a5fa', fontSize: '11px', fontWeight: 'bold' }} 
               />
-              <Line type="monotone" dataKey="volume" name="Casos Tratados" stroke="#001E62" strokeWidth={3} dot={{ fill: '#001E62', r: 5 }}>
-                <LabelList dataKey="volume" position="top" offset={10} fill="#001E62" fontSize={11} fontWeight="bold" />
+              <Line type="monotone" dataKey="volume" name="Casos Tratados" stroke="#3b82f6" strokeWidth={3} dot={{ fill: '#3b82f6', r: 5 }}>
+                <LabelList dataKey="volume" position="top" offset={10} fill="#ffffff" fontSize={11} fontWeight="bold" />
               </Line>
-              <Line type="monotone" dataKey="meta" name="Meta de Produção" stroke="#4b5563" strokeWidth={2.5} strokeDasharray="5 5" dot={{ fill: '#4b5563', r: 4 }}>
-                <LabelList dataKey="meta" position="bottom" offset={8} fill="#4b5563" fontSize={11} fontWeight="bold" />
+              <Line type="monotone" dataKey="meta" name="Meta de Produção" stroke="#94a3b8" strokeWidth={2.5} strokeDasharray="5 5" dot={{ fill: '#94a3b8', r: 4 }}>
+                <LabelList dataKey="meta" position="bottom" offset={8} fill="#94a3b8" fontSize={11} fontWeight="bold" />
               </Line>
             </LineChart>
           </ResponsiveContainer>
@@ -586,10 +586,10 @@ export const DashboardPage = () => {
       {/* Grid: Ranking de Reincidentes & Evolução de Erros */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
         {/* Ranking de Reincidentes (Filtered by Esteira/Tag/Macro) */}
-        <div className="lg:col-span-5 bg-white border border-gray-200 p-6 rounded-md flex flex-col h-[360px]">
+        <div className="lg:col-span-5 bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-6 rounded-md flex flex-col h-[360px]">
           <div className="flex-shrink-0 mb-4">
-            <h3 className="text-brand-blue font-bold text-base flex items-center gap-2 uppercase">
-              <Award size={18} className="text-brand-blue" />
+            <h3 className="text-brand-blue dark:text-white font-bold text-base flex items-center gap-2 uppercase">
+              <Award size={18} className="text-brand-blue dark:text-blue-400" />
               RANKING REINCIDENTES
             </h3>
           </div>
@@ -599,26 +599,26 @@ export const DashboardPage = () => {
               rankingReincidentes.map((item, idx) => (
                 <div 
                   key={`ranking-${idx}-${item.analista}`} 
-                  className="bg-gray-50 border border-gray-200 hover:border-brand-blue/60 p-3 rounded-md flex items-center justify-between gap-3 transition-all hover:bg-white group"
+                  className="bg-gray-50 dark:bg-[#192238] border border-gray-200 dark:border-gray-700/60 hover:border-brand-blue/60 dark:hover:border-blue-400/60 p-3 rounded-md flex items-center justify-between gap-3 transition-all hover:bg-white dark:hover:bg-[#1c2742] group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-7 h-7 rounded-md bg-gray-100 border border-gray-300 group-hover:border-brand-blue flex items-center justify-center font-bold text-xs text-brand-blue flex-shrink-0">
+                    <div className="w-7 h-7 rounded-md bg-gray-100 dark:bg-[#131b2e] border border-gray-300 dark:border-gray-700 group-hover:border-brand-blue dark:group-hover:border-blue-400 flex items-center justify-center font-bold text-xs text-brand-blue dark:text-blue-400 flex-shrink-0">
                       #{idx + 1}
                     </div>
                     <div className="truncate">
-                      <p className="text-xs font-bold text-gray-900 group-hover:text-brand-blue-light truncate">
+                      <p className="text-xs font-bold text-gray-900 dark:text-white group-hover:text-brand-blue-light dark:group-hover:text-blue-300 truncate">
                         {item.analista}
                       </p>
-                      <p className="text-[10px] text-gray-500 truncate mt-0.5">
-                        Tag mais reincidente: <span className="font-semibold text-red-600">{item.topTag}</span> ({item.topTagCount}x)
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                        Tag mais reincidente: <span className="font-semibold text-red-500 dark:text-red-400">{item.topTag}</span> ({item.topTagCount}x)
                       </p>
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <span className="bg-red-50 border border-red-300 text-red-700 px-2 py-0.5 rounded-md text-[11px] font-bold">
+                    <span className="bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-300 px-2 py-0.5 rounded-md text-[11px] font-bold">
                       {item.reincidencias > 0 ? `${item.reincidencias} reincidência(s)` : `${item.totalErros} erro(s)`}
                     </span>
-                    <p className="text-[10px] text-gray-500 mt-1">
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
                       {item.totalErros} erro(s) total
                     </p>
                   </div>
@@ -631,21 +631,21 @@ export const DashboardPage = () => {
         </div>
 
         {/* Evolução de Erros no Tempo */}
-        <div className="lg:col-span-7 bg-white border border-gray-200 p-6 rounded-md flex flex-col h-[360px]">
+        <div className="lg:col-span-7 bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-6 rounded-md flex flex-col h-[360px]">
           <div className="flex items-center justify-between flex-shrink-0 mb-3">
-            <h3 className="text-brand-blue font-bold text-base flex items-center gap-2 uppercase">
-              <span className="w-2.5 h-2.5 rounded-sm bg-brand-blue-dark"></span>
+            <h3 className="text-brand-blue dark:text-white font-bold text-base flex items-center gap-2 uppercase">
+              <span className="w-2.5 h-2.5 rounded-sm bg-red-500"></span>
               EVOLUÇÃO DE ERROS
             </h3>
 
             {/* Fixed Legend opposite Title */}
-            <div className="flex items-center gap-3 bg-gray-50/70 border border-gray-200 px-3 py-1 rounded-md text-xs font-bold">
-              <div className="flex items-center gap-1.5 text-brand-blue">
-                <span className="w-2.5 h-2.5 rounded-full bg-brand-blue-dark inline-block" />
+            <div className="flex items-center gap-3 bg-gray-50/70 dark:bg-[#192238] border border-gray-200 dark:border-gray-700 px-3 py-1 rounded-md text-xs font-bold">
+              <div className="flex items-center gap-1.5 text-red-600 dark:text-red-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />
                 <span>Erros</span>
               </div>
-              <div className="flex items-center gap-1.5 text-gray-500">
-                <span className="w-2.5 h-2.5 rounded-full bg-zinc-500 inline-block" />
+              <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block" />
                 <span>Total Monitorias</span>
               </div>
             </div>
@@ -654,19 +654,19 @@ export const DashboardPage = () => {
           <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={timelineData.list} margin={{ top: 25, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="label" stroke="#6b7280" tick={{ fontSize: 11 }} padding={{ left: 35, right: 35 }} />
-                <YAxis stroke="#6b7280" tick={{ fontSize: 11 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis dataKey="label" stroke="#94a3b8" tick={{ fontSize: 11, fill: '#cbd5e1' }} padding={{ left: 35, right: 35 }} />
+                <YAxis stroke="#94a3b8" tick={{ fontSize: 11, fill: '#cbd5e1' }} />
                 <Tooltip 
-                  cursor={{ stroke: '#001E62', strokeDasharray: '3 3' }} 
-                  contentStyle={{ backgroundColor: '#ffffff', borderColor: '#001E62', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', color: '#001E62', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }} 
-                  itemStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
-                  labelStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
+                  cursor={{ stroke: '#ef4444', strokeDasharray: '3 3' }} 
+                  contentStyle={{ backgroundColor: '#131b2e', borderColor: '#243049', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', color: '#ffffff', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)' }} 
+                  itemStyle={{ color: '#ffffff', fontSize: '11px', fontWeight: 'bold' }} 
+                  labelStyle={{ color: '#f87171', fontSize: '11px', fontWeight: 'bold' }} 
                 />
-                <Line type="monotone" dataKey="erros" name="Erros" stroke="#001E62" strokeWidth={3} dot={{ fill: '#001E62', r: 4 }}>
-                  <LabelList dataKey="erros" position="top" offset={10} fill="#001E62" fontSize={11} fontWeight="bold" />
+                <Line type="monotone" dataKey="erros" name="Erros" stroke="#ef4444" strokeWidth={3} dot={{ fill: '#ef4444', r: 4 }}>
+                  <LabelList dataKey="erros" position="top" offset={10} fill="#ffffff" fontSize={11} fontWeight="bold" />
                 </Line>
-                <Line type="monotone" dataKey="total" name="Total Monitorias" stroke="#6b7280" strokeWidth={1.5} strokeDasharray="4 4" />
+                <Line type="monotone" dataKey="total" name="Total Monitorias" stroke="#60a5fa" strokeWidth={1.5} strokeDasharray="4 4" dot={{ fill: '#60a5fa', r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
