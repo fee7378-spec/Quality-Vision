@@ -15,17 +15,81 @@ import {
   matchesFilter
 } from '../store/useStore';
 
+const getVal = (obj: any, key: string) => {
+  if (!obj) return undefined;
+  const found = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
+  return found ? obj[found] : undefined;
+};
+
 export const CapacidadePage: React.FC = () => {
   const { 
     productivityData, 
     esteiraParams, 
     selectedEsteira,
     startDate,
-    endDate
+    endDate,
+    volumetria,
+    volumetriaPrioridades
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<'projecao' | 'parametros'>('projecao');
   const [workingDaysInMonth, setWorkingDaysInMonth] = useState<number>(22);
+
+  const filteredVolumetria = useMemo(() => {
+    return (volumetria || []).filter(item => {
+      const itemDate = getVal(item, 'data');
+      if (itemDate && typeof itemDate === 'string' && itemDate.trim() !== '') {
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+      }
+      if (!matchesFilter(selectedEsteira, getVal(item, 'esteira'), 'TODAS')) return false;
+      return true;
+    });
+  }, [volumetria, startDate, endDate, selectedEsteira]);
+
+  const totalProdutividade = useMemo(() => {
+    return filteredVolumetria.reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || 0), 0);
+  }, [filteredVolumetria]);
+
+  const prioVolume = useMemo(() => {
+    return (volumetriaPrioridades || [])
+      .filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (itemDate && typeof itemDate === 'string' && itemDate.trim() !== '') {
+          if (startDate && itemDate < startDate) return false;
+          if (endDate && itemDate > endDate) return false;
+        }
+        if (!matchesFilter(selectedEsteira, getVal(item, 'esteira'), 'TODAS')) return false;
+        return true;
+      })
+      .reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || 0), 0);
+  }, [volumetriaPrioridades, startDate, endDate, selectedEsteira]);
+
+  const filaVolume = Math.max(0, totalProdutividade - prioVolume);
+
+  const diasUteisPassados = useMemo(() => {
+    const uniqueDates = Array.from(new Set(
+      filteredVolumetria
+        .map(item => getVal(item, 'data'))
+        .filter(d => d && typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d))
+    ));
+    const weekdays = uniqueDates.filter(dStr => {
+      const dt = new Date(dStr + 'T12:00:00');
+      const day = dt.getDay();
+      return day >= 1 && day <= 5;
+    });
+    return weekdays.length || 1;
+  }, [filteredVolumetria]);
+
+  const diasUteisCompleto = useMemo(() => {
+    const selectedKey = Array.isArray(selectedEsteira) 
+      ? (selectedEsteira.length === 1 ? selectedEsteira[0] : 'TODAS') 
+      : selectedEsteira;
+    const esteiraParam = selectedKey !== 'TODAS' ? esteiraParams[selectedKey] : null;
+    return esteiraParam?.diasUteisMes || workingDaysInMonth || 22;
+  }, [selectedEsteira, esteiraParams, workingDaysInMonth]);
+
+  const mediaDiariaUtil = totalProdutividade / (diasUteisPassados || 1);
 
   // 1. Capacity Table matching user print
   const capacityTableData = useMemo(() => {
@@ -113,34 +177,84 @@ export const CapacidadePage: React.FC = () => {
   }, [productivityData, esteiraParams, selectedEsteira, startDate, endDate]);
 
   // 2. Month-over-Month Volume Comparison & Provisão calculation
-  // Provisão formula: (Volume acumulado dos dias decorridos / Dias decorridos) * Dias úteis do mês
+  // Gráfico COMPARATIVO DE PRODUÇÃO MoM: Eixo X em Mês/Semana/Dia dependendo do período
   const momData = useMemo(() => {
-    const monthVolumeMap: Record<string, { monthKey: string; monthLabel: string; volume: number; daysCount: Set<string> }> = {};
+    const rawProd = (volumetria && volumetria.length > 0)
+      ? volumetria.map(i => ({
+          DataProdutividade: getVal(i, 'data'),
+          Esteira: getVal(i, 'esteira'),
+          Quantidade: Number(getVal(i, 'quantidade')) || 0
+        }))
+      : productivityData;
 
-    productivityData.forEach(item => {
-      const dateStr = item.DataProdutividade;
-      if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return;
-      if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return;
-
-      const [year, month] = dateStr.split('-');
-      const key = `${year}-${month}`;
-      const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-      const monthIndex = parseInt(month, 10) - 1;
-      const label = `${monthNames[monthIndex] || month}/${year.slice(2)}`;
-
-      if (!monthVolumeMap[key]) {
-        monthVolumeMap[key] = { monthKey: key, monthLabel: label, volume: 0, daysCount: new Set() };
-      }
-
-      monthVolumeMap[key].volume += (item.Quantidade || 1);
-      monthVolumeMap[key].daysCount.add(dateStr);
+    const filteredProd = rawProd.filter(item => {
+      const d = item.DataProdutividade;
+      if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+      if (startDate && d < startDate) return false;
+      if (endDate && d > endDate) return false;
+      if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
+      return true;
     });
 
-    const sortedKeys = Object.keys(monthVolumeMap).sort();
+    const uniqueDates = Array.from(new Set(filteredProd.map(i => i.DataProdutividade))).sort();
     
-    const list = sortedKeys.map((key, idx) => {
-      const entry = monthVolumeMap[key];
-      const prevEntry = sortedKeys[idx - 1] ? monthVolumeMap[sortedKeys[idx - 1]] : null;
+    let spanDays = 0;
+    if (uniqueDates.length > 0) {
+      const minD = new Date(uniqueDates[0]);
+      const maxD = new Date(uniqueDates[uniqueDates.length - 1]);
+      spanDays = Math.ceil((maxD.getTime() - minD.getTime()) / (1000 * 3600 * 24)) + 1;
+    }
+
+    const map: Record<string, { label: string; volume: number; daysCount: Set<string> }> = {};
+
+    if (spanDays > 0 && spanDays <= 7) {
+      // Group by Day
+      filteredProd.forEach(item => {
+        const dateStr = item.DataProdutividade;
+        const [y, m, day] = dateStr.split('-');
+        const label = `${day}/${m}`;
+        if (!map[dateStr]) map[dateStr] = { label, volume: 0, daysCount: new Set() };
+        map[dateStr].volume += (Number(item.Quantidade) || 1);
+        map[dateStr].daysCount.add(dateStr);
+      });
+    } else if (spanDays > 7 && spanDays <= 30) {
+      // Group by Week
+      filteredProd.forEach(item => {
+        const dateStr = item.DataProdutividade;
+        const [y, m, dayStr] = dateStr.split('-');
+        const dayNum = parseInt(dayStr, 10);
+        let weekKey = 'Semana 1';
+        if (dayNum >= 1 && dayNum <= 7) weekKey = 'Semana 1';
+        else if (dayNum >= 8 && dayNum <= 14) weekKey = 'Semana 2';
+        else if (dayNum >= 15 && dayNum <= 21) weekKey = 'Semana 3';
+        else if (dayNum >= 22) weekKey = 'Semana 4';
+
+        const label = `${weekKey} (${m}/${y.slice(2)})`;
+        const key = `${y}-${m}-${weekKey}`;
+        if (!map[key]) map[key] = { label, volume: 0, daysCount: new Set() };
+        map[key].volume += (Number(item.Quantidade) || 1);
+        map[key].daysCount.add(dateStr);
+      });
+    } else {
+      // Group by Month
+      filteredProd.forEach(item => {
+        const dateStr = item.DataProdutividade;
+        const [y, m] = dateStr.split('-');
+        const key = `${y}-${m}`;
+        const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        const mIdx = parseInt(m, 10) - 1;
+        const label = `${monthNames[mIdx] || m}/${y.slice(2)}`;
+        if (!map[key]) map[key] = { label, volume: 0, daysCount: new Set() };
+        map[key].volume += (Number(item.Quantidade) || 1);
+        map[key].daysCount.add(dateStr);
+      });
+    }
+
+    const sortedKeys = Object.keys(map).sort();
+    
+    return sortedKeys.map((key, idx) => {
+      const entry = map[key];
+      const prevEntry = sortedKeys[idx - 1] ? map[sortedKeys[idx - 1]] : null;
       const momGrowth = prevEntry && prevEntry.volume > 0 
         ? (((entry.volume - prevEntry.volume) / prevEntry.volume) * 100).toFixed(1) 
         : '0';
@@ -156,8 +270,8 @@ export const CapacidadePage: React.FC = () => {
       const projectedVolume = Math.round(avgDailyRate * daysInMonth);
 
       return {
-        key: entry.monthKey,
-        label: entry.monthLabel,
+        key,
+        label: entry.label,
         volumeRealizado: entry.volume,
         provisaoProjetada: Math.max(entry.volume, projectedVolume),
         daysWorked,
@@ -165,28 +279,16 @@ export const CapacidadePage: React.FC = () => {
         momGrowth
       };
     });
-
-    return list;
-  }, [productivityData, workingDaysInMonth, selectedEsteira, esteiraParams]);
+  }, [volumetria, productivityData, startDate, endDate, workingDaysInMonth, selectedEsteira, esteiraParams]);
 
   const latestMonth = momData[momData.length - 1] || { volumeRealizado: 0, provisaoProjetada: 0, momGrowth: '0', daysWorked: 1, avgDailyRate: 0 };
   const prevMonth = momData[momData.length - 2] || { volumeRealizado: 0 };
+  const provisaoFechamento = latestMonth.provisaoProjetada;
+
+  const capacidadeNominal = Math.round(capacityTableData.totals.capDia * diasUteisPassados);
 
   return (
     <div className="w-full p-4 sm:p-6 md:p-8 bg-gray-50 text-gray-900 space-y-8">
-      {productivityData.length === 0 && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-900 px-5 py-4 rounded-xl flex items-center justify-between gap-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="text-amber-600 shrink-0" size={22} />
-            <div>
-              <p className="font-bold text-sm">Nenhuma base de produtividade importada</p>
-              <p className="text-xs text-amber-800 mt-0.5">
-                Os indicadores e gráficos desta aba são medidos ao carregar o arquivo de produtividade. Acesse a aba <strong>Importar</strong> para carregar a base.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* KPI Cards Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -199,10 +301,10 @@ export const CapacidadePage: React.FC = () => {
                 </div>
               </div>
               <div>
-                <h3 className="text-3xl font-black text-gray-900 tracking-tight">{capacityTableData.totals.totalProd.toLocaleString('pt-BR')}</h3>
+                <h3 className="text-3xl font-black text-gray-900 tracking-tight">{totalProdutividade.toLocaleString('pt-BR')}</h3>
               </div>
               <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-                <span className="text-gray-500 font-medium text-[11px]">Fila: {capacityTableData.totals.prodFila.toLocaleString('pt-BR')} | Prio: {capacityTableData.totals.prodPrio.toLocaleString('pt-BR')}</span>
+                <span className="text-gray-500 font-medium text-[11px]">Fila: {filaVolume.toLocaleString('pt-BR')} | Prio: {prioVolume.toLocaleString('pt-BR')}</span>
                 <div className={`flex items-center gap-1 px-2 py-0.5 rounded-md font-bold text-[11px] border ${
                   parseFloat(latestMonth.momGrowth) >= 0 
                     ? 'text-emerald-700 bg-emerald-50 border-emerald-300' 
@@ -214,45 +316,45 @@ export const CapacidadePage: React.FC = () => {
               </div>
             </div>
 
-            {/* KPI 2: Provisão de Fechamento */}
+            {/* KPI 2: Previsão de Fechamento */}
             <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">PROVISÃO DE FECHAMENTO</span>
+                <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">PREVISÃO DE FECHAMENTO</span>
                 <div className="p-1.5 rounded-lg bg-gray-50 border border-gray-100">
                   <Zap size={18} className="text-[#001E62]" />
                 </div>
               </div>
               <div>
-                <h3 className="text-3xl font-black text-[#001E62] tracking-tight">{latestMonth.provisaoProjetada.toLocaleString('pt-BR')}</h3>
+                <h3 className="text-3xl font-black text-[#001E62] tracking-tight">{provisaoFechamento.toLocaleString('pt-BR')}</h3>
               </div>
               <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-                <span className="text-gray-500 font-medium text-[11px]">Projeção ({latestMonth.daysWorked}d trabalhados)</span>
+                <span className="text-gray-500 font-medium text-[11px]">Projeção ({latestMonth.daysWorked}d úteis passados / {diasUteisCompleto}d úteis)</span>
                 <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[#001E62] font-bold text-[11px]">
-                  <span>{latestMonth.avgDailyRate} / dia</span>
+                  <span>{latestMonth.avgDailyRate.toLocaleString('pt-BR')} / dia útil</span>
                 </div>
               </div>
             </div>
 
-            {/* KPI 3: Capacidade Dia Nominal */}
+            {/* KPI 3: Capacidade Nominal */}
             <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">CAPACIDADE DIA NOMINAL</span>
+                <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">CAPACIDADE NOMINAL</span>
                 <div className="p-1.5 rounded-lg bg-gray-50 border border-gray-100">
                   <Target size={18} className="text-[#001E62]" />
                 </div>
               </div>
               <div>
-                <h3 className="text-3xl font-black text-gray-900 tracking-tight">{capacityTableData.totals.capDia.toLocaleString('pt-BR')}</h3>
+                <h3 className="text-3xl font-black text-gray-900 tracking-tight">{capacidadeNominal.toLocaleString('pt-BR')}</h3>
               </div>
               <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-                <span className="text-gray-500 font-medium text-[11px]">Capacidade por TMO</span>
+                <span className="text-gray-500 font-medium text-[11px]">Capacidade no período ({capacityTableData.totals.capDia.toLocaleString('pt-BR')}/dia)</span>
                 <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-[#001E62] font-bold text-[11px]">
                   <span>{capacityTableData.totals.contratados} Contratados</span>
                 </div>
               </div>
             </div>
 
-            {/* KPI 4: Balanço de Capacidade */}
+            {/* KPI 4: Balanço Diário */}
             <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">BALANÇO DIÁRIO</span>
@@ -261,7 +363,7 @@ export const CapacidadePage: React.FC = () => {
                 </div>
               </div>
               {(() => {
-                const gap = capacityTableData.totals.totalProd - capacityTableData.totals.capDia;
+                const gap = totalProdutividade - capacidadeNominal;
                 const isPositive = gap >= 0;
                 return (
                   <>
@@ -271,7 +373,7 @@ export const CapacidadePage: React.FC = () => {
                       </h3>
                     </div>
                     <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-                      <span className="text-gray-500 font-medium text-[11px]">Saldo em relação à meta</span>
+                      <span className="text-gray-500 font-medium text-[11px]">Volume produzido - Cap. nominal</span>
                       <div className={`flex items-center gap-1 px-2 py-0.5 rounded-md font-bold text-[11px] border ${
                         isPositive ? 'text-emerald-700 bg-emerald-50 border-emerald-300' : 'text-red-700 bg-red-50 border-red-300'
                       }`}>
@@ -288,9 +390,9 @@ export const CapacidadePage: React.FC = () => {
           <div className="bg-white border border-gray-200 p-6 rounded-md space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="text-brand-blue font-bold text-base flex items-center gap-2 uppercase">
+                <h3 className="text-brand-blue font-bold text-base flex items-center gap-2">
                   <TrendingUp size={18} className="text-brand-blue" />
-                  COMPARATIVO DE PRODUÇÃO MOM
+                  COMPARATIVO DE PRODUÇÃO MoM
                 </h3>
                 <p className="text-[11px] text-gray-400/80 mt-0.5">Comparativo de volumetria total por mês, e projeção de fechamento para o mês atual</p>
               </div>
@@ -301,30 +403,31 @@ export const CapacidadePage: React.FC = () => {
                   <span className="w-3 h-3 rounded-sm bg-brand-blue-dark inline-block" />
                   <span>Volume Realizado</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-emerald-600">
-                  <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" />
-                  <span>Provisão Projetada</span>
+                <div className="flex items-center gap-1.5 text-gray-600">
+                  <span className="w-3 h-3 rounded-full bg-gray-600 inline-block" />
+                  <span>Previsão Projetada</span>
                 </div>
               </div>
             </div>
 
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={momData} margin={{ top: 25, right: 25, left: -10, bottom: 5 }}>
+                <ComposedChart data={momData} margin={{ top: 25, right: 30, left: 15, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="label" stroke="#6b7280" tick={{ fontSize: 11 }} />
+                  <XAxis dataKey="label" stroke="#6b7280" tick={{ fontSize: 11 }} padding={{ left: 25, right: 25 }} />
                   <YAxis stroke="#6b7280" tick={{ fontSize: 11 }} />
                   <Tooltip 
                     cursor={{ fill: 'transparent' }} 
                     contentStyle={{ backgroundColor: '#ffffff', borderColor: '#001E62', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', color: '#001E62', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }} 
                     itemStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
                     labelStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
+                    formatter={(value: number) => value.toLocaleString('pt-BR')}
                   />
                   <Bar dataKey="volumeRealizado" name="Volume Realizado" fill="#001E62" radius={[4, 4, 0, 0]}>
                     <LabelList dataKey="volumeRealizado" position="insideTop" offset={6} fill="#ffffff" fontSize={10} fontWeight="bold" />
                   </Bar>
-                  <Line type="monotone" dataKey="provisaoProjetada" name="Provisão (Projeção Fechamento)" stroke="#10b981" strokeWidth={3} strokeDasharray="4 4" dot={{ fill: '#10b981', r: 5 }}>
-                    <LabelList dataKey="provisaoProjetada" position="top" offset={14} fill="#10b981" fontSize={11} fontWeight="bold" />
+                  <Line type="monotone" dataKey="provisaoProjetada" name="Previsão (Projeção Fechamento)" stroke="#4b5563" strokeWidth={3} strokeDasharray="4 4" dot={{ fill: '#4b5563', r: 5 }}>
+                    <LabelList dataKey="provisaoProjetada" position="top" offset={14} fill="#4b5563" fontSize={11} fontWeight="bold" />
                   </Line>
                 </ComposedChart>
               </ResponsiveContainer>

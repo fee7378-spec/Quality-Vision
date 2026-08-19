@@ -40,48 +40,177 @@ const CustomXAxisTick = (props: any) => {
   );
 };
 
+
+const getVal = (obj: any, key: string) => {
+  if (!obj) return undefined;
+  const found = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
+  return found ? obj[found] : undefined;
+};
 export const OperacaoPage: React.FC = () => {
   const { 
     productivityData, 
+    data,
+    monitorias,
     startDate, 
     endDate, 
     selectedEsteira,
-    esteiraMappings
+    esteiraMappings,
+    volumetriaTipoDeDemanda, volumetriaPrioridades, volumetriaPendencias, volumetriaReprovas, volumetria, volumetriaMediaTmo, volumetriaStatus,
+    capacity
   } = useStore();
 
-  // Filter productivity items
+  const isSpecialEsteira = (e: string) => {
+    const norm = (e || '').toUpperCase();
+    return norm.includes('PREMIUM') || norm.includes('VINTAGE PJ') || norm.includes('ABERTURA PJ');
+  };
+
+  const filterSupabase = (arr: any[]) => {
+    return (arr || []).filter(item => {
+      const itemDate = getVal(item, 'data');
+      if (itemDate && typeof itemDate === 'string' && itemDate.trim() !== '') {
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+      }
+      
+      const itemEsteira = getVal(item, 'esteira');
+      
+      // Special rule: if filtering by a special esteira, include all special ones
+      if (Array.isArray(selectedEsteira)) {
+        if (selectedEsteira.includes('TODAS')) return true;
+        const hasSpecialInFilter = selectedEsteira.some(f => isSpecialEsteira(f));
+        if (hasSpecialInFilter && isSpecialEsteira(itemEsteira)) return true;
+        return selectedEsteira.includes(itemEsteira);
+      } else {
+        if (selectedEsteira === 'TODAS') return true;
+        if (isSpecialEsteira(selectedEsteira as string) && isSpecialEsteira(itemEsteira)) return true;
+        return selectedEsteira === itemEsteira;
+      }
+    });
+  };
+
   const filteredProd = useMemo(() => {
     return productivityData.filter(item => {
       const itemDate = item.DataProdutividade;
       if (startDate && itemDate && itemDate < startDate) return false;
       if (endDate && itemDate && itemDate > endDate) return false;
-      if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
-      return true;
+      
+      const itemEsteira = item.Esteira;
+      if (Array.isArray(selectedEsteira)) {
+        if (selectedEsteira.includes('TODAS')) return true;
+        const hasSpecialInFilter = selectedEsteira.some(f => isSpecialEsteira(f));
+        if (hasSpecialInFilter && isSpecialEsteira(itemEsteira)) return true;
+        return selectedEsteira.includes(itemEsteira);
+      } else {
+        if (selectedEsteira === 'TODAS') return true;
+        if (isSpecialEsteira(selectedEsteira as string) && isSpecialEsteira(itemEsteira)) return true;
+        return selectedEsteira === itemEsteira;
+      }
     });
   }, [productivityData, startDate, endDate, selectedEsteira]);
 
-  // 1. KPI Totals
+  const filteredMonitoring = useMemo(() => {
+    if (monitorias && monitorias.length > 0) {
+      return monitorias.filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (startDate && itemDate && itemDate < startDate) return false;
+        if (endDate && itemDate && itemDate > endDate) return false;
+        
+        const itemEsteira = getVal(item, 'esteira');
+        if (Array.isArray(selectedEsteira)) {
+          if (selectedEsteira.includes('TODAS')) return true;
+          const hasSpecialInFilter = selectedEsteira.some(f => isSpecialEsteira(f));
+          if (hasSpecialInFilter && isSpecialEsteira(itemEsteira)) return true;
+          return selectedEsteira.includes(itemEsteira);
+        } else {
+          if (selectedEsteira === 'TODAS') return true;
+          if (isSpecialEsteira(selectedEsteira as string) && isSpecialEsteira(itemEsteira)) return true;
+          return selectedEsteira === itemEsteira;
+        }
+      });
+    }
+    return data.filter(item => {
+      const itemDate = item.DataMonitoria;
+      if (startDate && itemDate && itemDate < startDate) return false;
+      if (endDate && itemDate && itemDate > endDate) return false;
+      
+      const itemEsteira = item.Esteira;
+      if (Array.isArray(selectedEsteira)) {
+        if (selectedEsteira.includes('TODAS')) return true;
+        const hasSpecialInFilter = selectedEsteira.some(f => isSpecialEsteira(f));
+        if (hasSpecialInFilter && isSpecialEsteira(itemEsteira)) return true;
+        return selectedEsteira.includes(itemEsteira);
+      } else {
+        if (selectedEsteira === 'TODAS') return true;
+        if (isSpecialEsteira(selectedEsteira as string) && isSpecialEsteira(itemEsteira)) return true;
+        return selectedEsteira === itemEsteira;
+      }
+    });
+  }, [monitorias, data, startDate, endDate, selectedEsteira]);
+
+  const filterCapacity = (arr: any[], ignoreDate: boolean = false) => {
+    return (arr || []).filter(item => {
+      if (!ignoreDate) {
+        const itemDate = getVal(item, 'data');
+        if (itemDate && typeof itemDate === 'string' && itemDate.trim() !== '') {
+          if (startDate && itemDate < startDate) return false;
+          if (endDate && itemDate > endDate) return false;
+        }
+      }
+      
+      const itemEsteira = getVal(item, 'esteira');
+      
+      // Special rule: if filtering by a special esteira, include all special ones
+      if (Array.isArray(selectedEsteira)) {
+        if (selectedEsteira.includes('TODAS')) return true;
+        const hasSpecialInFilter = selectedEsteira.some(f => isSpecialEsteira(f));
+        if (hasSpecialInFilter && isSpecialEsteira(itemEsteira)) return true;
+        return selectedEsteira.includes(itemEsteira);
+      } else {
+        if (selectedEsteira === 'TODAS') return true;
+        if (isSpecialEsteira(selectedEsteira as string) && isSpecialEsteira(itemEsteira)) return true;
+        return selectedEsteira === itemEsteira;
+      }
+    });
+  };
+
   const kpis = useMemo(() => {
-    const totalVolume = filteredProd.reduce((acc, curr) => acc + (curr.Quantidade || 1), 0);
-    const prioVolume = filteredProd.filter(p => p.Prioridade === 'Sim').reduce((acc, curr) => acc + (curr.Quantidade || 1), 0);
-    const prioPercent = totalVolume > 0 ? ((prioVolume / totalVolume) * 100).toFixed(1) : '0';
+    const filtVolumetria = filterSupabase(volumetria);
+    const totalVolume = filtVolumetria.reduce((acc, curr) => acc + (Number(getVal(curr, 'quantidade')) || 0), 0);
+    
+    const filtPrio = filterSupabase(volumetriaPrioridades);
+    const prioVolume = filtPrio.reduce((acc, curr) => acc + (Number(getVal(curr, 'quantidade')) || 0), 0);
+    const prioPercent = totalVolume > 0 ? ((prioVolume / totalVolume) * 100).toFixed(1).replace('.', ',') : '0,0';
 
-    const pendentesCount = filteredProd.filter(p => p.PendenciaReprova === 'Pendência').length;
-    const reprovadosCount = filteredProd.filter(p => p.PendenciaReprova === 'Reprovado').length;
+    const totalMonitorias = filteredMonitoring.reduce((acc, curr) => acc + (Number(getVal(curr, 'quantidade')) || Number(curr.Quantidade) || 1), 0);
+    const prioMonitoriaPercent = prioVolume > 0 
+      ? ((totalMonitorias / prioVolume) * 100).toFixed(1).replace('.', ',') 
+      : '0,0';
+
+    const filtPend = filterSupabase(volumetriaPendencias);
+    const pendentesCount = filtPend.reduce((acc, curr) => acc + (Number(getVal(curr, 'quantidade')) || 0), 0);
+
+    const filtReprova = filterSupabase(volumetriaReprovas);
+    const reprovadosCount = filtReprova.reduce((acc, curr) => acc + (Number(getVal(curr, 'quantidade')) || 0), 0);
+
     const pendReprovTotal = pendentesCount + reprovadosCount;
-    const pendReprovPercent = totalVolume > 0 ? ((pendReprovTotal / totalVolume) * 100).toFixed(1) : '0';
+    const pendReprovPercent = totalVolume > 0 
+      ? ((pendReprovTotal / totalVolume) * 100).toFixed(1).replace('.', ',') 
+      : '0,0';
+    const reprovaPercent = totalVolume > 0 
+      ? ((reprovadosCount / totalVolume) * 100).toFixed(1).replace('.', ',') 
+      : '0,0';
 
-    // Average TMO per analyst / item (only count items with time data in Apuração column)
-    const itemsWithTmo = filteredProd.filter(p => p.TmoMinutos !== undefined && p.TmoMinutos > 0);
-    const tmoSum = itemsWithTmo.reduce((acc, curr) => acc + (curr.TmoMinutos || 0), 0);
-    const tmoAvg = itemsWithTmo.length > 0 ? (tmoSum / itemsWithTmo.length).toFixed(1) : '0.0';
+    // Respect date filters for card as requested
+    const filtCapacity = filterCapacity(capacity, false);
+    const tmoTotalSum = filtCapacity.reduce((acc, curr) => acc + (Number(getVal(curr, 'tmoMinuto')) || 0), 0);
+    const tmoCount = filtCapacity.length;
+    const tmoAvg = tmoCount > 0 ? (tmoTotalSum / tmoCount).toFixed(1).replace('.', ',') : '0,0';
 
-    // Peak day calculated strictly by the day with highest tabulated demands
     const dayMap: Record<string, number> = {};
-    filteredProd.forEach(p => {
-      const d = p.DataProdutividade;
-      if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
-        dayMap[d] = (dayMap[d] || 0) + (p.Quantidade || 1);
+    filtVolumetria.forEach(p => {
+      const d = getVal(p, 'data');
+      if (d) {
+        dayMap[d] = (dayMap[d] || 0) + (Number(getVal(p, 'quantidade')) || 0);
       }
     });
 
@@ -90,198 +219,202 @@ export const OperacaoPage: React.FC = () => {
     Object.entries(dayMap).forEach(([dateStr, vol]) => {
       if (vol > peakVol) {
         peakVol = vol;
-        const [y, m, day] = dateStr.split('-');
-        peakDay = `${day}/${m}/${y}`;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+          const [y, m, day] = dateStr.split('-');
+          peakDay = `${day}/${m}/${y}`;
+        } else {
+          peakDay = dateStr;
+        }
       }
     });
 
-    return {
-      totalVolume,
-      prioVolume,
-      prioPercent,
-      pendReprovTotal,
-      pendReprovPercent,
-      pendentesCount,
-      reprovadosCount,
-      tmoAvg,
-      peakDay,
-      peakVol
-    };
-  }, [filteredProd]);
+    return { totalVolume, prioVolume, prioPercent, totalMonitorias, prioMonitoriaPercent, pendReprovTotal, pendReprovPercent, reprovaPercent, pendentesCount, reprovadosCount, tmoAvg, peakDay, peakVol };
+  }, [volumetria, volumetriaPrioridades, volumetriaPendencias, volumetriaReprovas, capacity, filteredMonitoring, startDate, endDate, selectedEsteira]);
 
-  // 2. Volumetria por Esteira e Prioridade (Sim vs Não) - Descending Order
-  const esteiraPrioData = useMemo(() => {
+const esteiraPrioData = useMemo(() => {
     const map: Record<string, { esteira: string; sim: number; nao: number; total: number }> = {};
-    filteredProd.forEach(p => {
-      const e = p.Esteira || 'Geral';
-      if (!map[e]) {
-        map[e] = { esteira: e, sim: 0, nao: 0, total: 0 };
-      }
-      const qty = p.Quantidade || 1;
-      const prio = (p.Prioridade || '').trim().toLowerCase();
-      if (prio === 'sim' || prio === 's' || prio === 'true' || prio === '1') {
-        map[e].sim += qty;
-      } else if (prio === 'não' || prio === 'nao' || prio === 'n' || prio === 'false' || prio === '0') {
-        map[e].nao += qty;
-      }
+    const filtPrio = filterSupabase(volumetriaPrioridades);
+    const filtVol = filterSupabase(volumetria);
+
+    // Primeiro preenche com o total de volumetria
+    filtVol.forEach(p => {
+      const e = getVal(p, 'esteira') || 'Geral';
+      if (!map[e]) map[e] = { esteira: e, sim: 0, nao: 0, total: 0 };
+      const qty = Number(getVal(p, 'quantidade')) || 0;
       map[e].total += qty;
     });
 
-    // Sort descending by total volume
-    return Object.values(map).sort((a, b) => b.total - a.total);
-  }, [filteredProd]);
-
-  // 3. Status Distribution & Top Motivos de Pendência / Reprova
-  const statusDist = useMemo(() => {
-    let aprovados = 0;
-    let pendentes = 0;
-    let reprovados = 0;
-
-    filteredProd.forEach(p => {
-      const st = p.PendenciaReprova || 'Aprovado';
-      if (st === 'Pendência') pendentes++;
-      else if (st === 'Reprovado') reprovados++;
-      else aprovados++;
+    // Depois adiciona o que é prioridade (Sim)
+    filtPrio.forEach(p => {
+      const e = getVal(p, 'esteira') || 'Geral';
+      if (!map[e]) map[e] = { esteira: e, sim: 0, nao: 0, total: 0 };
+      const qty = Number(getVal(p, 'quantidade')) || 0;
+      map[e].sim += qty;
     });
 
+    // Calcula o que é Normal (Nao = Total - Sim) e previne números negativos se a base estiver inconsistente
+    Object.values(map).forEach(v => {
+      v.nao = Math.max(0, v.total - v.sim);
+      // Ajusta o total real apenas para ordenação, garantindo que seja pelo menos a soma (caso sim > total base)
+      v.total = v.sim + v.nao; 
+    });
+
+    return Object.values(map).sort((a, b) => b.total - a.total);
+  }, [volumetria, volumetriaPrioridades, startDate, endDate, selectedEsteira]);
+
+  const statusDist = useMemo(() => {
+    const concluidos = Math.max(0, kpis.totalVolume - (kpis.pendentesCount + kpis.reprovadosCount));
     return [
-      { name: 'Aprovados', value: aprovados, color: '#14B8A6' },
-      { name: 'Pendências', value: pendentes, color: '#F59E0B' },
-      { name: 'Reprovados', value: reprovados, color: '#EF4444' }
+      { name: 'Concluídos', value: concluidos, color: '#14B8A6' },
+      { name: 'Pendências', value: kpis.pendentesCount, color: '#F59E0B' },
+      { name: 'Reprovas', value: kpis.reprovadosCount, color: '#EF4444' }
     ];
-  }, [filteredProd]);
+  }, [kpis.totalVolume, kpis.pendentesCount, kpis.reprovadosCount]);
 
   const topMotivos = useMemo(() => {
     const map: Record<string, number> = {};
-    filteredProd.forEach(p => {
-      if (p.PendenciaReprova === 'Pendência' || p.PendenciaReprova === 'Reprovado') {
-        const mot = (p.MotivoPendencia || p.DocumentoPendenciado || p.Pendencia || '').trim();
-        if (mot && mot.toLowerCase() !== 'nenhum' && mot.toLowerCase() !== 'outros / não especificado') {
-          map[mot] = (map[mot] || 0) + 1;
-        }
+    const filtStatus = filterSupabase(volumetriaStatus);
+
+    filtStatus.forEach(p => {
+      const mot = String(getVal(p, 'pendencia') || '').trim();
+      if (mot && mot.toLowerCase() !== 'null' && mot.toLowerCase() !== 'nenhum') {
+        map[mot] = (map[mot] || 0) + (Number(getVal(p, 'quantidade')) || 0);
       }
     });
 
     return Object.entries(map)
       .map(([motivo, count]) => ({ motivo, count }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-  }, [filteredProd]);
+      .slice(0, 10);
+  }, [volumetriaStatus, startDate, endDate, selectedEsteira]);
 
-  // 4. Atividades com maior volume por Esteira (Tipo de Demanda - apenas preenchidos)
   const atividadeVolume = useMemo(() => {
     const map: Record<string, number> = {};
-    filteredProd.forEach(p => {
-      const demanda = (p.TipoDemanda || '').trim();
-      if (!demanda) return; // Não contabiliza se não tiver dados
-      const key = `${demanda} (${p.Esteira || 'Geral'})`;
-      map[key] = (map[key] || 0) + (p.Quantidade || 1);
+    const filteredVolumetria = filterSupabase(volumetriaTipoDeDemanda);
+    filteredVolumetria.forEach(p => {
+      const rawDemanda = String(getVal(p, 'tipoDeDemanda') || '').trim();
+      const esteira = getVal(p, 'esteira') || 'Geral';
+      const demanda = rawDemanda || esteira || 'Geral';
+      const key = `${demanda} (${esteira})`;
+      const qty = Number(getVal(p, 'quantidade')) || 0;
+      map[key] = (map[key] || 0) + qty;
     });
 
     return Object.entries(map)
       .map(([atividade, volume]) => ({ atividade, volume }))
       .sort((a, b) => b.volume - a.volume);
-  }, [filteredProd]);
+  }, [volumetriaTipoDeDemanda, startDate, endDate, selectedEsteira]);
 
-  // 5. TMO por Esteira (Vertical Bars, Descending Order - apenas com tempo apurado)
+  const formatMinutesToTime = (min: number) => {
+    if (min < 60) return `${Math.round(min)}m`;
+    const h = Math.floor(min / 60);
+    const m = Math.floor(min % 60);
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
+
   const tmoPorEsteira = useMemo(() => {
-    const map: Record<string, { count: number; sum: number }> = {};
-    filteredProd.forEach(p => {
-      if (p.TmoMinutos === undefined || p.TmoMinutos <= 0) return; // Não contabiliza se sem tempo apurado
-      const e = p.Esteira || 'Geral';
-      if (!map[e]) map[e] = { count: 0, sum: 0 };
-      map[e].count += 1;
-      map[e].sum += p.TmoMinutos;
+    // Ignore date filters, respect esteira filter
+    const filtCapacity = filterCapacity(capacity, true);
+    
+    // Get all unique esteiras from capacity to ensure bars appear
+    const allEsteiras = Array.from(new Set(capacity.map(p => getVal(p, 'esteira')))).filter(Boolean);
+    
+    const map: Record<string, { totalTmo: number; count: number }> = {};
+    
+    // Initialize map with all esteiras
+    allEsteiras.forEach(e => {
+        map[e] = { totalTmo: 0, count: 0 };
     });
 
-    // Descending order of TMO with 1 decimal place
+    filtCapacity.forEach(p => {
+      const e = getVal(p, 'esteira') || 'Geral';
+      const tmoStr = getVal(p, 'tmoMinuto') || '00:00:00';
+      
+      // Parse HH:mm:ss
+      let tmoMin = 0;
+      if (typeof tmoStr === 'string' && tmoStr.includes(':')) {
+        const parts = tmoStr.split(':');
+        const h = parseInt(parts[0], 10) || 0;
+        const m = parseInt(parts[1], 10) || 0;
+        const s = parseInt(parts[2], 10) || 0;
+        tmoMin = h * 60 + m + s / 60;
+      } else {
+        tmoMin = Number(tmoStr) || 0;
+      }
+      
+      if (!map[e]) map[e] = { totalTmo: 0, count: 0 };
+      map[e].totalTmo += tmoMin;
+      map[e].count += 1;
+    });
+
     return Object.entries(map).map(([esteira, val]) => ({
       esteira,
-      tmoMedio: val.count > 0 ? parseFloat((val.sum / val.count).toFixed(1)) : 0
-    })).filter(item => item.tmoMedio > 0).sort((a, b) => b.tmoMedio - a.tmoMedio);
-  }, [filteredProd]);
+      tmoMedio: val.count > 0 ? parseFloat((val.totalTmo / val.count).toFixed(1)) : 0
+    })).sort((a, b) => b.tmoMedio - a.tmoMedio);
+  }, [capacity, selectedEsteira]);
 
-  // 6. Evolução Diária e Destaque do Dia de Maior Volume
-  const evolucaoDiaria = useMemo(() => {
-    const map: Record<string, number> = {};
-    filteredProd.forEach(p => {
-      const d = p.DataProdutividade;
-      if (d) {
-        map[d] = (map[d] || 0) + (p.Quantidade || 1);
-      }
-    });
-
-    return Object.keys(map).sort().map(d => {
-      const [y, m, day] = d.split('-');
-      return {
-        dataRaw: d,
-        label: `${day}/${m}`,
-        volume: map[d]
-      };
-    });
-  }, [filteredProd]);
+  const tmoMedioGeral = useMemo(() => {
+    const filtCapacity = filterCapacity(capacity, true);
+    if (filtCapacity.length === 0) return 0;
+    
+    const totalTmo = filtCapacity.reduce((acc, curr) => {
+        const tmoStr = getVal(curr, 'tmoMinuto') || '00:00:00';
+        let tmoMin = 0;
+        if (typeof tmoStr === 'string' && tmoStr.includes(':')) {
+            const parts = tmoStr.split(':');
+            const h = parseInt(parts[0], 10) || 0;
+            const m = parseInt(parts[1], 10) || 0;
+            const s = parseInt(parts[2], 10) || 0;
+            tmoMin = h * 60 + m + s / 60;
+        } else {
+            tmoMin = Number(tmoStr) || 0;
+        }
+        return acc + tmoMin;
+    }, 0);
+    
+    return totalTmo / filtCapacity.length;
+  }, [capacity, selectedEsteira]);
 
   return (
     <div className="w-full p-4 sm:p-6 md:p-8 bg-gray-50 text-gray-900 space-y-8">
-      {productivityData.length === 0 && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-900 px-5 py-4 rounded-xl flex items-center justify-between gap-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="text-amber-600 shrink-0" size={22} />
-            <div>
-              <p className="font-bold text-sm">Nenhuma base de produtividade importada</p>
-              <p className="text-xs text-amber-800 mt-0.5">
-                Aguardando importação da base de produtividade para exibir os dados e gráficos da Operação. Acesse a aba <strong>Importar</strong> para carregar a base.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* KPI Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* KPI 1: Volumetria Tratada */}
         <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">VOLUMETRIA TRATADA</span>
-            <div className="p-1.5 rounded-lg bg-gray-50 border border-gray-100">
-              <BarChart2 size={18} className="text-[#001E62]" />
+            <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">PRIORIDADES</span>
+            <div className="p-1.5 rounded-lg bg-blue-50 border border-blue-100">
+              <Target size={18} className="text-[#001E62]" />
             </div>
           </div>
           <div>
-            <h3 className="text-3xl font-black text-gray-900 tracking-tight">{kpis.totalVolume.toLocaleString('pt-BR')}</h3>
-          </div>
-          <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-            <span className="text-gray-500 font-medium text-[11px]">Demandas Prioritárias: <strong className="text-gray-800 font-bold">{kpis.prioVolume.toLocaleString('pt-BR')}</strong></span>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-[#001E62] font-bold text-[11px]">
-              <Filter size={11} className="text-[#001E62]" />
-              <span>{kpis.prioPercent}% Prioritário</span>
-            </div>
-          </div>
-        </div>
-
-        {/* KPI 2: Taxa de Pendência / Reprova */}
-        <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">PENDÊNCIAS & REPROVAS</span>
-            <div className="p-1.5 rounded-lg bg-amber-50 border border-amber-100">
-              <AlertTriangle size={18} className="text-amber-600" />
-            </div>
-          </div>
-          <div>
-            <h3 className="text-3xl font-black text-[#001E62] tracking-tight">{kpis.pendReprovPercent}%</h3>
+            <h3 className="text-3xl font-black text-gray-900 tracking-tight">{kpis.prioVolume.toLocaleString('pt-BR')}</h3>
+            <p className="text-[11px] text-gray-500 font-medium mt-0.5">Demanda prioritária ({kpis.prioPercent}% do volume total)</p>
           </div>
           <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
             <span className="text-gray-500 font-medium text-[11px]">
-              <strong className="text-amber-700 font-bold">{kpis.pendentesCount}</strong> pend. / <strong className="text-red-600 font-bold">{kpis.reprovadosCount}</strong> repr.
             </span>
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 font-bold text-[11px]">
-              <ShieldAlert size={12} className="text-amber-600" />
-              <span>{kpis.pendReprovTotal} Ocorrências</span>
-            </div>
           </div>
         </div>
 
-        {/* KPI 3: Dia de Maior Volume */}
+        <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">REPROVAS</span>
+            <div className="p-1.5 rounded-lg bg-red-50 border border-red-100">
+              <AlertTriangle size={18} className="text-red-600" />
+            </div>
+          </div>
+          <div>
+            <h3 className="text-3xl font-black text-[#001E62] tracking-tight">{kpis.reprovaPercent}%</h3>
+          </div>
+          <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
+            <span className="text-gray-500 font-medium text-[11px]">
+              Quantidade de reprovas: <strong className="text-red-600 font-bold">{kpis.reprovadosCount.toLocaleString('pt-BR')}</strong>
+            </span>
+          </div>
+        </div>
+
         <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">PICO DE PRODUÇÃO</span>
@@ -295,12 +428,11 @@ export const OperacaoPage: React.FC = () => {
           <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
             <span className="text-gray-500 font-medium text-[11px]">Volume no dia de pico</span>
             <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold text-[11px]">
-              <span>{kpis.peakVol.toLocaleString('pt-BR')} itens</span>
+              <span>{kpis.peakVol.toLocaleString('pt-BR')}</span>
             </div>
           </div>
         </div>
 
-        {/* KPI 4: TMO Médio Operacional */}
         <div className="bg-white border border-gray-200 p-5 rounded-xl hover:border-[#001E62]/40 transition-all shadow-sm flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">TMO MÉDIO OPERACIONAL</span>
@@ -309,7 +441,7 @@ export const OperacaoPage: React.FC = () => {
             </div>
           </div>
           <div>
-            <h3 className="text-3xl font-black text-gray-900 tracking-tight">{kpis.tmoAvg} <span className="text-sm font-bold text-gray-500">min</span></h3>
+            <h3 className="text-3xl font-black text-gray-900 tracking-tight">{tmoMedioGeral.toFixed(1).replace('.', ',')} <span className="text-sm font-bold text-gray-500">min</span></h3>
           </div>
           <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
             <span className="text-gray-500 font-medium text-[11px]">Média por item tratado</span>
@@ -320,9 +452,7 @@ export const OperacaoPage: React.FC = () => {
         </div>
       </div>
 
-      {/* SECTION 1: Volumetria Tratada x Prioridade & Pendências / Reprovas */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Chart 1: Volumetria por Esteira e Prioridade (Vertical bars, Descending order, Scrollable) */}
         <div className="lg:col-span-7 bg-white border border-gray-200 p-6 rounded-md space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
@@ -331,15 +461,13 @@ export const OperacaoPage: React.FC = () => {
                 VOLUMETRIA DE PRIORIDADES
               </h3>
             </div>
-
-            {/* Fixed Legend opposite Title */}
             <div className="flex items-center gap-4 bg-gray-50/70 border border-gray-200 px-3.5 py-1.5 rounded-md self-start sm:self-auto flex-shrink-0">
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-sm bg-brand-blue-dark inline-block" />
+                <span className="w-3 h-3 rounded-sm bg-[#001E62] inline-block" />
                 <span className="text-xs font-bold text-gray-900">Prioridade (SIM)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" />
+                <span className="w-3 h-3 rounded-sm bg-[#EEF2FF] border border-[#001E62] inline-block" />
                 <span className="text-xs font-bold text-gray-900">Normal (NÃO)</span>
               </div>
             </div>
@@ -348,7 +476,7 @@ export const OperacaoPage: React.FC = () => {
           <div className="overflow-x-auto pb-2 custom-scrollbar">
             <div style={{ minWidth: Math.max(800, esteiraPrioData.length * 160), height: 350 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={esteiraPrioData} margin={{ top: 25, right: 20, left: -10, bottom: 25 }}>
+                <BarChart data={esteiraPrioData} margin={{ top: 25, right: 20, left: 10, bottom: 25 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis 
                     dataKey="esteira" 
@@ -367,8 +495,8 @@ export const OperacaoPage: React.FC = () => {
                   <Bar dataKey="sim" name="Prioridade (SIM)" fill="#001E62" radius={[4, 4, 0, 0]} barSize={34}>
                     <LabelList dataKey="sim" position="top" offset={6} fill="#001E62" fontSize={11} fontWeight="bold" />
                   </Bar>
-                  <Bar dataKey="nao" name="Normal (NÃO)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={34}>
-                    <LabelList dataKey="nao" position="top" offset={6} fill="#10b981" fontSize={11} fontWeight="bold" />
+                  <Bar dataKey="nao" name="Normal (NÃO)" fill="#EEF2FF" stroke="#001E62" strokeWidth={1} radius={[4, 4, 0, 0]} barSize={34}>
+                    <LabelList dataKey="nao" position="top" offset={6} fill="#001E62" fontSize={11} fontWeight="bold" />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -376,77 +504,33 @@ export const OperacaoPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Chart 2: Pendência & Reprova com Principais Motivos */}
         <div className="lg:col-span-5 bg-white border border-gray-200 p-6 rounded-md space-y-4 flex flex-col justify-between">
           <div>
             <h3 className="text-brand-blue font-bold text-base flex items-center gap-2 uppercase">
               <ShieldAlert size={18} className="text-brand-blue" />
-              STATUS DAS ANÁLISES
+              PRINCIPAIS MOTIVOS DE REPROVAS
             </h3>
+            <p className="text-[11px] text-gray-400 mt-0.5">Top 10 motivos mais frequentes no período selecionado</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-            <div className="h-44">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={statusDist}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={38}
-                    outerRadius={65}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {statusDist.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#001E62', borderRadius: '8px', color: '#001E62', fontWeight: 'bold' }} itemStyle={{ color: '#001E62', fontWeight: 'bold' }} labelStyle={{ color: '#001E62', fontWeight: 'bold' }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="space-y-1.5 text-xs">
-              <p className="font-bold text-gray-700 uppercase text-[10px] tracking-wider mb-2">Resumo de Qualidade:</p>
-              {statusDist.map((s) => (
-                <div key={s.name} className="flex items-center justify-between bg-gray-50/60 border border-gray-200 px-3 py-1.5 rounded">
-                  <span className="flex items-center gap-2 text-gray-700">
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.color }} />
-                    {s.name}
+          <div className="space-y-1.5 text-xs flex-1">
+            {topMotivos.length > 0 ? (
+              topMotivos.map((m, idx) => (
+                <div key={idx} className="flex items-center justify-between bg-gray-50 border border-gray-200 px-3 py-1.5 rounded text-gray-700 hover:border-brand-blue/30 transition-colors">
+                  <span className="truncate pr-2 font-medium">{idx + 1}. {m.motivo}</span>
+                  <span className="font-bold text-brand-blue bg-brand-blue-dark/10 px-2 py-0.5 rounded text-[11px] border border-brand-blue-dark/20 flex-shrink-0">
+                    {m.count.toLocaleString('pt-BR')} ocorrência(s)
                   </span>
-                  <span className="font-bold text-gray-900">{s.value}</span>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Top Motivos Table */}
-          <div className="border-t border-gray-200 pt-3 space-y-2">
-            <h4 className="text-xs font-bold text-brand-blue uppercase tracking-wider flex items-center gap-1.5">
-              <AlertTriangle size={14} /> PRINCIPAIS MOTIVOS DE PENDÊNCIA / REPROVA
-            </h4>
-            <div className="space-y-1.5 text-xs">
-              {topMotivos.length > 0 ? (
-                topMotivos.map((m, idx) => (
-                  <div key={idx} className="flex items-center justify-between bg-gray-50 border border-gray-200 px-3 py-1.5 rounded text-gray-700">
-                    <span className="truncate pr-2 font-medium">{idx + 1}. {m.motivo}</span>
-                    <span className="font-bold text-brand-blue bg-brand-blue-dark/10 px-2 py-0.5 rounded text-[11px] border border-brand-blue-dark/20">
-                      {m.count} ocorrência(s)
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-gray-400 italic">Nenhum motivo de pendência ou reprova registrado.</p>
-              )}
-            </div>
+              ))
+            ) : (
+              <p className="text-xs text-gray-400 italic py-4">Nenhum motivo de reprova registrado.</p>
+            )}
           </div>
         </div>
       </div>
 
-      {/* SECTION 2: Maior Volume por Atividade/Esteira & Visualização do TMO Vertical (Descrescente) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Atividade com maior volume por esteira */}
         <div className="lg:col-span-5 bg-white border border-gray-200 p-6 rounded-md space-y-4">
           <div>
             <h3 className="text-brand-blue font-bold text-base flex items-center gap-2 uppercase">
@@ -454,13 +538,11 @@ export const OperacaoPage: React.FC = () => {
               VOLUMETRIA DE TIPOS DE DEMANDA
             </h3>
           </div>
-
           <div className="space-y-2.5 max-h-[380px] overflow-y-auto custom-scrollbar pr-1.5">
             {atividadeVolume.length > 0 ? (
               atividadeVolume.map((item, index) => {
                 const maxVol = atividadeVolume[0]?.volume || 1;
                 const percent = Math.round((item.volume / maxVol) * 100);
-
                 return (
                   <div key={index} className="bg-gray-50 border border-gray-200 p-3 rounded-md space-y-1.5">
                     <div className="flex items-center justify-between text-xs gap-2">
@@ -487,7 +569,6 @@ export const OperacaoPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Visualização de TMO por esteira (VERTICAL BARS, DECRESCENTE, COM LEGENDA FIXADA E 1 CASA DECIMAL) */}
         <div className="lg:col-span-7 bg-white border border-gray-200 p-6 rounded-md space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
@@ -496,14 +577,11 @@ export const OperacaoPage: React.FC = () => {
                 TEMPO MÉDIO DE OPERAÇÃO POR ESTEIRAS
               </h3>
             </div>
-
-            
           </div>
-
           <div className="overflow-x-auto pb-2 custom-scrollbar">
             <div style={{ minWidth: Math.max(1000, tmoPorEsteira.length * 300), height: 350 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={tmoPorEsteira} margin={{ top: 25, right: 20, left: -10, bottom: 25 }}>
+                <BarChart data={tmoPorEsteira} margin={{ top: 25, right: 20, left: 10, bottom: 25 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis 
                     dataKey="esteira" 
@@ -518,10 +596,10 @@ export const OperacaoPage: React.FC = () => {
                     contentStyle={{ backgroundColor: '#ffffff', borderColor: '#001E62', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', color: '#001E62', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }} 
                     itemStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
                     labelStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }}
-                    formatter={(val: any) => [`${Number(val).toFixed(1)} minutos`, 'TMO Médio']}
+                    formatter={(val: any) => [formatMinutesToTime(Number(val)), 'TMO Médio']}
                   />
                   <Bar dataKey="tmoMedio" name="TMO Médio (min)" fill="#001E62" radius={[4, 4, 0, 0]} barSize={40}>
-                    <LabelList dataKey="tmoMedio" position="top" offset={6} fill="#001E62" fontSize={11} fontWeight="bold" formatter={(v: any) => `${Number(v).toFixed(1)}m`} />
+                    <LabelList dataKey="tmoMedio" position="top" offset={6} fill="#001E62" fontSize={11} fontWeight="bold" formatter={(v: any) => formatMinutesToTime(Number(v))} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>

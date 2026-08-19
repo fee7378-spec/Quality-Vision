@@ -1,6 +1,21 @@
-import React from 'react';
-import { X, User, AlertTriangle, CheckCircle2, FileText, TrendingUp, Calendar, Tag } from 'lucide-react';
-import { useStore, getTabuladorName } from '../store/useStore';
+import React, { useState } from 'react';
+import { X, User, AlertTriangle, CheckCircle2, FileText, Tag } from 'lucide-react';
+import { useStore, getTabuladorName, formatDateToBR, getSupervisorCode } from '../store/useStore';
+import { useTokenStore } from '../store/useTokenStore';
+import { ErrorDetailModal } from './ErrorDetailModal';
+
+const getVal = (obj: any, key: string) => {
+  if (!obj || typeof obj !== 'object') return undefined;
+  if (obj[key] !== undefined) return obj[key];
+  const lowerKey = key.toLowerCase();
+  const foundKey = Object.keys(obj).find(k => k.toLowerCase() === lowerKey);
+  return foundKey ? obj[foundKey] : undefined;
+};
+
+const normalizeName = (name: any) => {
+  if (!name || typeof name !== 'string') return '';
+  return name.trim().toLowerCase();
+};
 
 interface AnalystModalProps {
   analystCode: string | null;
@@ -9,42 +24,105 @@ interface AnalystModalProps {
 }
 
 export const AnalystModal: React.FC<AnalystModalProps> = ({ analystCode, analystName, onClose }) => {
-  const { data, esteiraMappings, startDate, endDate } = useStore();
+  const { data, monitorias, monitoriaErros, volumetria, selectedForma, esteiraMappings, startDate, endDate } = useStore();
+  const [selectedErrorDetail, setSelectedErrorDetail] = useState<any>(null);
 
   if (!analystCode && !analystName) return null;
 
-  // Find all records for this analyst within date range or overall
-  const analystItems = data.filter(i => {
+  const codeMatch = analystCode ? analystCode.trim().toLowerCase() : '';
+  const nameMatch = analystName ? normalizeName(analystName) : '';
+
+  const matchesAnalyst = (item: any) => {
+    const code = (getVal(item, 'codAnalista') || item.CodigoAnalista || '').toString().trim().toLowerCase();
+    const name = normalizeName(getVal(item, 'analista') || item.NomeAnalista);
+    if (codeMatch && code === codeMatch) return true;
+    if (nameMatch && name === nameMatch) return true;
+    if (nameMatch && code === nameMatch) return true;
+    if (codeMatch && name === codeMatch) return true;
+    return false;
+  };
+
+  // 1. Monitorias count
+  const filteredMonitorias = monitorias.filter(m => {
+    const d = getVal(m, 'data');
+    if (d && typeof d === 'string') {
+      if (startDate && d < startDate) return false;
+      if (endDate && d > endDate) return false;
+    }
+    return matchesAnalyst(m);
+  });
+
+  // 2. Erros rows
+  const filteredErros = monitoriaErros.filter(e => {
+    const d = getVal(e, 'data');
+    if (d && typeof d === 'string') {
+      if (startDate && d < startDate) return false;
+      if (endDate && d > endDate) return false;
+    }
+    return matchesAnalyst(e);
+  });
+
+  // Fallback to local uploaded data array if Supabase arrays are empty
+  const analystItemsFromData = data.filter(i => {
     if (startDate && i.DataMonitoria < startDate) return false;
     if (endDate && i.DataMonitoria > endDate) return false;
+    return matchesAnalyst(i);
+  }).sort((a, b) => (b.DataMonitoria || '').localeCompare(a.DataMonitoria || ''));
 
-    const matchCode = analystCode && i.CodigoAnalista === analystCode;
-    const matchName = analystName && i.NomeAnalista?.toUpperCase() === analystName.toUpperCase();
-    return matchCode || matchName;
-  }).sort((a, b) => b.DataMonitoria.localeCompare(a.DataMonitoria));
+  // 3. Volumetria (Produtividade)
+  const filteredVolumetria = volumetria.filter(v => {
+    const d = getVal(v, 'data') || getVal(v, 'DataProdutividade') || '';
+    if (d && typeof d === 'string') {
+      if (startDate && d < startDate) return false;
+      if (endDate && d > endDate) return false;
+    }
+    return matchesAnalyst(v);
+  });
+  const totalProdutividade = filteredVolumetria.reduce((sum, v) => sum + (Number(getVal(v, 'quantidade')) || 0), 0);
 
-  const totalMonitorias = analystItems.length;
-  const isErrorItem = (item: typeof data[0]) => {
+  const isErrorFromData = (item: any) => {
     const errStr = (item.Erro || '').toString().trim().toLowerCase();
     return errStr === '0' || errStr === 'erro' || errStr === 'reprovado' || errStr === 'nc' || errStr === 'n/c' || errStr === 'nok';
   };
 
-  const totalErros = analystItems.filter(i => isErrorItem(i)).length;
-  const qualidadeNum = totalMonitorias > 0 ? ((totalMonitorias - totalErros) / totalMonitorias) * 100 : 100;
+  const totalMonitorias = filteredMonitorias.length > 0 
+    ? filteredMonitorias.reduce((sum, m) => sum + (Number(getVal(m, 'quantidade')) || Number(m.quantidade) || 1), 0)
+    : analystItemsFromData.length;
+
+  const effectiveErrorList = (filteredErros.length > 0 || filteredMonitorias.length > 0)
+    ? filteredErros
+    : analystItemsFromData.filter(isErrorFromData);
+
+  const totalErros = effectiveErrorList.length;
+  
+  const isDoubleCheck = Array.isArray(selectedForma) 
+    ? selectedForma.includes('Double Check') && selectedForma.length === 1 
+    : selectedForma === 'Double Check';
+  
+  const baseForQuality = isDoubleCheck ? totalProdutividade : totalMonitorias;
+
+  const qualidadeNum = baseForQuality > 0 ? ((baseForQuality - totalErros) / baseForQuality) * 100 : 100;
   const qualidadeStr = qualidadeNum.toFixed(1);
 
   // Tag frequency breakdown
   const tagBreakdown: Record<string, number> = {};
-  analystItems.filter(i => isErrorItem(i)).forEach(i => {
-    const t = i.Tag || 'Geral';
-    tagBreakdown[t] = (tagBreakdown[t] || 0) + 1;
+  effectiveErrorList.forEach(i => {
+    const t = getVal(i, 'tag') || i.Tag || 'Sem Tag';
+    const tagStr = (t && String(t).trim() !== '' && String(t).toLowerCase() !== 'null') ? String(t).trim() : 'Sem Tag';
+    tagBreakdown[tagStr] = (tagBreakdown[tagStr] || 0) + 1;
   });
 
+  const { accessType } = useTokenStore();
+  const isVisualizacao = accessType === 'visualizacao';
+
   const sortedTags = Object.entries(tagBreakdown).sort((a, b) => b[1] - a[1]);
-  const primarySupervisor = analystItems[0]?.NomeSupervisor || analystItems[0]?.Supervisor || 'Não informado';
-  const primaryEsteira = getTabuladorName(analystItems[0]?.Esteira || '', esteiraMappings) || 'Geral';
-  const nameDisplay = analystName || analystItems[0]?.NomeAnalista || 'Analista';
-  const codeDisplay = analystCode || analystItems[0]?.CodigoAnalista || '';
+  const primarySupervisor = getVal(effectiveErrorList[0], 'supervisor') || getVal(filteredMonitorias[0], 'supervisor') || analystItemsFromData[0]?.NomeSupervisor || analystItemsFromData[0]?.Supervisor || 'Não informado';
+  const supervisorDisplay = isVisualizacao ? getSupervisorCode({ NomeSupervisor: primarySupervisor }) : primarySupervisor;
+  const rawEsteira = getVal(effectiveErrorList[0], 'esteira') || getVal(filteredMonitorias[0], 'esteira') || analystItemsFromData[0]?.Esteira || '';
+  const primaryEsteira = getTabuladorName(rawEsteira, esteiraMappings) || rawEsteira || 'Geral';
+  const rawNameDisplay = analystName || getVal(effectiveErrorList[0], 'analista') || analystItemsFromData[0]?.NomeAnalista || 'Analista';
+  const codeDisplay = analystCode || getVal(effectiveErrorList[0], 'codAnalista') || analystItemsFromData[0]?.CodigoAnalista || '';
+  const nameDisplay = isVisualizacao ? (codeDisplay || 'Analista') : rawNameDisplay;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-50/80 backdrop-blur-sm animate-fadeIn">
@@ -60,7 +138,7 @@ export const AnalystModal: React.FC<AnalystModalProps> = ({ analystCode, analyst
               <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
                 <span className="font-mono bg-gray-100 px-2 py-0.5 rounded text-brand-blue-light">{codeDisplay}</span>
                 <span>•</span>
-                <span>Supervisor: {primarySupervisor}</span>
+                <span>Supervisor: {supervisorDisplay}</span>
                 <span>•</span>
                 <span>Esteira: {primaryEsteira}</span>
               </div>
@@ -141,35 +219,45 @@ export const AnalystModal: React.FC<AnalystModalProps> = ({ analystCode, analyst
                     <th className="py-3 px-3">Plano de Ação</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800/60 font-medium">
-                  {analystItems.filter(isErrorItem).length === 0 ? (
+                <tbody className="divide-y divide-gray-200 font-medium">
+                  {effectiveErrorList.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="py-8 text-center text-gray-400 italic">
                         Nenhum erro encontrado no período selecionado.
                       </td>
                     </tr>
                   ) : (
-                    analystItems.filter(isErrorItem).map((item, idx) => {
-                      const isErr = isErrorItem(item);
+                    effectiveErrorList.map((item, idx) => {
+                      const itemData = getVal(item, 'data') || item.DataMonitoria;
+                      const rawEsteiraVal = getVal(item, 'esteira') || item.Esteira;
+                      const itemEsteira = getTabuladorName(rawEsteiraVal, esteiraMappings) || rawEsteiraVal || '-';
+                      const itemTag = getVal(item, 'tag') || item.Tag || 'Sem Tag';
+                      const itemMacro = getVal(item, 'macroTag') || item.MotivoMacro || '-';
+                      const itemFeedback = getVal(item, 'dataFeedback') || item.DataFeedback;
+                      const itemPlano = getVal(item, 'planoDeAcao') || item.Plano || '-';
+
                       return (
-                        <tr key={idx} className="hover:bg-gray-100/40 transition-colors">
-                          <td className="py-2.5 px-3 font-mono text-[11px] text-gray-700">{item.DataMonitoria}</td>
-                          <td className="py-2.5 px-3 text-gray-800">{getTabuladorName(item.Esteira, esteiraMappings)}</td>
+                        <tr 
+                          key={idx} 
+                          onClick={() => setSelectedErrorDetail(item)}
+                          className="hover:bg-blue-50/70 transition-colors cursor-pointer"
+                          title="Clique para ver os detalhes deste registro"
+                        >
+                          <td className="py-2.5 px-3 font-mono text-[11px] text-gray-700">{formatDateToBR(itemData)}</td>
+                          <td className="py-2.5 px-3 text-gray-800">{itemEsteira}</td>
                           <td className="py-2.5 px-3">
                             <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-800 text-[11px]">
-                              {item.Tag || 'Geral'}
+                              {itemTag}
                             </span>
                           </td>
-                          <td className="py-2.5 px-3 text-gray-500 text-[11px]">{item.MotivoMacro || '-'}</td>
-                          <td className="py-2.5 px-3 text-center">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              isErr ? 'bg-red-500/20 text-red-600 border border-red-500/30' : 'bg-emerald-500/20 text-emerald-600 border border-emerald-500/30'
-                            }`}>
-                              {isErr ? '0% Erro' : '100% OK'}
+                          <td className="py-2.5 px-3 text-gray-500 text-[11px]">{itemMacro}</td>
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-extrabold whitespace-nowrap bg-red-50 text-red-600 border border-red-200">
+                              0% • Erro
                             </span>
                           </td>
-                          <td className="py-2.5 px-3 text-center text-gray-500 font-mono text-[11px]">{item.DataFeedback || '-'}</td>
-                          <td className="py-2.5 px-3 text-gray-700 max-w-xs truncate" title={item.Plano || ''}>{item.Plano || '-'}</td>
+                          <td className="py-2.5 px-3 text-center text-gray-500 font-mono text-[11px]">{formatDateToBR(itemFeedback)}</td>
+                          <td className="py-2.5 px-3 text-gray-700 max-w-xs truncate" title={itemPlano}>{itemPlano}</td>
                         </tr>
                       );
                     })
@@ -180,6 +268,11 @@ export const AnalystModal: React.FC<AnalystModalProps> = ({ analystCode, analyst
           </div>
         </div>
       </div>
+
+      <ErrorDetailModal
+        item={selectedErrorDetail}
+        onClose={() => setSelectedErrorDetail(null)}
+      />
     </div>
   );
 };

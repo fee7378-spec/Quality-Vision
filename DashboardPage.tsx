@@ -4,7 +4,8 @@ import {
   LineChart, Line, PieChart, Pie, Cell, Legend, LabelList 
 } from 'recharts';
 import { AlertCircle, CheckCircle2, Award, Briefcase, BarChart3, PieChart as PieIcon, Filter, Calendar, Eye, Target } from 'lucide-react';
-import { useStore, matchesFilter } from '../store/useStore';
+import { useStore, matchesFilter, matchesFormaFilter, getAnalystCode, getVal } from '../store/useStore';
+import { useTokenStore } from '../store/useTokenStore';
 import { AnalystModal } from '../components/AnalystModal';
 
 const MACRO_COLORS = ['#001E62', '#001E62', '#10b981', '#a855f7', '#06b6d4', '#f97316', '#ec4899', '#001E62'];
@@ -40,10 +41,17 @@ const CustomXAxisTick = (props: any) => {
   );
 };
 
+
 export const DashboardPage = () => {
+  const { accessType } = useTokenStore();
+  const isVisualizacao = accessType === 'visualizacao';
+
   const { 
     data, 
+    monitorias,
+    monitoriaErros,
     productivityData,
+    volumetria,
     startDate, 
     endDate, 
     selectedTag, 
@@ -71,27 +79,15 @@ export const DashboardPage = () => {
   const filteredData = useMemo(() => {
     return baseDateData.filter(item => {
       if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
-      if (!matchesFilter(selectedForma, item.FormaMonitoria, 'TODAS')) return false;
+      if (!matchesFormaFilter(selectedForma, item)) return false;
       if (!matchesFilter(selectedTag, item.Tag, 'TODAS')) return false;
       if (!matchesFilter(selectedMacro, item.MotivoMacro, 'TODOS')) return false;
       return true;
     });
   }, [baseDateData, selectedEsteira, selectedForma, selectedTag, selectedMacro]);
 
-  // Total Produtividade calculation
-  const totalProdutividade = useMemo(() => {
-    return productivityData
-      .filter(item => {
-        if (startDate && item.DataProdutividade && item.DataProdutividade < startDate) return false;
-        if (endDate && item.DataProdutividade && item.DataProdutividade < endDate) return false;
-        if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
-        return true;
-      })
-      .reduce((sum, item) => sum + (Number(item.Quantidade) || 1), 0);
-  }, [productivityData, startDate, endDate, selectedEsteira]);
-
   // Helper to test if item is an error
-  const isErrorItem = (item: typeof data[0]) => {
+  const isErrorItem = (item: any) => {
     const errStr = (item.Erro || "").toString().trim().toLowerCase();
     return (
       errStr === "0" || 
@@ -103,13 +99,75 @@ export const DashboardPage = () => {
     );
   };
 
-  // Executive KPIs (Affected by all active filters except Produtividade)
-  const totalMonitorias = filteredData.length;
-  const totalErros = filteredData.filter(d => isErrorItem(d)).length;
-  const qualidadeNum = totalMonitorias > 0 
-    ? Number((((totalMonitorias - totalErros) / totalMonitorias) * 100).toFixed(1))
-    : 100;
-  const qualidade = qualidadeNum.toFixed(1) + '%';
+  // Consolidate KPI calculations to reduce iterations
+  const kpis = useMemo(() => {
+    let monTotal = 0;
+    if (monitorias && monitorias.length > 0) {
+      monTotal = monitorias
+        .filter(item => {
+          const itemDate = getVal(item, 'data');
+          if (!itemDate || typeof itemDate !== 'string') return false;
+          if (startDate && itemDate < startDate) return false;
+          if (endDate && itemDate > endDate) return false;
+          const itemEsteira = getVal(item, 'esteira');
+          if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+          if (!matchesFormaFilter(selectedForma, item)) return false;
+          return true;
+        })
+        .reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || Number(item.quantidade) || 0), 0);
+    } else {
+      monTotal = filteredData.reduce((sum, item) => sum + (Number(item.Quantidade) || 1), 0);
+    }
+
+    let errTotal = 0;
+    if (monitoriaErros && monitoriaErros.length > 0) {
+      errTotal = monitoriaErros.filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        const itemEsteira = getVal(item, 'esteira');
+        if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+        if (!matchesFormaFilter(selectedForma, item)) return false;
+
+        const macroTag = getVal(item, 'macroTag');
+        if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
+          return false;
+        }
+        return true;
+      }).length;
+    } else {
+      errTotal = filteredData.filter(d => isErrorItem(d)).length;
+    }
+
+    const prodTotal = volumetria
+      .filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        if (!matchesFilter(selectedEsteira, getVal(item, 'esteira'), 'TODAS')) return false;
+        return true;
+      })
+      .reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || 0), 0);
+
+    const isDoubleCheck = Array.isArray(selectedForma) 
+      ? selectedForma.includes('Double Check') && selectedForma.length === 1 
+      : selectedForma === 'Double Check';
+    
+    const qualityBase = isDoubleCheck ? prodTotal : monTotal;
+    const qualityPct = qualityBase > 0 ? Number((((qualityBase - errTotal) / qualityBase) * 100).toFixed(1)) : 100;
+
+    return {
+      totalMonitorias: monTotal,
+      totalErros: errTotal,
+      totalProdutividade: prodTotal,
+      qualidadePct: qualityPct,
+      qualidadeStr: qualityPct.toFixed(1).replace('.', ',') + '%'
+    };
+  }, [monitorias, monitoriaErros, volumetria, startDate, endDate, selectedEsteira, selectedForma, filteredData]);
+
+  const { totalMonitorias, totalErros, totalProdutividade, qualidadePct, qualidadeStr: qualidade } = kpis;
 
   const getQualityColor = (pct: number) => {
     if (pct >= 97) return 'text-emerald-600';
@@ -118,84 +176,175 @@ export const DashboardPage = () => {
     return 'text-red-600';
   };
 
-  // Identify recurrences based on the FULL monitora base (data)
-  const errorIsRecurrence = useMemo(() => {
-    const isRecurrenceMap = new Map<any, boolean>();
-    const analystTagHistory: Record<string, Set<string>> = {};
-
-    [...data]
-      .filter(d => isErrorItem(d))
-      .sort((a, b) => (a.DataMonitoria || "").localeCompare(b.DataMonitoria || ""))
-      .forEach(item => {
-        const name = item.NomeAnalista || "ANALISTA";
-        const code = item.CodigoAnalista || name;
-        const tag = (item.Tag && item.Tag.trim()) ? item.Tag.trim() : "Geral";
-
-        if (!analystTagHistory[code]) {
-          analystTagHistory[code] = new Set();
-        }
-
-        if (analystTagHistory[code].has(tag)) {
-          isRecurrenceMap.set(item, true);
-        } else {
-          isRecurrenceMap.set(item, false);
-          analystTagHistory[code].add(tag);
-        }
-      });
-    return isRecurrenceMap;
-  }, [data]);
-
-  // Ranking de Reincidentes (Calculado por tag por analista na base full)
+  // Ranking de Reincidentes (Calcula o analista mais reincidente e a tag em que ele é mais reincidente)
   const rankingReincidentes = useMemo(() => {
-    const analystStats: Record<string, { nome: string; totalErros: number; reincidencias: number; tags: Record<string, number> }> = {};
+    const analystStats: Record<string, { analista: string; totalErros: number; tagsMap: Record<string, number> }> = {};
+    const errorItems: Array<{ analista: string; tag: string }> = [];
 
-    filteredData.filter(d => isErrorItem(d)).forEach(item => {
-      const name = item.NomeAnalista || "ANALISTA";
-      const code = item.CodigoAnalista || name;
-      const tag = (item.Tag && item.Tag.trim()) ? item.Tag.trim() : "Geral";
+    if (monitoriaErros && monitoriaErros.length > 0) {
+      const filteredErros = monitoriaErros.filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        const itemEsteira = getVal(item, 'esteira');
+        if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+        if (!matchesFormaFilter(selectedForma, item)) return false;
 
-      if (!analystStats[code]) {
-        analystStats[code] = { nome: name, totalErros: 0, reincidencias: 0, tags: {} };
+        const macroTag = getVal(item, 'macroTag');
+        if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
+          return false;
+        }
+
+        return true;
+      });
+
+      filteredErros.forEach(item => {
+        const rawName = getVal(item, 'analista') || "ANALISTA";
+        const code = getAnalystCode(item);
+        const name = isVisualizacao ? code : rawName;
+        const rawTag = getVal(item, 'tag');
+        const tag = (rawTag && String(rawTag).trim()) ? String(rawTag).trim() : "Sem Tag";
+        errorItems.push({ analista: name, tag });
+      });
+    } else {
+      filteredData.filter(d => isErrorItem(d)).forEach(item => {
+        const rawName = item.NomeAnalista || "ANALISTA";
+        const code = getAnalystCode(item);
+        const name = isVisualizacao ? code : rawName;
+        const tag = (item.Tag && item.Tag.trim()) ? item.Tag.trim() : "Sem Tag";
+        errorItems.push({ analista: name, tag });
+      });
+    }
+
+    errorItems.forEach(({ analista, tag }) => {
+      if (!analystStats[analista]) {
+        analystStats[analista] = { analista, totalErros: 0, tagsMap: {} };
       }
-      
-      analystStats[code].totalErros += 1;
-      analystStats[code].tags[tag] = (analystStats[code].tags[tag] || 0) + 1;
-      
-      if (errorIsRecurrence.get(item)) {
-        analystStats[code].reincidencias += 1;
-      }
+      analystStats[analista].totalErros += 1;
+      analystStats[analista].tagsMap[tag] = (analystStats[analista].tagsMap[tag] || 0) + 1;
     });
 
-    const result = Object.entries(analystStats).map(([code, stats]) => {
-      let tagMaisErros = "Geral";
-      let topTagCount = 0;
-      
-      Object.entries(stats.tags).forEach(([tag, count]) => {
-        if (count > topTagCount) {
-          topTagCount = count;
-          tagMaisErros = tag;
-        }
-      });
+    return Object.values(analystStats)
+      .map(stat => {
+        const sortedTags = Object.entries(stat.tagsMap).sort((a, b) => b[1] - a[1]);
+        const topTag = sortedTags[0]?.[0] || 'N/A';
+        const topTagCount = sortedTags[0]?.[1] || 0;
 
-      return {
-        codigo: code,
-        nome: stats.nome,
-        totalErros: stats.totalErros,
-        reincidencias: stats.reincidencias,
-        tagMaisErros,
-        topTagCount,
-        tagsCount: Object.keys(stats.tags).length
-      };
-    })
-    .filter(a => a.totalErros > 0)
-    .sort((a, b) => b.reincidencias - a.reincidencias || b.totalErros - a.totalErros)
-    .slice(0, 15);
+        let reincidencias = 0;
+        Object.values(stat.tagsMap).forEach(cnt => {
+          if (cnt > 1) reincidencias += (cnt - 1);
+        });
 
-    return result;
-  }, [filteredData, errorIsRecurrence]);
+        return {
+          analista: stat.analista,
+          totalErros: stat.totalErros,
+          reincidencias,
+          topTag,
+          topTagCount
+        };
+      })
+      .filter(s => s.totalErros > 0)
+      .sort((a, b) => {
+        if (b.reincidencias !== a.reincidencias) return b.reincidencias - a.reincidencias;
+        return b.totalErros - a.totalErros;
+      })
+      .slice(0, 15);
+  }, [monitoriaErros, startDate, endDate, selectedEsteira, selectedForma, filteredData]);
 
   // Timeline chart: Filtered Data
   const timelineData = useMemo(() => {
+    if (monitoriaErros && monitoriaErros.length > 0 && monitorias && monitorias.length > 0) {
+      const filteredErros = monitoriaErros.filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        const itemEsteira = getVal(item, 'esteira');
+        if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+        if (!matchesFormaFilter(selectedForma, item)) return false;
+
+        const macroTag = getVal(item, 'macroTag');
+        if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
+          return false;
+        }
+
+        return true;
+      });
+
+      const filteredMonitorias = monitorias.filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        const itemEsteira = getVal(item, 'esteira');
+        if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+        if (!matchesFormaFilter(selectedForma, item)) return false;
+        return true;
+      });
+
+      const allDates = [
+        ...filteredErros.map(i => getVal(i, 'data')),
+        ...filteredMonitorias.map(i => getVal(i, 'data'))
+      ].filter(Boolean).sort();
+
+      let daysDiff = 0;
+      if (allDates.length > 0) {
+        const minD = new Date(allDates[0]);
+        const maxD = new Date(allDates[allDates.length - 1]);
+        daysDiff = Math.ceil((maxD.getTime() - minD.getTime()) / (1000 * 3600 * 24));
+      }
+
+      const isDaily = daysDiff <= 31;
+      const map: Record<string, { fullKey: string; label: string; erros: number; total: number }> = {};
+
+      const getKeyAndLabel = (rawDate: string) => {
+        let key = rawDate;
+        let label = rawDate;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+          if (isDaily) {
+            key = rawDate;
+            const parts = rawDate.split('-');
+            label = `${parts[2]}/${parts[1]}`;
+          } else {
+            key = rawDate.slice(0, 7);
+            const [y, m] = key.split('-');
+            const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            const mIdx = parseInt(m, 10) - 1;
+            label = monthNames[mIdx] ? `${monthNames[mIdx]}/${y.slice(2)}` : key;
+          }
+        }
+        return { key, label };
+      };
+
+      filteredMonitorias.forEach(item => {
+        const rawDate = getVal(item, 'data');
+        if (!rawDate) return;
+        const { key, label } = getKeyAndLabel(rawDate);
+        if (!map[key]) {
+          map[key] = { fullKey: key, label, erros: 0, total: 0 };
+        }
+        const qty = Number(getVal(item, 'quantidade')) || Number(item.quantidade) || 0;
+        map[key].total += qty;
+      });
+
+      filteredErros.forEach(item => {
+        const rawDate = getVal(item, 'data');
+        if (!rawDate) return;
+        const { key, label } = getKeyAndLabel(rawDate);
+        if (!map[key]) {
+          map[key] = { fullKey: key, label, erros: 0, total: 0 };
+        }
+        map[key].erros += 1;
+      });
+
+      const list = Object.values(map)
+        .filter(item => item.total > 0 || item.erros > 0)
+        .sort((a, b) => a.fullKey.localeCompare(b.fullKey));
+
+      return { list, isDaily };
+    }
+
     if (filteredData.length === 0) return { list: [], isDaily: true };
 
     const sortedDates = filteredData
@@ -243,34 +392,74 @@ export const DashboardPage = () => {
       .filter(item => item.erros > 0)
       .sort((a, b) => a.fullKey.localeCompare(b.fullKey));
     return { list, isDaily };
-  }, [filteredData]);
+  }, [monitoriaErros, monitorias, startDate, endDate, selectedEsteira, filteredData]);
 
-  // Evolução Diária da Produtividade
+// Evolução da Produtividade
   const evolucaoDiaria = useMemo(() => {
-    const map: Record<string, number> = {};
-    productivityData
+    const map = new Map<string, { key: string, label: string, volume: number }>();
+    let mode: 'month' | 'week' | 'day' = 'month';
+
+    if (startDate && endDate) {
+      const d1 = new Date(startDate);
+      const d2 = new Date(endDate);
+      const diffDays = (d2.getTime() - d1.getTime()) / (1000 * 3600 * 24);
+      if (diffDays <= 7) mode = 'day';
+      else if (diffDays <= 31) mode = 'week';
+    }
+
+    const getGroup = (dateStr: string) => {
+      const [y, m, d] = dateStr.split('-');
+      if (mode === 'day') return { key: dateStr, label: `${d}/${m}/${y}` };
+      if (mode === 'week') {
+        const dateObj = new Date(Number(y), Number(m)-1, Number(d));
+        const day = dateObj.getDay();
+        const diff = dateObj.getDate() - day + (day === 0 ? -6 : 1);
+        const weekStart = new Date(Number(y), Number(m)-1, diff);
+        const wsY = weekStart.getFullYear();
+        const wsM = String(weekStart.getMonth()+1).padStart(2, '0');
+        const wsD = String(weekStart.getDate()).padStart(2, '0');
+        return { key: `${wsY}-${wsM}-${wsD}`, label: `Sem. ${wsD}/${wsM}` };
+      }
+      const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+      return { key: `${y}-${m}`, label: `${months[Number(m)-1]}/${y}` };
+    };
+
+    volumetria
       .filter(item => {
-        if (startDate && item.DataProdutividade && item.DataProdutividade < startDate) return false;
-        if (endDate && item.DataProdutividade && item.DataProdutividade > endDate) return false;
-        if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        if (!matchesFilter(selectedEsteira, getVal(item, 'esteira'), 'TODAS')) return false;
         return true;
       })
       .forEach(p => {
-        const d = p.DataProdutividade;
-        if (d) {
-          map[d] = (map[d] || 0) + (p.Quantidade || 1);
+        const d = getVal(p, 'data');
+        if (d && typeof d === 'string') {
+          const group = getGroup(d);
+          const qty = Number(getVal(p, 'quantidade')) || 0;
+          
+          if (!map.has(group.key)) {
+            map.set(group.key, { ...group, volume: 0 });
+          }
+          const entry = map.get(group.key)!;
+          entry.volume += qty;
         }
       });
 
-    return Object.keys(map).sort().map(d => {
-      const [y, m, day] = d.split('-');
-      return {
-        dataRaw: d,
-        label: `${day}/${m}`,
-        volume: map[d]
-      };
-    });
-  }, [productivityData, startDate, endDate, selectedEsteira]);
+    const list = Array.from(map.values()).sort((a, b) => a.key.localeCompare(b.key));
+    if (list.length === 0) return [];
+
+    const totalVolume = list.reduce((sum, item) => sum + item.volume, 0);
+    const avgVolume = list.length > 0 ? totalVolume / list.length : 0;
+    const targetMeta = Math.round((avgVolume * 1.05) / 10) * 10 || 100;
+
+    return list.map(item => ({
+      label: item.label,
+      volume: item.volume,
+      meta: targetMeta
+    }));
+  }, [volumetria, startDate, endDate, selectedEsteira]);
 
   return (
     <div className="w-full bg-gray-50 p-4 sm:p-6 md:p-8 space-y-8 text-gray-900">
@@ -289,7 +478,7 @@ export const DashboardPage = () => {
           <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
             <span className="text-gray-500 font-medium text-[11px]">Volume total no período</span>
             <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-[#001E62] font-bold text-[11px]">
-              <span>Itens Tratados</span>
+              <span>Casos tratados</span>
             </div>
           </div>
         </div>
@@ -316,11 +505,11 @@ export const DashboardPage = () => {
           <div className="flex items-center justify-between">
             <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">QUALIDADE</p>
             <div className="p-1.5 rounded-lg bg-gray-50 border border-gray-100">
-              <CheckCircle2 size={18} className={getQualityColor(qualidadeNum)} />
+              <CheckCircle2 size={18} className={getQualityColor(qualidadePct)} />
             </div>
           </div>
           <div>
-            <h3 className={`text-3xl font-black tracking-tight ${getQualityColor(qualidadeNum)}`}>{qualidade}</h3>
+            <h3 className={`text-3xl font-black tracking-tight ${getQualityColor(qualidadePct)}`}>{qualidade}</h3>
           </div>
           <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
             <span className="text-gray-500 font-medium text-[11px]">Qualidade operacional</span>
@@ -356,16 +545,26 @@ export const DashboardPage = () => {
           <div>
             <h3 className="text-brand-blue font-bold text-base flex items-center gap-2 uppercase">
               <Calendar size={18} className="text-brand-blue" />
-              EVOLUÇÃO DA PRODUTIVIDADE DIÁRIA
+              EVOLUÇÃO DA PRODUTIVIDADE
             </h3>
+          </div>
+          <div className="flex items-center gap-4 text-xs font-semibold">
+            <div className="flex items-center gap-1.5 text-brand-blue">
+              <span className="w-3 h-3 rounded-full bg-[#001E62] inline-block" />
+              <span>Casos Tratados</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-gray-600 font-bold">
+              <span className="w-3 h-0.5 border-t-2 border-dashed border-gray-600 inline-block" />
+              <span>Meta de Produção</span>
+            </div>
           </div>
         </div>
 
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={evolucaoDiaria} margin={{ top: 25, right: 25, left: -10, bottom: 5 }}>
+            <LineChart data={evolucaoDiaria} margin={{ top: 25, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="label" stroke="#6b7280" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="label" stroke="#6b7280" tick={{ fontSize: 11 }} padding={{ left: 35, right: 35 }} />
               <YAxis stroke="#6b7280" tick={{ fontSize: 11 }} />
               <Tooltip 
                 cursor={{ stroke: '#001E62', strokeDasharray: '3 3' }} 
@@ -373,8 +572,11 @@ export const DashboardPage = () => {
                 itemStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
                 labelStyle={{ color: '#001E62', fontSize: '11px', fontWeight: 'bold' }} 
               />
-              <Line type="monotone" dataKey="volume" name="Itens Tratados" stroke="#001E62" strokeWidth={3} dot={{ fill: '#001E62', r: 5 }}>
+              <Line type="monotone" dataKey="volume" name="Casos Tratados" stroke="#001E62" strokeWidth={3} dot={{ fill: '#001E62', r: 5 }}>
                 <LabelList dataKey="volume" position="top" offset={10} fill="#001E62" fontSize={11} fontWeight="bold" />
+              </Line>
+              <Line type="monotone" dataKey="meta" name="Meta de Produção" stroke="#4b5563" strokeWidth={2.5} strokeDasharray="5 5" dot={{ fill: '#4b5563', r: 4 }}>
+                <LabelList dataKey="meta" position="bottom" offset={8} fill="#4b5563" fontSize={11} fontWeight="bold" />
               </Line>
             </LineChart>
           </ResponsiveContainer>
@@ -396,37 +598,34 @@ export const DashboardPage = () => {
             {rankingReincidentes.length > 0 ? (
               rankingReincidentes.map((item, idx) => (
                 <div 
-                  key={item.codigo + idx} 
-                  onClick={() => setSelectedAnalystForModal({ code: item.codigo, name: item.nome })}
-                  className="bg-gray-50 border border-gray-200 hover:border-brand-blue/60 p-3 rounded-md flex items-center justify-between gap-3 cursor-pointer transition-all hover:bg-white group"
-                  title="Clique para abrir detalhes do analista"
+                  key={`ranking-${idx}-${item.analista}`} 
+                  className="bg-gray-50 border border-gray-200 hover:border-brand-blue/60 p-3 rounded-md flex items-center justify-between gap-3 transition-all hover:bg-white group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-7 h-7 rounded-md bg-gray-100 border border-gray-300 group-hover:border-brand-blue flex items-center justify-center font-bold text-xs text-brand-blue flex-shrink-0">
                       #{idx + 1}
                     </div>
                     <div className="truncate">
-                      <p className="text-xs font-semibold text-gray-900 group-hover:text-brand-blue-light truncate flex items-center gap-1.5">
-                        {item.nome}
-                        <Eye size={12} className="opacity-0 group-hover:opacity-100 text-brand-blue-light transition-opacity" />
+                      <p className="text-xs font-bold text-gray-900 group-hover:text-brand-blue-light truncate">
+                        {item.analista}
                       </p>
-                      <p className="text-[10px] text-brand-blue/90 truncate mt-0.5">
-                        Tag principal: <span className="font-semibold">{item.tagMaisErros}</span> ({item.topTagCount}x)
+                      <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                        Tag mais reincidente: <span className="font-semibold text-red-600">{item.topTag}</span> ({item.topTagCount}x)
                       </p>
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <span className="bg-red-50 border border-red-300 text-red-700 px-2 py-0.5 rounded-md text-[11px] font-bold">
-                      {item.reincidencias} reincidência(s)
+                      {item.reincidencias > 0 ? `${item.reincidencias} reincidência(s)` : `${item.totalErros} erro(s)`}
                     </span>
                     <p className="text-[10px] text-gray-500 mt-1">
-                      {item.totalErros} erro(s) em {item.tagsCount} tag(s)
+                      {item.totalErros} erro(s) total
                     </p>
                   </div>
                 </div>
               ))
             ) : (
-              <p className="text-xs text-gray-400 py-6 text-center">Nenhuma reincidência registrada no filtro atual.</p>
+              <p className="text-xs text-gray-400 py-6 text-center">Nenhum erro registrado no filtro atual.</p>
             )}
           </div>
         </div>
@@ -454,9 +653,9 @@ export const DashboardPage = () => {
 
           <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={timelineData.list} margin={{ top: 25, right: 25, left: -10, bottom: 5 }}>
+              <LineChart data={timelineData.list} margin={{ top: 25, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="label" stroke="#6b7280" tick={{ fontSize: 11 }} padding={{ left: 30, right: 30 }} />
+                <XAxis dataKey="label" stroke="#6b7280" tick={{ fontSize: 11 }} padding={{ left: 35, right: 35 }} />
                 <YAxis stroke="#6b7280" tick={{ fontSize: 11 }} />
                 <Tooltip 
                   cursor={{ stroke: '#001E62', strokeDasharray: '3 3' }} 

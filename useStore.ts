@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { idbGet, idbSet, idbDel } from '../lib/idb';
-import { saveToFirebase, clearFirebaseData, subscribeToFirebaseData } from '../lib/firebase';
 
 export interface MonitoringItem {
   id?: string;
@@ -117,6 +116,15 @@ export const getCurrentMonthRange = () => {
 export const normalizeDateStr = (raw: any): string => {
   if (!raw) return '';
 
+  if (typeof raw === 'number' && raw > 30000 && raw < 80000) {
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+    const dateObj = new Date(excelEpoch.getTime() + raw * 86400000);
+    const y = dateObj.getUTCFullYear();
+    const m = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(dateObj.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
   if (raw instanceof Date && !isNaN(raw.getTime())) {
     const y = raw.getUTCFullYear();
     const m = String(raw.getUTCMonth() + 1).padStart(2, '0');
@@ -126,6 +134,18 @@ export const normalizeDateStr = (raw: any): string => {
 
   let str = String(raw).trim();
   if (!str) return '';
+
+  if (/^\d{5}$/.test(str)) {
+    const num = Number(str);
+    if (num > 30000 && num < 80000) {
+      const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+      const dateObj = new Date(excelEpoch.getTime() + num * 86400000);
+      const y = dateObj.getUTCFullYear();
+      const m = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getUTCDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+  }
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
     return str;
@@ -168,6 +188,27 @@ export const normalizeDateStr = (raw: any): string => {
   }
 
   return str.slice(0, 10);
+};
+
+export const formatDateToBR = (dateStr: string | undefined | null): string => {
+  if (!dateStr) return '-';
+  const str = String(dateStr).trim();
+  if (str === '' || str === '-' || str === 'null' || str === 'undefined') return '-';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const [y, m, d] = str.split('-');
+    return `${d}/${m}/${y}`;
+  }
+  if (str.includes('T')) {
+    const isoPart = str.split('T')[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(isoPart)) {
+      const [y, m, d] = isoPart.split('-');
+      return `${d}/${m}/${y}`;
+    }
+  }
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
+    return str;
+  }
+  return str;
 };
 
 export interface EsteiraParam {
@@ -278,32 +319,220 @@ export const isValidAnalystName = (name: any): boolean => {
   const isKnownEsteira = KNOWN_ESTEIRAS.some(e => normalizeName(e) === norm);
   if (isKnownEsteira) return false;
 
-  // Cannot be generic header words
+  // Cannot be generic header words or enum values
   const invalidKeywords = [
-    'NOME', 'ANALISTA', 'NOME DO ANALISTA', 'NOME ANALISTA', 'TOTAL', 
-    'GERAL', 'DATA', 'DATA PRODUTIVIDADE', 'SUPERVISOR', 'ESTEIRA', 
+    'NOME', 'ANALISTA', 'NOME DO ANALISTA', 'NOME ANALISTA', 'OPERADOR', 'COLABORADOR',
+    'TOTAL', 'GERAL', 'DATA', 'DATA PRODUTIVIDADE', 'SUPERVISOR', 'ESTEIRA', 
     'TOTAL GERAL', 'PRODUTIVIDADE', 'QUANTIDADE', 'CONTAGEM', 'MES', 'SOMA',
-    'MONITORA', 'TABULADOR', 'MONITOR'
+    'MONITORA', 'TABULADOR', 'MONITOR',
+    'APURACAO', 'APURACAO TEMPO', 'APURACAO DE TEMPO', 'TEMPO', 'TMO',
+    'COMPLEXIDADE', 'TIPO DE DEMANDA', 'TIPO DEMANDA', 'DEMANDA', 'ATIVIDADE',
+    'PENDENCIA', 'MOTIVO PENDENCIA', 'DOCUMENTO PENDENCIADO', 'DOC PENDENCIADO', 'PENDENCIADO',
+    'PRIORIDADE', 'PRIORITARIO', 'REPROVA', 'REPROVACAO', 'MOTIVO REPROVA',
+    'SEGMENTO', 'STATUS', 'CO SEGMENTO', 'COSEGMENTO', 'SUB SEGMENTO', 'SITUACAO', 'PARECER',
+    'SIM', 'NAO', 'BAIXA', 'MEDIA', 'ALTA', 'APROVADO', 'REPROVADO', 'PENDENCIA'
   ];
   if (invalidKeywords.includes(norm)) return false;
   return true;
 };
 
 export const parseFormaMonitoria = (rawVal: any): string => {
-  if (!rawVal) return 'Estudo';
-  const str = String(rawVal).trim().toLowerCase();
-  if (!str) return 'Estudo';
+  if (!rawVal) return '';
+  const str = String(rawVal).trim();
+  if (!str) return '';
+  const lower = str.toLowerCase();
 
-  if (str.includes('interfile')) {
+  if (lower.includes('interfile')) {
     return 'Qualidade Interfile';
   }
-  if (str.includes('cliente') || str.includes('double')) {
+  if (lower.includes('cliente') || lower.includes('double')) {
     return 'Double Check';
   }
-  if (str.includes('estudo')) {
+  if (lower.includes('estudo')) {
     return 'Estudo';
   }
-  return 'Estudo';
+  return str;
+};
+
+export const getFormaFromItem = (item: any): string => {
+  if (!item) return '';
+  const raw = getVal(item, 'forma') || getVal(item, 'formaMonitoria') || item.FormaMonitoria || item.forma || item.AA || '';
+  return parseFormaMonitoria(raw);
+};
+
+export const matchesFormaFilter = (selectedForma: FilterValue, item: any): boolean => {
+  if (!selectedForma) return true;
+  if (!item) return true;
+
+  const hasFormaKey = 
+    item.hasOwnProperty('forma') || 
+    item.hasOwnProperty('formaMonitoria') || 
+    item.hasOwnProperty('FormaMonitoria') || 
+    item.hasOwnProperty('AA') || 
+    Object.keys(item).some(k => k.toLowerCase() === 'forma' || k.toLowerCase() === 'formamonitoria');
+
+  if (!hasFormaKey) return true;
+
+  const raw = getVal(item, 'forma') || getVal(item, 'formaMonitoria') || item.FormaMonitoria || item.forma || item.AA || '';
+  const parsed = parseFormaMonitoria(raw);
+  return matchesFilter(selectedForma, parsed, 'TODAS') || matchesFilter(selectedForma, String(raw).trim(), 'TODAS');
+};
+
+export const getVal = (obj: any, key: string) => {
+  if (!obj || typeof obj !== 'object') return undefined;
+  // Exact match first (O(1))
+  if (obj[key] !== undefined) return obj[key];
+  
+  // Case-insensitive fallback (O(N))
+  const keys = Object.keys(obj);
+  const lowerKey = key.toLowerCase();
+  for (let i = 0; i < keys.length; i++) {
+    if (keys[i].toLowerCase() === lowerKey) return obj[keys[i]];
+  }
+  return undefined;
+};
+
+export const generateCodeFromName = (name: string, prefix: 'SUP' | 'MON' | 'MAT') => {
+  if (!name || name === '-' || name.trim().toLowerCase() === 'não informado' || name.trim().toLowerCase() === 'supervisor geral') return '-';
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash << 5) - hash + name.charCodeAt(i);
+    hash |= 0;
+  }
+  const positiveNum = Math.abs(hash) % 900 + 100;
+  return `${prefix}-${positiveNum}`;
+};
+
+export const getAnalystCode = (item: any) => {
+  if (!item) return '-';
+  let directCode = getVal(item, 'codAnalista') || getVal(item, 'codigoAnalista') || item?.CodigoAnalista || item?.codAnalista || item?.codigo || item?.cod_analista || item?.cd_analista || item?.matricula || item?.Matricula;
+  let name = typeof item === 'string' ? item : (getVal(item, 'analista') || item?.NomeAnalista || item?.nome || '');
+
+  if (directCode && String(directCode).trim() && String(directCode).trim() !== '-') {
+    const dStr = String(directCode).trim();
+    if (/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(dStr) && dStr.includes(' ')) {
+      // directCode is actually a full name, so ignore it and use it as name if name is empty
+      if (!name || name === '-') name = dStr;
+      directCode = undefined;
+    } else {
+      return dStr;
+    }
+  }
+
+  if (!name || name === '-' || name.trim().toLowerCase() === 'não informado') return '-';
+
+  try {
+    const storeState = useStore.getState ? useStore.getState() : null;
+    if (storeState) {
+      const cleanName = name.trim().toLowerCase();
+      
+      const monitoriasList = storeState.monitorias || [];
+      const matchInMonitorias = monitoriasList.find(m => {
+        const mName = (getVal(m, 'analista') || m?.NomeAnalista || m?.nome || '').toString().trim().toLowerCase();
+        const mCode = getVal(m, 'codAnalista') || getVal(m, 'codigoAnalista') || m?.CodigoAnalista || m?.codAnalista || m?.codigo || m?.cod_analista || m?.cd_analista || m?.matricula || m?.Matricula;
+        return mName === cleanName && mCode && String(mCode).trim() && String(mCode).trim() !== '-';
+      });
+
+      if (matchInMonitorias) {
+        const foundCode = getVal(matchInMonitorias, 'codAnalista') || getVal(matchInMonitorias, 'codigoAnalista') || matchInMonitorias?.CodigoAnalista || matchInMonitorias?.codAnalista || matchInMonitorias?.codigo || matchInMonitorias?.cod_analista || matchInMonitorias?.cd_analista || matchInMonitorias?.matricula || matchInMonitorias?.Matricula;
+        if (foundCode) return String(foundCode).trim();
+      }
+
+      const dataList = storeState.data || [];
+      const matchInData = dataList.find(m => {
+        const mName = (getVal(m, 'analista') || m?.NomeAnalista || m?.nome || '').toString().trim().toLowerCase();
+        const mCode = getVal(m, 'codAnalista') || getVal(m, 'codigoAnalista') || m?.CodigoAnalista || m?.codAnalista || m?.codigo || m?.cod_analista || m?.cd_analista || m?.matricula || m?.Matricula;
+        return mName === cleanName && mCode && String(mCode).trim() && String(mCode).trim() !== '-';
+      });
+
+      if (matchInData) {
+        const foundCode = getVal(matchInData, 'codAnalista') || getVal(matchInData, 'codigoAnalista') || matchInData?.CodigoAnalista || matchInData?.codAnalista || matchInData?.codigo || matchInData?.cod_analista || matchInData?.cd_analista || matchInData?.matricula || matchInData?.Matricula;
+        if (foundCode) return String(foundCode).trim();
+      }
+    }
+  } catch (err) {
+    // ignore
+  }
+
+  return generateCodeFromName(name, 'MAT');
+};
+
+export const getSupervisorCode = (item: any) => {
+  if (!item) return '-';
+  let directCode = getVal(item, 'codSupervisor') || getVal(item, 'codigoSupervisor') || item?.CodigoSupervisor || item?.codSupervisor || item?.cod_supervisor;
+  let name = typeof item === 'string' ? item : (getVal(item, 'supervisor') || item?.NomeSupervisor || item?.nome || '');
+
+  if (directCode && String(directCode).trim() && String(directCode).trim() !== '-') {
+    const dStr = String(directCode).trim();
+    if (/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(dStr) && dStr.includes(' ')) {
+      if (!name || name === '-') name = dStr;
+      directCode = undefined;
+    } else {
+      return dStr;
+    }
+  }
+
+  if (!name || name === '-' || name.trim().toLowerCase() === 'não informado' || name.trim().toLowerCase() === 'supervisor geral') return '-';
+
+  try {
+    const storeState = useStore.getState ? useStore.getState() : null;
+    if (storeState) {
+      const cleanName = name.trim().toLowerCase();
+      const monitoriasList = storeState.monitorias || [];
+      const match = monitoriasList.find(m => {
+        const mName = (getVal(m, 'supervisor') || m?.NomeSupervisor || '').toString().trim().toLowerCase();
+        const mCode = getVal(m, 'codSupervisor') || getVal(m, 'codigoSupervisor') || m?.CodigoSupervisor || m?.codSupervisor;
+        return mName === cleanName && mCode && String(mCode).trim() && String(mCode).trim() !== '-';
+      });
+      if (match) {
+        const foundCode = getVal(match, 'codSupervisor') || getVal(match, 'codigoSupervisor') || match?.CodigoSupervisor || match?.codSupervisor;
+        if (foundCode) return String(foundCode).trim();
+      }
+    }
+  } catch (err) {
+    // ignore
+  }
+
+  return generateCodeFromName(name, 'SUP');
+};
+
+export const getMonitorCode = (item: any) => {
+  if (!item) return '-';
+  let directCode = getVal(item, 'codMonitor') || getVal(item, 'codigoMonitor') || item?.CodigoMonitor || item?.codMonitor || item?.cod_monitor;
+  let name = typeof item === 'string' ? item : (getVal(item, 'monitor') || item?.NomeMonitor || item?.nome || '');
+
+  if (directCode && String(directCode).trim() && String(directCode).trim() !== '-') {
+    const dStr = String(directCode).trim();
+    if (/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(dStr) && dStr.includes(' ')) {
+      if (!name || name === '-') name = dStr;
+      directCode = undefined;
+    } else {
+      return dStr;
+    }
+  }
+
+  if (!name || name === '-' || name.trim().toLowerCase() === 'não informado') return '-';
+
+  try {
+    const storeState = useStore.getState ? useStore.getState() : null;
+    if (storeState) {
+      const cleanName = name.trim().toLowerCase();
+      const monitoriasList = storeState.monitorias || [];
+      const match = monitoriasList.find(m => {
+        const mName = (getVal(m, 'monitor') || m?.NomeMonitor || '').toString().trim().toLowerCase();
+        const mCode = getVal(m, 'codMonitor') || getVal(m, 'codigoMonitor') || m?.CodigoMonitor || m?.codMonitor;
+        return mName === cleanName && mCode && String(mCode).trim() && String(mCode).trim() !== '-';
+      });
+      if (match) {
+        const foundCode = getVal(match, 'codMonitor') || getVal(match, 'codigoMonitor') || match?.CodigoMonitor || match?.codMonitor;
+        if (foundCode) return String(foundCode).trim();
+      }
+    }
+  } catch (err) {
+    // ignore
+  }
+
+  return generateCodeFromName(name, 'MON');
 };
 
 export const getTabuladorName = (esteiraName: string, mappings: EsteiraMapping[]): string => {
@@ -331,6 +560,20 @@ export const sanitizeItems = (items: MonitoringItem[]): MonitoringItem[] => {
 const initialMonthRange = getCurrentMonthRange();
 
 interface AppState {
+  volumetriaAnalistas: any[];
+  monitorias: any[];
+  monitoriaErros: any[];
+  volumetriaPrioridades: any[];
+  volumetriaPendencias: any[];
+  volumetriaReprovas: any[];
+  volumetria: any[];
+  volumetriaTipoDeDemanda: any[];
+  volumetriaMediaTmo: any[];
+  volumetriaStatus: any[];
+  capacity: any[];
+
+  fetchSupabaseData: () => Promise<void>;
+
   data: MonitoringItem[];
   lastProcessed: string | null;
   productivityData: ProductivityItem[];
@@ -350,8 +593,7 @@ interface AppState {
   columnMapping: ColumnMapping;
   productivityMapping: ProductivityColumnMapping;
   esteiraMappings: EsteiraMapping[];
-  isFirebaseConnected: boolean;
-  
+    
   setData: (data: MonitoringItem[], timestamp?: string) => void;
   setProductivityData: (data: ProductivityItem[], timestamp?: string) => void;
   setStartDate: (date: string) => void;
@@ -390,23 +632,23 @@ const initialSampleData: MonitoringItem[] = [
   // CARLOS SILVA (Abertura PJ)
   { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-01', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '0', Esteira: 'Abertura PJ', DataFeedback: '2026-07-03' },
   { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-04', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '0', Esteira: 'Abertura PJ', DataFeedback: '2026-07-06' },
-  { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-08', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Abertura PJ', DataFeedback: '' },
+  { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Double Check', DataMonitoria: '2026-07-08', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Abertura PJ', DataFeedback: '' },
   { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-12', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Abertura PJ', DataFeedback: '' },
-  { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-18', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '100', Esteira: 'Abertura PJ', DataFeedback: '' },
+  { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Double Check', DataMonitoria: '2026-07-18', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '100', Esteira: 'Abertura PJ', DataFeedback: '' },
   { CodigoAnalista: 'MAT101', NomeAnalista: 'CARLOS SILVA', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-22', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '100', Esteira: 'Abertura PJ', DataFeedback: '' },
 
   // ANA BEATRIZ (Abertura PF)
-  { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-02', Tag: 'SLA Excedido', MotivoMacro: 'Atraso na Entrega', Erro: '0', Esteira: 'Abertura PF', DataFeedback: '2026-07-05' },
+  { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Double Check', DataMonitoria: '2026-07-02', Tag: 'SLA Excedido', MotivoMacro: 'Atraso na Entrega', Erro: '0', Esteira: 'Abertura PF', DataFeedback: '2026-07-05' },
   { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-07', Tag: 'SLA Excedido', MotivoMacro: 'Atraso na Entrega', Erro: '0', Esteira: 'Abertura PF', DataFeedback: '2026-07-09' },
   { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-14', Tag: 'SLA Excedido', MotivoMacro: 'Atraso na Entrega', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
-  { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-20', Tag: 'Atendimento ao Cliente', MotivoMacro: 'Comunicação Inadequada', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
+  { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Double Check', DataMonitoria: '2026-07-20', Tag: 'Atendimento ao Cliente', MotivoMacro: 'Comunicação Inadequada', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
   { CodigoAnalista: 'MAT102', NomeAnalista: 'ANA BEATRIZ', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-25', Tag: 'SLA Excedido', MotivoMacro: 'Atraso na Entrega', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
 
   // FERNANDO ALVES (Crédito PJ)
   { CodigoAnalista: 'MAT103', NomeAnalista: 'FERNANDO ALVES', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-03', Tag: 'Erro de Cadastro', MotivoMacro: 'Falha de Digitação', Erro: '0', Esteira: 'Crédito PJ', DataFeedback: '2026-07-05' },
   { CodigoAnalista: 'MAT103', NomeAnalista: 'FERNANDO ALVES', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-09', Tag: 'Erro de Cadastro', MotivoMacro: 'Falha de Digitação', Erro: '0', Esteira: 'Crédito PJ', DataFeedback: '' },
   { CodigoAnalista: 'MAT103', NomeAnalista: 'FERNANDO ALVES', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-15', Tag: 'Erro de Cadastro', MotivoMacro: 'Falha de Digitação', Erro: '0', Esteira: 'Crédito PJ', DataFeedback: '2026-07-17' },
-  { CodigoAnalista: 'MAT103', NomeAnalista: 'FERNANDO ALVES', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-21', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Crédito PJ', DataFeedback: '' },
+  { CodigoAnalista: 'MAT103', NomeAnalista: 'FERNANDO ALVES', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Double Check', DataMonitoria: '2026-07-21', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Crédito PJ', DataFeedback: '' },
 
   // MARIANA COSTA (Crédito PJ)
   { CodigoAnalista: 'MAT104', NomeAnalista: 'MARIANA COSTA', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Double Check', DataMonitoria: '2026-07-06', Tag: 'Documentação Incompleta', MotivoMacro: 'Falta de Informação', Erro: '100', Esteira: 'Crédito PJ', DataFeedback: '' },
@@ -414,9 +656,9 @@ const initialSampleData: MonitoringItem[] = [
   { CodigoAnalista: 'MAT104', NomeAnalista: 'MARIANA COSTA', NomeMonitor: 'JULIANA PEREIRA', NomeSupervisor: 'ROBERTO COSTA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-20', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Crédito PJ', DataFeedback: '' },
 
   // LUCAS MENDES (Abertura PF)
-  { CodigoAnalista: 'MAT105', NomeAnalista: 'LUCAS MENDES', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-05', Tag: 'Atendimento ao Cliente', MotivoMacro: 'Comunicação Inadequada', Erro: '0', Esteira: 'Abertura PF', DataFeedback: '2026-07-08' },
+  { CodigoAnalista: 'MAT105', NomeAnalista: 'LUCAS MENDES', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Double Check', DataMonitoria: '2026-07-05', Tag: 'Atendimento ao Cliente', MotivoMacro: 'Comunicação Inadequada', Erro: '0', Esteira: 'Abertura PF', DataFeedback: '2026-07-08' },
   { CodigoAnalista: 'MAT105', NomeAnalista: 'LUCAS MENDES', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Qualidade Interfile', DataMonitoria: '2026-07-16', Tag: 'Atendimento ao Cliente', MotivoMacro: 'Comunicação Inadequada', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
-  { CodigoAnalista: 'MAT105', NomeAnalista: 'LUCAS MENDES', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Estudo', DataMonitoria: '2026-07-24', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
+  { CodigoAnalista: 'MAT105', NomeAnalista: 'LUCAS MENDES', NomeMonitor: 'MARCOS SOUSA', NomeSupervisor: 'PATRICIA LIMA', FormaMonitoria: 'Double Check', DataMonitoria: '2026-07-24', Tag: 'Procedimento Operacional', MotivoMacro: 'Processo Incorreto', Erro: '100', Esteira: 'Abertura PF', DataFeedback: '' },
 ];
 
 export const initialSampleProductivityData: ProductivityItem[] = [
@@ -529,6 +771,43 @@ const initialEsteirasMetrics: Record<string, EsteiraMetric> = {
 };
 
 export const useStore = create<AppState>((set, get) => ({
+
+  volumetriaAnalistas: [],
+  monitorias: [],
+  monitoriaErros: [],
+  volumetriaPrioridades: [],
+  volumetriaPendencias: [],
+  volumetriaReprovas: [],
+  volumetria: [],
+  volumetriaTipoDeDemanda: [],
+  volumetriaMediaTmo: [],
+  volumetriaStatus: [],
+  capacity: [],
+  fetchSupabaseData: async () => {
+    try {
+      const { fetchAllSupabaseData } = await import('./supabaseData');
+      const data = await fetchAllSupabaseData();
+      
+      const dates: string[] = [];
+      Object.values(data).forEach((arr: any) => {
+        if (Array.isArray(arr)) {
+          arr.forEach((item: any) => {
+            if (item && item.data && /^\d{4}-\d{2}-\d{2}$/.test(String(item.data))) {
+              dates.push(String(item.data));
+            }
+          });
+        }
+      });
+
+      let updateObj: any = { ...data };
+      // Maintain current month range default / user selection when data refreshes
+      set(updateObj);
+    } catch (e) {
+      console.error("Error fetching from Supabase:", e);
+    }
+  },
+
+
   data: initialStored.data,
   lastProcessed: initialStored.lastProcessed,
   productivityData: initialStored.prodData,
@@ -562,8 +841,7 @@ export const useStore = create<AppState>((set, get) => ({
     'SH-PME': { esteira: 'SH-PME', contratados: 3, tmoAlvoSegundos: 1680, horasTrabalhoDia: 8, metaDiaria: 45, diasUteisMes: 22 },
     'WM': { esteira: 'WM', contratados: 3, tmoAlvoSegundos: 3300, horasTrabalhoDia: 8, metaDiaria: 35, diasUteisMes: 22 }
   },
-  isFirebaseConnected: true,
-  columnMapping: {
+    columnMapping: {
     S: 'S',
     T: 'T',
     V: 'V',
@@ -599,91 +877,23 @@ export const useStore = create<AppState>((set, get) => ({
       ...item,
       DataMonitoria: normalizeDateStr(item.DataMonitoria)
     }));
-    const allDates = cleanData.map(i => i.DataMonitoria).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
-    
-    const fallbackRange = getCurrentMonthRange();
-    let start = fallbackRange.start;
-    let end = fallbackRange.end;
-    
-    if (allDates.length > 0) {
-      start = allDates[0];
-      end = allDates[allDates.length - 1];
-    }
 
-    const { productivityData, productivityLastProcessed } = get();
-
-    // Save to Firebase
-    saveToFirebase(cleanData, ts, productivityData, productivityLastProcessed).catch((err) => {
-      console.error("Failed to save to Firebase Realtime Database:", err);
-    });
-
-    // Save locally
-    idbSet(STORAGE_KEY, cleanData);
-    idbSet(TIMESTAMP_KEY, ts);
-
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanData));
-      localStorage.setItem(TIMESTAMP_KEY, ts);
-    } catch {
-      console.warn("localStorage quota exceeded.");
-    }
-
-    set({
-      data: cleanData,
-      lastProcessed: ts,
-      startDate: start,
-      endDate: end,
-      selectedTag: 'TODAS',
-      selectedMacro: 'TODOS',
-      selectedEsteira: 'TODAS',
-      selectedForma: 'TODAS'
+    set({ 
+      data: cleanData, 
+      lastProcessed: ts
     });
   },
 
   setProductivityData: (prodItems, timestamp) => {
-    const cleanProd = prodItems.map(item => ({
-      ...item,
-      DataProdutividade: normalizeDateStr(item.DataProdutividade)
-    }));
-    const allProdDates = cleanProd.map(i => i.DataProdutividade).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
-    let currentStart = get().startDate;
-    let currentEnd = get().endDate;
-    
-    if (allProdDates.length > 0) {
-      const minPDate = allProdDates[0];
-      const maxPDate = allProdDates[allProdDates.length - 1];
-      if (!currentStart || minPDate < currentStart) currentStart = minPDate;
-      if (!currentEnd || maxPDate > currentEnd) currentEnd = maxPDate;
-    }
-
-    if (!currentStart) {
-      currentStart = getCurrentMonthRange().start;
-    }
-
     const ts = timestamp || new Date().toLocaleString('pt-BR');
-    const { data, lastProcessed } = get();
+    const cleanProd = (prodItems || []).map(item => ({
+      ...item,
+      DataProdutividade: item.DataProdutividade ? normalizeDateStr(item.DataProdutividade) : ''
+    }));
 
-    // Save to Firebase
-    saveToFirebase(data, lastProcessed || '', cleanProd, ts).catch((err) => {
-      console.error("Failed to save productivity to Firebase:", err);
-    });
-
-    // Save locally
-    idbSet(STORAGE_PROD_KEY, cleanProd);
-    idbSet(TIMESTAMP_PROD_KEY, ts);
-
-    try {
-      localStorage.setItem(STORAGE_PROD_KEY, JSON.stringify(cleanProd));
-      localStorage.setItem(TIMESTAMP_PROD_KEY, ts);
-    } catch {
-      console.warn("localStorage quota exceeded.");
-    }
-
-    set({
+    set({ 
       productivityData: cleanProd,
-      productivityLastProcessed: ts,
-      startDate: currentStart,
-      endDate: currentEnd
+      productivityLastProcessed: ts
     });
   },
 
@@ -695,198 +905,58 @@ export const useStore = create<AppState>((set, get) => ({
   setSelectedForma: (forma) => set({ selectedForma: forma }),
   setSelectedSupervisor: (supervisor) => set({ selectedSupervisor: supervisor }),
   setAnalystSearchQuery: (query) => set({ analystSearchQuery: query }),
-  setEsteiraParam: (esteira, param) => {
-    const current = get().esteiraParams;
-    const existing: EsteiraParam = current[esteira] || { 
-      esteira, 
-      contratados: 10, 
-      tmoAlvoSegundos: 1800, 
-      horasTrabalhoDia: 8, 
-      metaDiaria: 45, 
-      diasUteisMes: 22 
-    };
-    set({
-      esteiraParams: {
-        ...current,
-        [esteira]: { ...existing, ...param }
-      }
-    });
-  },
-  setEsteiraMetric: (esteira, metric) => {
-    const current = get().esteirasMetrics;
-    const existing: EsteiraMetric = current[esteira] || {
-      esteira,
-      contratados: 0,
-      tmo: 0,
-      capacidadeDia: 0,
-      produzidoFila: 0,
-      produzidoPrioridade: 0,
-      totalProduzido: 0
-    };
-    const nextItem = { ...existing, ...metric };
-    if (metric.produzidoFila !== undefined || metric.produzidoPrioridade !== undefined) {
-      nextItem.totalProduzido = (nextItem.produzidoFila || 0) + (nextItem.produzidoPrioridade || 0);
-    }
-    set({
-      esteirasMetrics: {
-        ...current,
-        [esteira]: nextItem
-      }
-    });
-  },
-
+  setEsteiraParam: (esteira, param) => set(state => ({
+    esteiraParams: { ...state.esteiraParams, [esteira]: { ...state.esteiraParams[esteira], ...param } }
+  })),
+  setEsteiraMetric: (esteira, metric) => set(state => ({
+    esteirasMetrics: { ...state.esteirasMetrics, [esteira]: { ...state.esteirasMetrics[esteira], ...metric } }
+  })),
   setTmoMode: (mode) => set({ tmoMode: mode }),
   setDailyWorkingHours: (hours) => set({ dailyWorkingHours: hours }),
-
   setColumnMapping: (mapping) => set({ columnMapping: mapping }),
   setProductivityMapping: (mapping) => set({ productivityMapping: mapping }),
-  
   setEsteiraMappings: (mappings) => {
-    try {
-      localStorage.setItem(STORAGE_ESTEIRA_MAP_KEY, JSON.stringify(mappings));
-    } catch {}
     set({ esteiraMappings: mappings });
   },
-  
-  updateEsteiraMapping: (index, field, value) => {
-    const { esteiraMappings } = get();
-    const next = [...esteiraMappings];
-    if (next[index]) {
-      next[index] = { ...next[index], [field]: value };
-      try {
-        localStorage.setItem(STORAGE_ESTEIRA_MAP_KEY, JSON.stringify(next));
-      } catch {}
-      set({ esteiraMappings: next });
+  updateEsteiraMapping: (index, field, value) => set(state => {
+    const newMappings = [...state.esteiraMappings];
+    if (newMappings[index]) {
+      newMappings[index] = { ...newMappings[index], [field]: value };
     }
-  },
-
-  addEsteiraMapping: (mapping) => {
-    const { esteiraMappings } = get();
-    const next = [...esteiraMappings, mapping || { monitora: '', tabulador: '' }];
-    try {
-      localStorage.setItem(STORAGE_ESTEIRA_MAP_KEY, JSON.stringify(next));
-    } catch {}
-    set({ esteiraMappings: next });
-  },
-
-  removeEsteiraMapping: (index) => {
-    const { esteiraMappings } = get();
-    const next = esteiraMappings.filter((_, i) => i !== index);
-    try {
-      localStorage.setItem(STORAGE_ESTEIRA_MAP_KEY, JSON.stringify(next));
-    } catch {}
-    set({ esteiraMappings: next });
-  },
-
+    return { esteiraMappings: newMappings };
+  }),
+  addEsteiraMapping: (mapping) => set(state => ({
+    esteiraMappings: [...state.esteiraMappings, mapping || { monitora: '', tabulador: '' }]
+  })),
+  removeEsteiraMapping: (index) => set(state => ({
+    esteiraMappings: state.esteiraMappings.filter((_, i) => i !== index)
+  })),
   resetEsteiraMappings: () => {
-    try {
-      localStorage.setItem(STORAGE_ESTEIRA_MAP_KEY, JSON.stringify(defaultEsteiraMappings));
-    } catch {}
     set({ esteiraMappings: defaultEsteiraMappings });
   },
-  
   clearData: () => {
-    const { productivityData, productivityLastProcessed } = get();
-    saveToFirebase([], '', productivityData, productivityLastProcessed).catch((err) => {
-      console.error("Failed to clear Firebase Realtime Database:", err);
+    set({ 
+      data: [], 
+      lastProcessed: null,
     });
-
-    idbSet(STORAGE_KEY, []);
-    idbDel(TIMESTAMP_KEY);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
-      localStorage.removeItem(TIMESTAMP_KEY);
-    } catch {
-      // Ignore
-    }
-    set({ data: [], lastProcessed: null });
   },
-
   clearProductivityData: () => {
-    const { data, lastProcessed } = get();
-    saveToFirebase(data, lastProcessed || '', [], null).catch((err) => {
-      console.error("Failed to clear productivity in Firebase:", err);
-    });
-
-    idbSet(STORAGE_PROD_KEY, []);
-    idbDel(TIMESTAMP_PROD_KEY);
-    try {
-      localStorage.setItem(STORAGE_PROD_KEY, JSON.stringify([]));
-      localStorage.removeItem(TIMESTAMP_PROD_KEY);
-    } catch {
-      // Ignore
-    }
     set({ productivityData: [], productivityLastProcessed: null });
   },
-
   loadFakeData: () => {
-    const initialTs = new Date().toLocaleString('pt-BR');
-    const { setData, setProductivityData } = get();
-    setData(initialSampleData, initialTs);
-    setProductivityData(initialSampleProductivityData, initialTs);
+    const fallbackRange = getCurrentMonthRange();
+    set({ 
+      data: initialSampleData, 
+      lastProcessed: new Date().toLocaleString('pt-BR'),
+      productivityData: initialSampleProductivityData,
+      productivityLastProcessed: new Date().toLocaleString('pt-BR'),
+      startDate: fallbackRange.start,
+      endDate: fallbackRange.end,
+      esteiraMappings: defaultEsteiraMappings
+    });
   },
   resetToCurrentMonth: () => {
-    const range = getCurrentMonthRange();
-    set({
-      startDate: range.start,
-      endDate: range.end,
-      selectedTag: 'TODAS',
-      selectedMacro: 'TODOS',
-      selectedEsteira: ['TODAS'],
-      selectedForma: ['TODAS'],
-      selectedSupervisor: ['TODOS']
-    });
+    const current = getCurrentMonthRange();
+    set({ startDate: current.start, endDate: current.end });
   }
 }));
-
-// Real-time synchronization listener with Firebase Realtime Database
-if (typeof window !== 'undefined') {
-  subscribeToFirebaseData(
-    (fbItems, fbTimestamp, fbProd, fbProdTs, isInitialized) => {
-      if (isInitialized) {
-        useStore.setState((state) => ({
-          ...state,
-          data: fbItems || [],
-          lastProcessed: fbTimestamp || null,
-          productivityData: fbProd || [],
-          productivityLastProcessed: fbProdTs || null,
-          isFirebaseConnected: true
-        }));
-
-        idbSet(STORAGE_KEY, fbItems || []);
-        if (fbTimestamp) idbSet(TIMESTAMP_KEY, fbTimestamp); else idbDel(TIMESTAMP_KEY);
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(fbItems || []));
-          if (fbTimestamp) localStorage.setItem(TIMESTAMP_KEY, fbTimestamp); else localStorage.removeItem(TIMESTAMP_KEY);
-        } catch {}
-
-        idbSet(STORAGE_PROD_KEY, fbProd || []);
-        if (fbProdTs) idbSet(TIMESTAMP_PROD_KEY, fbProdTs); else idbDel(TIMESTAMP_PROD_KEY);
-        try {
-          localStorage.setItem(STORAGE_PROD_KEY, JSON.stringify(fbProd || []));
-          if (fbProdTs) localStorage.setItem(TIMESTAMP_PROD_KEY, fbProdTs); else localStorage.removeItem(TIMESTAMP_PROD_KEY);
-        } catch {}
-      } else {
-        // Firebase is empty: seed with initial dataset so RTDB has data
-        const initialTs = new Date().toLocaleString('pt-BR');
-        saveToFirebase(initialSampleData, initialTs, initialSampleProductivityData, initialTs).then(() => {
-          useStore.setState((state) => ({
-            ...state,
-            data: sanitizeItems(initialSampleData),
-            lastProcessed: initialTs,
-            productivityData: initialSampleProductivityData,
-            productivityLastProcessed: initialTs,
-            isFirebaseConnected: true
-          }));
-        }).catch((err) => {
-          console.error("Failed to seed initial data to Firebase:", err);
-        });
-      }
-    },
-    (err) => {
-      console.warn("Firebase RTDB sync offline or error:", err);
-      useStore.setState({ isFirebaseConnected: false });
-    }
-  );
-}
-

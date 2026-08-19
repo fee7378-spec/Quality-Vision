@@ -1,10 +1,18 @@
 import React, { useMemo, useState } from 'react';
-import { useStore, matchesFilter, getTabuladorName } from '../store/useStore';
-import { History, Download, AlertTriangle, CheckCircle, Calendar, MessageSquareCheck, Eye, X } from 'lucide-react';
+import { useStore, matchesFilter, matchesFormaFilter, getTabuladorName, getAnalystCode, getSupervisorCode, getMonitorCode, getVal } from '../store/useStore';
+import { useTokenStore } from '../store/useTokenStore';
+import { History, Download, AlertTriangle, CheckCircle, Calendar, MessageSquareCheck, Eye, X, ClipboardCheck } from 'lucide-react';
+import { ErrorDetailModal } from '../components/ErrorDetailModal';
 
 export const HistoryPage = () => {
+  const { accessType } = useTokenStore();
+  const isVisualizacao = accessType === 'visualizacao';
+
   const { 
     data, 
+    monitorias,
+    monitoriaErros,
+    volumetria,
     startDate, 
     endDate, 
     selectedEsteira, 
@@ -14,6 +22,7 @@ export const HistoryPage = () => {
   } = useStore();
 
   const [selectedModalItem, setSelectedModalItem] = useState<typeof data[0] | null>(null);
+  const [visibleCount, setVisibleCount] = useState(15);
 
   // Format Date to DD/MM/YYYY
   const formatDateBR = (dateStr?: string | null) => {
@@ -40,46 +49,158 @@ export const HistoryPage = () => {
       if (startDate && item.DataMonitoria && item.DataMonitoria < startDate) return false;
       if (endDate && item.DataMonitoria && item.DataMonitoria > endDate) return false;
       if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
-      if (!matchesFilter(selectedForma, item.FormaMonitoria, 'TODAS')) return false;
+      if (!matchesFormaFilter(selectedForma, item)) return false;
       return true;
     });
   }, [data, startDate, endDate, selectedEsteira, selectedForma]);
 
-  const totalMonitoriasGeral = baseFilteredData.length;
-  const totalErrosGeral = baseFilteredData.filter(item => {
-    const errStr = String(item.Erro ?? '').trim().toLowerCase();
-    return (
-      errStr === '0' || 
-      errStr === '0.0' || 
-      errStr.startsWith('0') || 
-      errStr.includes('erro') || 
-      errStr.includes('não conforme') || 
-      errStr.includes('nao conforme') || 
-      errStr.includes('falha') || 
-      errStr.includes('reprovad') || 
-      errStr === 'nc' || 
-      errStr === 'n/c' || 
-      errStr === 'nok'
-    );
-  }).length;
+  const totalMonitoriasPeriod = useMemo(() => {
+    return monitorias
+      .filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        const itemEsteira = getVal(item, 'esteira');
+        if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+        return true;
+      })
+      .reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || Number(item.quantidade) || 0), 0);
+  }, [monitorias, startDate, endDate, selectedEsteira]);
 
-  const qualidadeGeralNum = totalMonitoriasGeral > 0
-    ? Number((((totalMonitoriasGeral - totalErrosGeral) / totalMonitoriasGeral) * 100).toFixed(1))
-    : 100;
-  const qualidadeGeralStr = qualidadeGeralNum.toFixed(1) + '%';
+  // Consolidate global KPI calculations to reduce redundant loops
+  const globalKpis = useMemo(() => {
+    let monTotal = 0;
+    if (monitorias && monitorias.length > 0) {
+      monTotal = monitorias
+        .filter(item => {
+          const itemDate = getVal(item, 'data');
+          if (!itemDate || typeof itemDate !== 'string') return false;
+          if (startDate && itemDate < startDate) return false;
+          if (endDate && itemDate > endDate) return false;
+          const itemEsteira = getVal(item, 'esteira');
+          if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+          if (!matchesFormaFilter(selectedForma, item)) return false;
+          return true;
+        })
+        .reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || Number(item.quantidade) || 0), 0);
+    } else {
+      monTotal = baseFilteredData.length;
+    }
 
-  // Filter error items based on active criteria
-  const filteredItems = useMemo(() => {
-    return data.filter(item => {
-      // Date range filter
+    let errTotal = 0;
+    if (monitoriaErros && monitoriaErros.length > 0) {
+      errTotal = monitoriaErros.filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+        const itemEsteira = getVal(item, 'esteira');
+        if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+        if (!matchesFormaFilter(selectedForma, item)) return false;
+
+        const macroTag = getVal(item, 'macroTag');
+        if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
+          return false;
+        }
+        return true;
+      }).length;
+    } else {
+      errTotal = baseFilteredData.filter(item => {
+        const errStr = String(item.Erro ?? '').trim().toLowerCase();
+        return (
+          errStr === '0' || 
+          errStr === '0.0' || 
+          errStr.startsWith('0') || 
+          errStr.includes('erro') || 
+          errStr.includes('não conforme') || 
+          errStr.includes('nao conforme') || 
+          errStr.includes('falha') || 
+          errStr.includes('reprovad') || 
+          errStr === 'nc' || 
+          errStr === 'n/c' || 
+          errStr === 'nok'
+        );
+      }).length;
+    }
+
+    let prodTotal = 0;
+    if (volumetria) {
+      prodTotal = volumetria
+        .filter(item => {
+          const itemDate = getVal(item, 'data') || getVal(item, 'DataProdutividade') || '';
+          if (!itemDate || typeof itemDate !== 'string') return false;
+          if (startDate && itemDate < startDate) return false;
+          if (endDate && itemDate > endDate) return false;
+          if (!matchesFilter(selectedEsteira, getVal(item, 'esteira'), 'TODAS')) return false;
+          return true;
+        })
+        .reduce((sum, item) => sum + (Number(getVal(item, 'quantidade')) || 0), 0);
+    }
+
+    const isDoubleCheck = Array.isArray(selectedForma) 
+      ? selectedForma.includes('Double Check') && selectedForma.length === 1 
+      : selectedForma === 'Double Check';
+    
+    const baseForQuality = isDoubleCheck ? prodTotal : monTotal;
+    const qualityPct = baseForQuality > 0 ? Number((((baseForQuality - errTotal) / baseForQuality) * 100).toFixed(1)) : 100;
+
+    return {
+      totalMonitorias: monTotal,
+      totalErros: errTotal,
+      totalProdutividade: prodTotal,
+      qualidadePct: qualityPct,
+      qualidadeStr: qualityPct.toFixed(1) + '%'
+    };
+  }, [monitorias, monitoriaErros, volumetria, startDate, endDate, selectedEsteira, selectedForma, baseFilteredData]);
+
+  const { 
+    totalMonitorias: totalMonitoriasGeral, 
+    totalErros: totalErrosGeral, 
+    totalProdutividade: totalProdutividadeGeral, 
+    qualidadePct: qualidadeGeralPct,
+    qualidadeStr: qualidadeGeralStr 
+  } = globalKpis;
+
+  // Filter error items based on active criteria from monitoriaErros (with fallback)
+  const filteredErrosTable = useMemo(() => {
+    if (monitoriaErros && monitoriaErros.length > 0) {
+      return monitoriaErros
+        .filter(item => {
+          const itemDate = getVal(item, 'data');
+          if (!itemDate || typeof itemDate !== 'string') return false;
+          if (startDate && itemDate < startDate) return false;
+          if (endDate && itemDate > endDate) return false;
+
+          const itemEsteira = getVal(item, 'esteira');
+          if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+          if (!matchesFormaFilter(selectedForma, item)) return false;
+
+          const macroTag = getVal(item, 'macroTag');
+          if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
+            return false;
+          }
+
+          if (analystSearchQuery) {
+            const q = analystSearchQuery.toLowerCase();
+            const analista = String(getVal(item, 'analista') || '').toLowerCase();
+            const tag = String(getVal(item, 'tag') || '').toLowerCase();
+            const macro = String(getVal(item, 'macroTag') || '').toLowerCase();
+            const plano = String(getVal(item, 'planoDeAcao') || '').toLowerCase();
+            if (!analista.includes(q) && !tag.includes(q) && !macro.includes(q) && !plano.includes(q)) return false;
+          }
+
+          return true;
+        })
+        .sort((a, b) => String(getVal(b, 'data') || '').localeCompare(String(getVal(a, 'data') || '')));
+    }
+
+    return baseFilteredData.filter(item => {
       if (startDate && item.DataMonitoria < startDate) return false;
       if (endDate && item.DataMonitoria > endDate) return false;
-
-      // Filter by Esteira, Forma
       if (!matchesFilter(selectedEsteira, item.Esteira, 'TODAS')) return false;
-      if (!matchesFilter(selectedForma, item.FormaMonitoria, 'TODAS')) return false;
+      if (!matchesFormaFilter(selectedForma, item)) return false;
 
-      // Search Query
       if (analystSearchQuery) {
         const q = analystSearchQuery.toLowerCase();
         const matchName = item.NomeAnalista?.toLowerCase().includes(q);
@@ -90,9 +211,8 @@ export const HistoryPage = () => {
         if (!matchName && !matchCode && !matchTag && !matchMacro && !matchPlano) return false;
       }
 
-      // Filter only errors (always true now)
       const errStr = String(item.Erro ?? '').trim().toLowerCase();
-      const isErr = 
+      return (
         errStr === '0' || 
         errStr === '0.0' || 
         errStr.startsWith('0') || 
@@ -103,81 +223,110 @@ export const HistoryPage = () => {
         errStr.includes('reprovad') || 
         errStr === 'nc' || 
         errStr === 'n/c' || 
-        errStr === 'nok';
-
-      if (!isErr) return false;
-
-      return true;
+        errStr === 'nok'
+      );
     }).sort((a, b) => b.DataMonitoria.localeCompare(a.DataMonitoria));
-  }, [data, startDate, endDate, selectedEsteira, selectedForma, analystSearchQuery]);
+  }, [monitoriaErros, data, startDate, endDate, selectedEsteira, selectedForma, analystSearchQuery, baseFilteredData]);
 
-  // Feedbacks count based on filled feedback dates / rows
+  // Feedbacks count based on filled planoDeAcao in monitoriaErros
   const feedbackCount = useMemo(() => {
-    return filteredItems.filter(i => {
-      const fb = String(i.DataFeedback ?? '').trim();
+    if (monitoriaErros && monitoriaErros.length > 0) {
+      return monitoriaErros.filter(item => {
+        const itemDate = getVal(item, 'data');
+        if (!itemDate || typeof itemDate !== 'string') return false;
+        if (startDate && itemDate < startDate) return false;
+        if (endDate && itemDate > endDate) return false;
+
+        const itemEsteira = getVal(item, 'esteira');
+        if (!matchesFilter(selectedEsteira, itemEsteira, 'TODAS')) return false;
+        if (!matchesFormaFilter(selectedForma, item)) return false;
+
+        const macroTag = getVal(item, 'macroTag');
+        if (macroTag === null || macroTag === undefined || String(macroTag).trim() === '' || String(macroTag).toLowerCase() === 'null') {
+          return false;
+        }
+
+        const plano = getVal(item, 'planoDeAcao');
+        return plano !== null && plano !== undefined && String(plano).trim() !== '' && String(plano).toLowerCase() !== 'null';
+      }).length;
+    }
+
+    return filteredErrosTable.filter(i => {
+      const fb = String(i.DataFeedback ?? i.Plano ?? '').trim();
       return fb !== '' && fb !== '-' && fb !== 'null' && fb !== 'undefined';
     }).length;
-  }, [filteredItems]);
+  }, [monitoriaErros, startDate, endDate, selectedEsteira, selectedForma, filteredErrosTable]);
 
-  // Export to CSV (without Data Feedback)
+  // Export to CSV
   const handleExportCSV = () => {
-    if (filteredItems.length === 0) return;
-    const headers = ['Data', 'Código', 'Analista', 'Supervisor', 'Monitor', 'Esteira', 'Tag', 'Motivo Macro', 'Status', 'Plano de Ação', 'Data do Plano'];
-    const rows = filteredItems.map(i => [
-      i.DataMonitoria,
-      i.CodigoAnalista || '',
-      `"${i.NomeAnalista || ''}"`,
-      `"${i.NomeSupervisor || ''}"`,
-      `"${i.NomeMonitor || ''}"`,
-      `"${getTabuladorName(i.Esteira, esteiraMappings)}"`,
-      `"${i.Tag || ''}"`,
-      `"${i.MotivoMacro || ''}"`,
-      i.Erro === '0' || Number(i.Erro) === 0 ? '0%' : '100%',
-      `"${i.Plano || ''}"`,
-      i.DataPlano || ''
-    ]);
+    if (filteredErrosTable.length === 0) return;
+    const headers = ['Data', 'Código', 'Analista', 'Supervisor', 'Monitor', 'Esteira', 'Tag', 'Motivo Macro', 'Forma', 'Plano de Ação', 'Data Feedback'];
+    const rows = filteredErrosTable.map(i => {
+      const itemDate = getVal(i, 'data') || i.DataMonitoria || '';
+      const itemCode = getAnalystCode(i);
+      const itemAnalista = isVisualizacao ? getAnalystCode(i) : (getVal(i, 'analista') || i.NomeAnalista || '');
+      const itemSup = isVisualizacao ? getSupervisorCode(i) : (getVal(i, 'supervisor') || i.NomeSupervisor || '');
+      const itemMon = isVisualizacao ? getMonitorCode(i) : (getVal(i, 'monitor') || i.NomeMonitor || '');
+      const rawEst = getVal(i, 'esteira') || i.Esteira || '';
+      const itemEst = getTabuladorName(rawEst, esteiraMappings) || rawEst;
+      const itemTag = getVal(i, 'tag') || i.Tag || '';
+      const itemMacro = getVal(i, 'macroTag') || i.MotivoMacro || '';
+      const itemForma = getVal(i, 'forma') || i.FormaMonitoria || '';
+      const itemPlano = getVal(i, 'planoDeAcao') || i.Plano || '';
+      const itemFbDate = getVal(i, 'dataFeedback') || i.DataFeedback || '';
+
+      return [
+        itemDate,
+        itemCode,
+        `"${itemAnalista}"`,
+        `"${itemSup}"`,
+        `"${itemMon}"`,
+        `"${itemEst}"`,
+        `"${itemTag}"`,
+        `"${itemMacro}"`,
+        `"${itemForma}"`,
+        `"${itemPlano}"`,
+        itemFbDate
+      ];
+    });
 
     const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(';'), ...rows.map(e => e.join(';'))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `historico_erros_${startDate}_ate_${endDate}.csv`);
+    link.setAttribute('download', `historico_erros_${startDate || 'todos'}_ate_${endDate || 'todos'}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const errorCount = filteredItems.length;
+  const errorCount = totalErrosGeral;
 
   return (
     <div className="p-3 sm:p-4 space-y-4 bg-gray-50 text-gray-900 w-full max-w-full text-xs">
-      {/* Header Banner & Stats */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-gray-200 p-3.5 rounded-lg shadow-xs">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-brand-blue/10 border border-brand-blue/20 text-[#001E62] rounded-md">
-            <History size={18} />
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-[#001E62] tracking-wide uppercase">Histórico de Erros</h2>
-            <p className="text-[11px] text-gray-500">Visão compacta das monitorias, planos de ação e inconsistências</p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Export CSV */}
-          <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-3 py-1 bg-white text-[#001E62] border border-[#001E62] rounded-md text-[11px] font-bold hover:bg-[#001E62] hover:text-white active:scale-95 transition-all cursor-pointer shadow-2xs"
-          >
-            <Download size={13} className="stroke-[2.5]" />
-            Exportar CSV
-          </button>
-        </div>
+      {/* Header & Export */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleExportCSV}
+          className="flex items-center gap-1.5 px-3 py-1 bg-white text-[#001E62] border border-[#001E62] rounded-md text-[11px] font-bold hover:bg-[#001E62] hover:text-white active:scale-95 transition-all cursor-pointer shadow-2xs"
+        >
+          <Download size={13} className="stroke-[2.5]" />
+          Exportar CSV
+        </button>
       </div>
 
-      {/* KPI Stats Bar - 3 Cards in requested layout order: Erros (Esquerda) | Qualidade (Meio) | Feedbacks (Direita) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {/* ESQUERDA: Erros Registrados */}
+      {/* KPI Stats Bar - 4 Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        {/* Card 1: Monitorias */}
+        <div className="bg-white border border-gray-200 p-3 rounded-lg flex items-center justify-between shadow-2xs">
+          <div>
+            <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Monitorias</p>
+            <p className="text-xl font-black text-brand-blue mt-0.5">{totalMonitoriasPeriod.toLocaleString('pt-BR')}</p>
+          </div>
+          <ClipboardCheck size={22} className="text-brand-blue/40" />
+        </div>
+
+        {/* Card 2: Erros Registrados */}
         <div className="bg-white border border-gray-200 p-3 rounded-lg flex items-center justify-between shadow-2xs">
           <div>
             <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Erros Registrados</p>
@@ -186,24 +335,24 @@ export const HistoryPage = () => {
           <AlertTriangle size={22} className="text-red-500/40" />
         </div>
 
-        {/* MEIO: Qualidade do Período (mesma fórmula da Visão Geral) */}
+        {/* Card 3: Qualidade do Período */}
         <div className="bg-white border border-gray-200 p-3 rounded-lg flex items-center justify-between shadow-2xs">
           <div>
             <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Qualidade do Período</p>
-            <p className={`text-xl font-black mt-0.5 ${qualidadeGeralNum >= 95 ? 'text-[#001E62]' : 'text-red-600'}`}>
+            <p className={`text-xl font-black mt-0.5 ${qualidadeGeralPct >= 95 ? 'text-[#001E62]' : 'text-red-600'}`}>
               {qualidadeGeralStr}
             </p>
             <p className="text-[10px] text-gray-400 font-medium">Meta: 95.0%</p>
           </div>
-          <CheckCircle size={22} className={qualidadeGeralNum >= 95 ? 'text-[#001E62]/40' : 'text-red-500/40'} />
+          <CheckCircle size={22} className={qualidadeGeralPct >= 95 ? 'text-[#001E62]/40' : 'text-red-500/40'} />
         </div>
 
-        {/* DIREITA: Quantidade de Feedbacks Realizados */}
+        {/* Card 4: Feedbacks Realizados */}
         <div className="bg-white border border-gray-200 p-3 rounded-lg flex items-center justify-between shadow-2xs">
           <div>
             <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Feedbacks Realizados</p>
             <p className="text-xl font-black text-[#001E62] mt-0.5">{feedbackCount.toLocaleString('pt-BR')}</p>
-            <p className="text-[10px] text-gray-400 font-medium">Linhas preenchidas</p>
+            <p className="text-[10px] text-gray-400 font-medium">Planos de ação tomados</p>
           </div>
           <MessageSquareCheck size={22} className="text-[#001E62]/40" />
         </div>
@@ -229,17 +378,26 @@ export const HistoryPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 font-medium">
-              {filteredItems.length === 0 ? (
+              {filteredErrosTable.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="py-10 text-center text-gray-400 italic">
                     Nenhum registro encontrado para os filtros selecionados.
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((item, idx) => {
-                  const isError = item.Erro === '0' || Number(item.Erro) === 0;
-                  const esteiraLabel = getTabuladorName(item.Esteira, esteiraMappings);
-                  const rowId = item.id || `${item.CodigoAnalista}-${idx}-${item.DataMonitoria}`;
+                filteredErrosTable.slice(0, visibleCount).map((item, idx) => {
+                  const itemDate = getVal(item, 'data') || item.DataMonitoria || '-';
+                  const itemCode = getAnalystCode(item);
+                  const itemAnalista = isVisualizacao ? getAnalystCode(item) : (getVal(item, 'analista') || item.NomeAnalista || 'Analista');
+                  const itemSup = isVisualizacao ? getSupervisorCode(item) : (getVal(item, 'supervisor') || item.NomeSupervisor || '-');
+                  const itemMon = isVisualizacao ? getMonitorCode(item) : (getVal(item, 'monitor') || item.NomeMonitor || '-');
+                  const rawEst = getVal(item, 'esteira') || item.Esteira || '';
+                  const esteiraLabel = getTabuladorName(rawEst, esteiraMappings) || rawEst || '-';
+                  const itemTag = getVal(item, 'tag') || item.Tag || 'Sem Tag';
+                  const itemMacro = getVal(item, 'macroTag') || item.MotivoMacro || '-';
+                  const itemPlano = getVal(item, 'planoDeAcao') || item.Plano || '-';
+                  const itemFbDate = getVal(item, 'dataFeedback') || getVal(item, 'dataPlano') || item.DataPlano || '-';
+                  const rowId = item.id || `${itemCode}-${idx}-${itemDate}`;
 
                   return (
                     <tr 
@@ -254,36 +412,34 @@ export const HistoryPage = () => {
                       <td className="py-2 px-2.5 text-gray-900 font-semibold whitespace-nowrap">
                         <div className="flex items-center gap-1">
                           <Calendar size={12} className="text-[#001E62] shrink-0" />
-                          <span>{formatDateBR(item.DataMonitoria)}</span>
+                          <span>{formatDateBR(itemDate)}</span>
                         </div>
                       </td>
-                      <td className="py-2 px-2.5 font-bold text-gray-900 whitespace-nowrap max-w-[150px] truncate" title={item.NomeAnalista}>
-                        {item.NomeAnalista}
-                        <span className="block text-[9px] text-gray-400 font-mono font-normal truncate">{item.CodigoAnalista}</span>
+                      <td className="py-2 px-2.5 font-bold text-gray-900 whitespace-nowrap max-w-[150px] truncate" title={itemAnalista}>
+                        {itemAnalista}
+                        {!isVisualizacao && (
+                          <span className="block text-[9px] text-gray-400 font-mono font-normal truncate">{itemCode}</span>
+                        )}
                       </td>
-                      <td className="py-2 px-2.5 text-gray-700 whitespace-nowrap max-w-[120px] truncate" title={item.NomeSupervisor || '-'}>{item.NomeSupervisor || '-'}</td>
-                      <td className="py-2 px-2.5 text-gray-500 whitespace-nowrap max-w-[110px] truncate" title={item.NomeMonitor || '-'}>{item.NomeMonitor || '-'}</td>
+                      <td className="py-2 px-2.5 text-gray-700 whitespace-nowrap max-w-[120px] truncate" title={itemSup}>{itemSup}</td>
+                      <td className="py-2 px-2.5 text-gray-500 whitespace-nowrap max-w-[110px] truncate" title={itemMon}>{itemMon}</td>
                       <td className="py-2 px-2.5 text-gray-800 font-medium whitespace-nowrap max-w-[130px] truncate" title={esteiraLabel}>{esteiraLabel}</td>
                       <td className="py-2 px-2.5 max-w-[140px] truncate">
                         <span className="inline-block px-1.5 py-0.5 rounded bg-gray-100 text-gray-800 text-[10px] font-semibold truncate max-w-[130px]">
-                          {item.Tag || 'Sem Tag'}
+                          {itemTag}
                         </span>
                       </td>
-                      <td className="py-2 px-2.5 text-gray-600 max-w-[130px] truncate" title={item.MotivoMacro || '-'}>{item.MotivoMacro || '-'}</td>
+                      <td className="py-2 px-2.5 text-gray-600 max-w-[130px] truncate" title={itemMacro}>{itemMacro}</td>
                       <td className="py-2 px-2.5 text-center whitespace-nowrap">
-                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                          isError 
-                            ? 'bg-red-50 text-red-600 border border-red-200' 
-                            : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                        }`}>
-                          {isError ? '0% (Erro)' : '100% (OK)'}
+                        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold whitespace-nowrap shadow-xs bg-red-50 text-red-600 border border-red-200">
+                          0% • Erro
                         </span>
                       </td>
-                      <td className="py-2 px-2.5 text-gray-700 max-w-[200px] truncate" title={item.Plano || 'Sem plano registrado'}>
-                        {item.Plano || '-'}
+                      <td className="py-2 px-2.5 text-gray-700 max-w-[200px] truncate" title={itemPlano}>
+                        {itemPlano}
                       </td>
                       <td className="py-2 px-2.5 text-center text-gray-700 font-medium whitespace-nowrap">
-                        {formatDateBR(item.DataPlano)}
+                        {formatDateBR(itemFbDate)}
                       </td>
                     </tr>
                   );
@@ -292,120 +448,24 @@ export const HistoryPage = () => {
             </tbody>
           </table>
         </div>
+        
+        {filteredErrosTable.length > visibleCount && (
+          <div className="p-3 border-t border-gray-200 bg-gray-50/50 flex justify-center">
+            <button
+              onClick={() => setVisibleCount(prev => prev + 15)}
+              className="px-4 py-1.5 bg-white border border-[#001E62]/30 text-[#001E62] rounded-md text-xs font-bold shadow-xs hover:bg-[#001E62]/5 hover:border-[#001E62] transition-colors"
+            >
+              Exibir mais 15 erros
+            </button>
+          </div>
+        )}
       </div>
 
       {/* MODAL POP-UP: DETALHES COMPLETOS DO ERRO */}
-      {selectedModalItem && (
-        <div 
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
-          onClick={() => setSelectedModalItem(null)}
-        >
-          <div 
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-150"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="bg-[#001E62] text-white p-4 flex items-center justify-between border-b border-blue-900">
-              <div className="flex items-center gap-2.5">
-                <div className="p-1.5 bg-white/10 rounded-lg">
-                  <AlertTriangle className="text-amber-400" size={18} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wide">Detalhes do Registro</h3>
-                  <p className="text-[11px] text-blue-200">
-                    Monitoria em {formatDateBR(selectedModalItem.DataMonitoria)}
-                  </p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setSelectedModalItem(null)}
-                className="p-1.5 hover:bg-white/10 rounded-lg text-blue-200 hover:text-white transition-colors cursor-pointer"
-                title="Fechar modal"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="p-5 space-y-4 text-xs text-gray-800 max-h-[80vh] overflow-y-auto">
-              {/* Analyst & Code */}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Analista Avaliado</p>
-                  <p className="text-sm font-extrabold text-gray-900 mt-0.5">{selectedModalItem.NomeAnalista}</p>
-                  <p className="text-[11px] font-mono text-gray-500">Matrícula/Código: {selectedModalItem.CodigoAnalista || '-'}</p>
-                </div>
-                <div className="text-right">
-                  <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${
-                    selectedModalItem.Erro === '0' || Number(selectedModalItem.Erro) === 0
-                      ? 'bg-red-100 text-red-700 border border-red-300' 
-                      : 'bg-emerald-100 text-emerald-700 border border-emerald-300'
-                  }`}>
-                    {selectedModalItem.Erro === '0' || Number(selectedModalItem.Erro) === 0 ? '0% (Inconformidade)' : '100% (Conforme)'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Grid Metadata */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="bg-white border border-gray-200 p-3 rounded-lg">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase">Supervisor / Gestor</p>
-                  <p className="font-bold text-gray-800 mt-0.5">{selectedModalItem.NomeSupervisor || '-'}</p>
-                </div>
-                <div className="bg-white border border-gray-200 p-3 rounded-lg">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase">Monitor / Avaliador</p>
-                  <p className="font-bold text-gray-800 mt-0.5">{selectedModalItem.NomeMonitor || '-'}</p>
-                </div>
-                <div className="bg-white border border-gray-200 p-3 rounded-lg">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase">Esteira / Processo</p>
-                  <p className="font-bold text-gray-800 mt-0.5">
-                    {getTabuladorName(selectedModalItem.Esteira, esteiraMappings)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Inconsistência & Causa */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="bg-blue-50/60 border border-blue-200 p-3 rounded-lg">
-                  <p className="text-[10px] text-[#001E62] font-extrabold uppercase">Inconsistência / TAG</p>
-                  <p className="font-extrabold text-[#001E62] text-xs mt-1">{selectedModalItem.Tag || 'Sem Tag'}</p>
-                </div>
-                <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg">
-                  <p className="text-[10px] text-gray-500 font-bold uppercase">Motivo Causa / Macro</p>
-                  <p className="font-semibold text-gray-800 text-xs mt-1">{selectedModalItem.MotivoMacro || '-'}</p>
-                </div>
-              </div>
-
-              {/* Plano de Ação */}
-              <div className="bg-amber-50/80 border border-amber-200 p-3.5 rounded-xl space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <p className="text-amber-900 font-extrabold uppercase text-[10px] tracking-wider">
-                    Plano de Ação Registrado
-                  </p>
-                  {selectedModalItem.DataPlano && (
-                    <span className="text-[10px] text-amber-800 font-bold">
-                      Data do Plano: {formatDateBR(selectedModalItem.DataPlano)}
-                    </span>
-                  )}
-                </div>
-                <p className="text-gray-800 text-xs leading-relaxed whitespace-pre-wrap font-medium">
-                  {selectedModalItem.Plano || 'Nenhum plano de ação detalhado para este registro.'}
-                </p>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="bg-gray-50 p-3.5 border-t border-gray-200 flex justify-end">
-              <button
-                onClick={() => setSelectedModalItem(null)}
-                className="px-4 py-1.5 bg-[#001E62] text-white rounded-lg font-bold text-xs hover:bg-blue-900 transition-colors cursor-pointer"
-              >
-                Fechar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ErrorDetailModal 
+        item={selectedModalItem} 
+        onClose={() => setSelectedModalItem(null)} 
+      />
     </div>
   );
 };
