@@ -10,6 +10,7 @@ import {
 } from 'recharts';
 import { useStore, MonitoringItem, ProductivityItem, normalizeName, isValidAnalystName, matchesFilter, matchesFormaFilter, formatDateToBR, getTabuladorName, getSupervisorCode, getAnalystCode } from '../store/useStore';
 import { useTokenStore } from '../store/useTokenStore';
+import { useThemeStore } from '../store/useThemeStore';
 import { ErrorDetailModal } from '../components/ErrorDetailModal';
 
 export interface QuadranteInfo {
@@ -90,10 +91,10 @@ export const getQualityColorClass = (pct: number) => {
 };
 
 export const getQualityBadgeClass = (pct: number) => {
-  if (pct >= 97) return 'bg-emerald-50 text-emerald-700 border-emerald-300';
-  if (pct >= 95) return 'bg-blue-50/70 text-brand-blue border-gray-300/80';
-  if (pct >= 92) return 'bg-orange-50 text-orange-700 border-orange-300';
-  return 'bg-red-50 text-red-700 border-red-300';
+  if (pct >= 97) return 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-900/50';
+  if (pct >= 95) return 'bg-blue-50/70 dark:bg-blue-950/20 text-brand-blue dark:text-blue-300 border-gray-300/80 dark:border-blue-900/50';
+  if (pct >= 92) return 'bg-orange-50 dark:bg-orange-950/20 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-900/50';
+  return 'bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 border-red-300 dark:border-red-900/50';
 };
 
 export interface TagErrorDetail {
@@ -285,6 +286,7 @@ export const getQuadranteForTag = (tagCount: number, distinctTagsCount: number):
 export const AnalistasPage = () => {
   const { accessType } = useTokenStore();
   const isVisualizacao = accessType === 'visualizacao';
+  const { theme } = useThemeStore();
 
   const { 
     data, 
@@ -809,7 +811,7 @@ export const AnalistasPage = () => {
       let prodQuadrant: 'Q1' | 'Q2' | 'Q3' | 'Q4' = 'Q4';
       let prodQuadrantName = 'Q4 • Pior (< 90% da Meta)';
       let prodQuadrantColor = '#ef4444';
-      let prodQuadrantBg = 'bg-red-50 text-red-700 border-red-300';
+      let prodQuadrantBg = 'bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 border-red-300 dark:border-red-900/50';
       let prodQuadrantBorder = 'border-red-800';
       let angleMin = 190;
       let angleMax = 260; // Bottom-Left sector (180°..270°)
@@ -818,7 +820,7 @@ export const AnalistasPage = () => {
         prodQuadrant = 'Q1';
         prodQuadrantName = 'Q1 • Excelente (>= 110% da Meta)';
         prodQuadrantColor = '#10b981';
-        prodQuadrantBg = 'bg-emerald-50 text-emerald-700 border-emerald-300';
+        prodQuadrantBg = 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-900/50';
         prodQuadrantBorder = 'border-emerald-800';
         angleMin = 100;
         angleMax = 170; // Top-Left sector (90°..180°)
@@ -826,7 +828,7 @@ export const AnalistasPage = () => {
         prodQuadrant = 'Q2';
         prodQuadrantName = 'Q2 • Meta Atingida (100% - 110%)';
         prodQuadrantColor = '#001E62';
-        prodQuadrantBg = 'bg-blue-50/80 text-brand-blue-light border-gray-300';
+        prodQuadrantBg = 'bg-blue-50/80 dark:bg-blue-950/20 text-brand-blue-light dark:text-blue-300 border-gray-300 dark:border-blue-900/50';
         prodQuadrantBorder = 'border-gray-300';
         angleMin = 10;
         angleMax = 80; // Top-Right sector (0°..90°)
@@ -834,7 +836,7 @@ export const AnalistasPage = () => {
         prodQuadrant = 'Q3';
         prodQuadrantName = 'Q3 • Abaixo da Meta (90% - 100%)';
         prodQuadrantColor = '#f97316';
-        prodQuadrantBg = 'bg-orange-50 text-orange-700 border-orange-300';
+        prodQuadrantBg = 'bg-orange-50 dark:bg-orange-950/20 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-900/50';
         prodQuadrantBorder = 'border-orange-800';
         angleMin = 280;
         angleMax = 350; // Bottom-Right sector (270°..360°)
@@ -1079,7 +1081,7 @@ export const AnalistasPage = () => {
       let prodQuadrant: 'Q1' | 'Q2' | 'Q3' | 'Q4' = 'Q4';
       let prodQuadrantName = 'Q4 • Pior (< 90% da Meta)';
       let prodQuadrantColor = '#ef4444';
-      let prodQuadrantBg = 'bg-red-50 text-red-700 border-red-300';
+      let prodQuadrantBg = 'bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 border-red-300 dark:border-red-900/50';
       let prodQuadrantBorder = 'border-red-800';
       let angleMin = 190;
       let angleMax = 260;
@@ -1088,7 +1090,7 @@ export const AnalistasPage = () => {
         prodQuadrant = 'Q1';
         prodQuadrantName = 'Q1 • Excelente (>= 110% da Meta)';
         prodQuadrantColor = '#10b981';
-        prodQuadrantBg = 'bg-emerald-50 text-emerald-700 border-emerald-300';
+        prodQuadrantBg = 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-900/50';
         prodQuadrantBorder = 'border-emerald-800';
         angleMin = 100;
         angleMax = 170;
@@ -1096,7 +1098,7 @@ export const AnalistasPage = () => {
         prodQuadrant = 'Q2';
         prodQuadrantName = 'Q2 • Meta Atingida (100% - 110%)';
         prodQuadrantColor = '#001E62';
-        prodQuadrantBg = 'bg-blue-50/80 text-brand-blue-light border-gray-300';
+        prodQuadrantBg = 'bg-blue-50/80 dark:bg-blue-950/20 text-brand-blue-light dark:text-blue-300 border-gray-300 dark:border-blue-900/50';
         prodQuadrantBorder = 'border-gray-300';
         angleMin = 10;
         angleMax = 80;
@@ -1104,7 +1106,7 @@ export const AnalistasPage = () => {
         prodQuadrant = 'Q3';
         prodQuadrantName = 'Q3 • Abaixo da Meta (90% - 100%)';
         prodQuadrantColor = '#f97316';
-        prodQuadrantBg = 'bg-orange-50 text-orange-700 border-orange-300';
+        prodQuadrantBg = 'bg-orange-50 dark:bg-orange-950/20 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-900/50';
         prodQuadrantBorder = 'border-orange-800';
         angleMin = 280;
         angleMax = 350;
@@ -1340,20 +1342,20 @@ export const AnalistasPage = () => {
               </div>
 
               {/* Chart Legend Summary */}
-              <div className="flex items-center gap-3 text-xs flex-wrap bg-gray-50 border border-gray-200 p-2.5 rounded-xl">
-                <div className="flex items-center gap-1.5 text-emerald-600 font-semibold">
+              <div className="flex items-center gap-3 text-xs flex-wrap bg-gray-50 dark:bg-[#192238] border border-gray-200 dark:border-gray-700 p-2.5 rounded-xl">
+                <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
                   <span>Q1 (&ge;110%)</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-brand-blue font-semibold">
-                  <span className="w-2.5 h-2.5 rounded-full bg-brand-blue inline-block" />
+                <div className="flex items-center gap-1.5 text-brand-blue dark:text-blue-400 font-semibold">
+                  <span className="w-2.5 h-2.5 rounded-full bg-brand-blue dark:bg-blue-500 inline-block" />
                   <span>Q2 (100% - 110%)</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-orange-600 font-semibold">
+                <div className="flex items-center gap-1.5 text-orange-600 dark:text-orange-400 font-semibold">
                   <span className="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block" />
                   <span>Q3 (90% - 100%)</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-red-600 font-semibold">
+                <div className="flex items-center gap-1.5 text-red-600 dark:text-red-400 font-semibold">
                   <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />
                   <span>Q4 (&lt;90%)</span>
                 </div>
@@ -1362,13 +1364,13 @@ export const AnalistasPage = () => {
 
             {/* SVG Interactive Polar Scatter Chart Area */}
             <div className="flex flex-col lg:flex-row items-center justify-around gap-8 py-2">
-              <div className="relative w-full max-w-[520px] aspect-square flex items-center justify-center bg-gray-50/90 border border-gray-200 rounded-2xl p-4 shadow-2xl overflow-hidden">
+              <div className="relative w-full max-w-[520px] aspect-square flex items-center justify-center bg-gray-50/90 dark:bg-slate-950 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-2xl overflow-hidden">
                 <svg viewBox="0 0 520 520" className="w-full h-full select-none overflow-visible">
                   <defs>
                     <radialGradient id="polarGrad" cx="50%" cy="50%" r="50%">
-                      <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
-                      <stop offset="70%" stopColor="#f3f4f6" stopOpacity="1" />
-                      <stop offset="100%" stopColor="#e5e7eb" stopOpacity="1" />
+                      <stop offset="0%" stopColor={theme === 'dark' ? '#131b2e' : '#ffffff'} stopOpacity="1" />
+                      <stop offset="70%" stopColor={theme === 'dark' ? '#1e293b' : '#f3f4f6'} stopOpacity="1" />
+                      <stop offset="100%" stopColor={theme === 'dark' ? '#0f172a' : '#e5e7eb'} stopOpacity="1" />
                     </radialGradient>
                     
                     <filter id="dotGlow" x="-50%" y="-50%" width="200%" height="200%">
@@ -1381,45 +1383,61 @@ export const AnalistasPage = () => {
                   </defs>
 
                   {/* Outer Main Circle (100% Quality Border) */}
-                  <circle cx="260" cy="260" r="210" fill="url(#polarGrad)" stroke="#d1d5db" strokeWidth="2" />
+                  <circle cx="260" cy="260" r="210" fill="url(#polarGrad)" stroke={theme === 'dark' ? '#334155' : '#d1d5db'} strokeWidth="2" />
 
                   {/* Concentric Dashed Quality Rings */}
-                  <circle cx="260" cy="260" r="63.75" fill="none" stroke="#e5e7eb" strokeWidth="1" strokeDasharray="3 3" />
-                  <text x="260" y="193" textAnchor="middle" fill="#9ca3af" fontSize="9" fontWeight="bold">62.5% Qualidade</text>
+                  <circle cx="260" cy="260" r="63.75" fill="none" stroke={theme === 'dark' ? '#1e293b' : '#e5e7eb'} strokeWidth="1" strokeDasharray="3 3" />
+                  <text x="260" y="193" textAnchor="middle" fill={theme === 'dark' ? '#64748b' : '#9ca3af'} fontSize="9" fontWeight="bold">62.5% Qualidade</text>
 
-                  <circle cx="260" cy="260" r="112.5" fill="none" stroke="#e5e7eb" strokeWidth="1" strokeDasharray="4 4" />
-                  <text x="260" y="144" textAnchor="middle" fill="#9ca3af" fontSize="9" fontWeight="bold">75.0% Qualidade</text>
+                  <circle cx="260" cy="260" r="112.5" fill="none" stroke={theme === 'dark' ? '#1e293b' : '#e5e7eb'} strokeWidth="1" strokeDasharray="4 4" />
+                  <text x="260" y="144" textAnchor="middle" fill={theme === 'dark' ? '#64748b' : '#9ca3af'} fontSize="9" fontWeight="bold">75.0% Qualidade</text>
 
-                  <circle cx="260" cy="260" r="161.25" fill="none" stroke="#d1d5db" strokeWidth="1" strokeDasharray="4 4" />
-                  <text x="260" y="95" textAnchor="middle" fill="#6b7280" fontSize="10" fontWeight="bold">87.5% Qualidade</text>
+                  <circle cx="260" cy="260" r="161.25" fill="none" stroke={theme === 'dark' ? '#334155' : '#d1d5db'} strokeWidth="1" strokeDasharray="4 4" />
+                  <text x="260" y="95" textAnchor="middle" fill={theme === 'dark' ? '#94a3b8' : '#6b7280'} fontSize="10" fontWeight="bold">87.5% Qualidade</text>
 
                   {/* Outer Quality Border Labels */}
-                  <text x="260" y="44" textAnchor="middle" fill="#10b981" fontSize="11" fontWeight="extrabold">100% Qualidade (Borda)</text>
-                  <text x="260" y="278" textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="extrabold">50% Qualidade (Centro)</text>
+                  <text x="260" y="44" textAnchor="middle" fill={theme === 'dark' ? '#34d399' : '#10b981'} fontSize="11" fontWeight="extrabold">100% Qualidade (Borda)</text>
+                  <text x="260" y="278" textAnchor="middle" fill={theme === 'dark' ? '#f87171' : '#ef4444'} fontSize="10" fontWeight="extrabold">50% Qualidade (Centro)</text>
 
                   {/* Crosshair Dividers (Q1, Q2, Q3, Q4 Axis) */}
-                  <line x1="260" y1="50" x2="260" y2="470" stroke="#9ca3af" strokeWidth="1.5" strokeDasharray="6 4" />
-                  <line x1="50" y1="260" x2="470" y2="260" stroke="#9ca3af" strokeWidth="1.5" strokeDasharray="6 4" />
+                  <line x1="260" y1="50" x2="260" y2="470" stroke={theme === 'dark' ? '#475569' : '#9ca3af'} strokeWidth="1.5" strokeDasharray="6 4" />
+                  <line x1="50" y1="260" x2="470" y2="260" stroke={theme === 'dark' ? '#475569' : '#9ca3af'} strokeWidth="1.5" strokeDasharray="6 4" />
 
                   {/* Quadrant Titles */}
                   <g transform="translate(65, 26)">
-                    <rect x="-55" y="-13" width="110" height="26" rx="6" fill="#ecfdf5" stroke="#6ee7b7" strokeWidth="1" />
-                    <text x="0" y="4" textAnchor="middle" fill="#047857" fontSize="11" fontWeight="extrabold">Q1 • &ge; 110%</text>
+                    <rect x="-55" y="-13" width="110" height="26" rx="6" 
+                      fill={theme === 'dark' ? '#064e3b' : '#ecfdf5'} 
+                      stroke={theme === 'dark' ? '#059669' : '#6ee7b7'} 
+                      strokeWidth="1" 
+                    />
+                    <text x="0" y="4" textAnchor="middle" fill={theme === 'dark' ? '#34d399' : '#047857'} fontSize="11" fontWeight="extrabold">Q1 • &ge; 110%</text>
                   </g>
 
                   <g transform="translate(455, 26)">
-                    <rect x="-60" y="-13" width="120" height="26" rx="6" fill="#eff6ff" stroke="#93c5fd" strokeWidth="1" />
-                    <text x="0" y="4" textAnchor="middle" fill="#001E62" fontSize="11" fontWeight="extrabold">Q2 • 100% - 110%</text>
+                    <rect x="-60" y="-13" width="120" height="26" rx="6" 
+                      fill={theme === 'dark' ? '#1e3a8a' : '#eff6ff'} 
+                      stroke={theme === 'dark' ? '#3b82f6' : '#93c5fd'} 
+                      strokeWidth="1" 
+                    />
+                    <text x="0" y="4" textAnchor="middle" fill={theme === 'dark' ? '#93c5fd' : '#001E62'} fontSize="11" fontWeight="extrabold">Q2 • 100% - 110%</text>
                   </g>
 
                   <g transform="translate(455, 494)">
-                    <rect x="-60" y="-13" width="120" height="26" rx="6" fill="#fff7ed" stroke="#fdba74" strokeWidth="1" />
-                    <text x="0" y="4" textAnchor="middle" fill="#c2410c" fontSize="11" fontWeight="extrabold">Q3 • 90% - 100%</text>
+                    <rect x="-60" y="-13" width="120" height="26" rx="6" 
+                      fill={theme === 'dark' ? '#7c2d12' : '#fff7ed'} 
+                      stroke={theme === 'dark' ? '#ea580c' : '#fdba74'} 
+                      strokeWidth="1" 
+                    />
+                    <text x="0" y="4" textAnchor="middle" fill={theme === 'dark' ? '#ffedd5' : '#c2410c'} fontSize="11" fontWeight="extrabold">Q3 • 90% - 100%</text>
                   </g>
 
                   <g transform="translate(65, 494)">
-                    <rect x="-50" y="-13" width="100" height="26" rx="6" fill="#fef2f2" stroke="#fca5a5" strokeWidth="1" />
-                    <text x="0" y="4" textAnchor="middle" fill="#b91c1c" fontSize="11" fontWeight="extrabold">Q4 • &lt; 90%</text>
+                    <rect x="-50" y="-13" width="100" height="26" rx="6" 
+                      fill={theme === 'dark' ? '#7f1d1d' : '#fef2f2'} 
+                      stroke={theme === 'dark' ? '#dc2626' : '#fca5a5'} 
+                      strokeWidth="1" 
+                    />
+                    <text x="0" y="4" textAnchor="middle" fill={theme === 'dark' ? '#fca5a5' : '#b91c1c'} fontSize="11" fontWeight="extrabold">Q4 • &lt; 90%</text>
                   </g>
 
                   {/* Scatter Dots */}
@@ -1742,8 +1760,8 @@ export const AnalistasPage = () => {
                       key={esteira.id}
                       className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row items-center justify-between gap-4 ${
                         isTop3 
-                          ? 'bg-red-50 border-red-300 hover:border-red-600/80' 
-                          : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                          ? 'bg-red-50/70 dark:bg-red-950/15 border-red-200 dark:border-red-900/40 hover:bg-red-100/50 dark:hover:bg-red-950/25 hover:border-red-400 dark:hover:border-red-800' 
+                          : 'bg-gray-50 dark:bg-slate-900/40 border-gray-200 dark:border-slate-800 hover:bg-gray-100/50 dark:hover:bg-slate-900/70 hover:border-gray-300 dark:hover:border-slate-700'
                       }`}
                     >
                       <div className="flex items-center gap-3.5 min-w-0 flex-1">
@@ -1756,14 +1774,14 @@ export const AnalistasPage = () => {
                         </span>
 
                         <div className="overflow-hidden min-w-0">
-                          <h4 className="text-sm font-bold text-gray-900 truncate" title={esteira.nome}>{esteira.nome}</h4>
+                          <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate" title={esteira.nome}>{esteira.nome}</h4>
                           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                            <span className="text-[11px] text-gray-500 font-medium">
+                            <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
                               {esteira.totalAnalistas} analista(s)
                             </span>
                             <span className="text-gray-300">•</span>
                             {esteira.supervisores.slice(0, 2).map((sup, idx) => (
-                              <span key={idx} className="px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-700 text-[10px] font-semibold border border-gray-200 max-w-[140px] truncate" title={sup}>
+                              <span key={idx} className="px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-[#1e293b] text-gray-700 dark:text-gray-300 text-[10px] font-semibold border border-gray-200 dark:border-gray-700 max-w-[140px] truncate" title={sup}>
                                 {sup}
                               </span>
                             ))}
@@ -1826,10 +1844,10 @@ export const AnalistasPage = () => {
                       key={analyst.id}
                       className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row items-center justify-between gap-4 ${
                         isSearched
-                          ? 'bg-blue-50/30 border-brand-blue ring-1 ring-brand-blue/50 shadow-lg'
+                          ? 'bg-blue-50/30 dark:bg-blue-950/15 border-brand-blue dark:border-blue-800 ring-1 ring-brand-blue/30 dark:ring-blue-800/30 shadow-lg'
                           : isTop3 
-                            ? 'bg-red-50 border-red-300 hover:border-red-600/80' 
-                            : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                            ? 'bg-red-50/70 dark:bg-red-950/15 border-red-200 dark:border-red-900/40 hover:bg-red-100/50 dark:hover:bg-red-950/25 hover:border-red-400 dark:hover:border-red-800' 
+                            : 'bg-gray-50 dark:bg-slate-900/40 border-gray-200 dark:border-slate-800 hover:bg-gray-100/50 dark:hover:bg-slate-900/70 hover:border-gray-300 dark:hover:border-slate-700'
                       }`}
                     >
                       <div className="flex items-center gap-3.5 min-w-0 flex-1">
@@ -1844,12 +1862,12 @@ export const AnalistasPage = () => {
                         </span>
 
                         <div className="overflow-hidden min-w-0">
-                          <h4 className="text-sm font-bold text-gray-900 truncate" title={analyst.nome}>{analyst.nome}</h4>
+                          <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate" title={analyst.nome}>{analyst.nome}</h4>
                           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                            <span className="px-1.5 py-0.5 rounded-md bg-gray-200/80 text-gray-800 text-[10px] font-mono font-extrabold border border-gray-300 shrink-0">
+                            <span className="px-1.5 py-0.5 rounded-md bg-gray-200/80 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-[10px] font-mono font-extrabold border border-gray-300 dark:border-gray-700 shrink-0">
                               {analyst.codigo}
                             </span>
-                            <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-brand-blue text-[10px] font-semibold border border-blue-200/80 max-w-[200px] truncate" title={`Supervisor: ${analyst.supervisor}`}>
+                            <span className="px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/30 text-brand-blue dark:text-blue-300 text-[10px] font-semibold border border-blue-200/80 dark:border-blue-900 max-w-[200px] truncate" title={`Supervisor: ${analyst.supervisor}`}>
                               Sup: {analyst.supervisor}
                             </span>
                           </div>
@@ -1869,7 +1887,7 @@ export const AnalistasPage = () => {
 
                         <button
                           onClick={() => setSelectedAnalyst(analyst)}
-                          className="px-4 py-2 bg-white hover:bg-gray-100 text-brand-blue border border-gray-300 hover:border-brand-blue-dark/60 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                          className="px-4 py-2 bg-white dark:bg-[#192238] hover:bg-gray-100 dark:hover:bg-[#242f4d] text-brand-blue dark:text-blue-300 border border-gray-300 dark:border-gray-700 hover:border-brand-blue-dark/60 dark:hover:border-blue-500/60 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
                         >
                           Ficha <ChevronRight size={14} />
                         </button>
@@ -2766,8 +2784,8 @@ export const AnalistasPage = () => {
                           key={analyst.id}
                           className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row items-center justify-between gap-4 ${
                             isTop3 
-                              ? 'bg-red-50 border-red-300 hover:border-red-600/80' 
-                              : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                              ? 'bg-red-50/70 dark:bg-red-950/15 border-red-200 dark:border-red-900/40 hover:bg-red-100/50 dark:hover:bg-red-950/25 hover:border-red-400 dark:hover:border-red-800' 
+                              : 'bg-gray-50 dark:bg-slate-900/40 border-gray-200 dark:border-slate-800 hover:bg-gray-100/50 dark:hover:bg-slate-900/70 hover:border-gray-300 dark:hover:border-slate-700'
                           }`}
                         >
                           <div className="flex items-center gap-3.5 min-w-0 flex-1">
@@ -2780,12 +2798,12 @@ export const AnalistasPage = () => {
                             </span>
 
                             <div className="overflow-hidden min-w-0">
-                              <h4 className="text-sm font-bold text-gray-900 truncate" title={analyst.nome}>{analyst.nome}</h4>
+                              <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate" title={analyst.nome}>{analyst.nome}</h4>
                               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                                <span className="px-1.5 py-0.5 rounded-md bg-gray-200/80 text-gray-800 text-[10px] font-mono font-extrabold border border-gray-300 shrink-0">
+                                <span className="px-1.5 py-0.5 rounded-md bg-gray-200/80 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-[10px] font-mono font-extrabold border border-gray-300 dark:border-gray-700 shrink-0">
                                   {analyst.codigo}
                                 </span>
-                                <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-brand-blue text-[10px] font-semibold border border-blue-200/80 max-w-[200px] truncate" title={`Supervisor: ${analyst.supervisor}`}>
+                                <span className="px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/30 text-brand-blue dark:text-blue-300 text-[10px] font-semibold border border-blue-200/80 dark:border-blue-900 max-w-[200px] truncate" title={`Supervisor: ${analyst.supervisor}`}>
                                   Sup: {analyst.supervisor}
                                 </span>
                               </div>
@@ -2805,7 +2823,7 @@ export const AnalistasPage = () => {
 
                             <button
                               onClick={() => setSelectedAnalyst(analyst)}
-                              className="px-4 py-2 bg-white hover:bg-gray-100 text-brand-blue border border-gray-300 hover:border-brand-blue-dark/60 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                              className="px-4 py-2 bg-white dark:bg-[#192238] hover:bg-gray-100 dark:hover:bg-[#242f4d] text-brand-blue dark:text-blue-300 border border-gray-300 dark:border-gray-700 hover:border-brand-blue-dark/60 dark:hover:border-blue-500/60 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
                             >
                               Ficha <ChevronRight size={14} />
                             </button>

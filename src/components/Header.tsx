@@ -267,7 +267,7 @@ export const Header = () => {
 
           <button
             onClick={handleRefresh}
-            className="flex items-center justify-center bg-white text-brand-blue border border-brand-blue hover:bg-brand-blue hover:text-white dark:bg-[#192238] dark:text-blue-400 dark:border-[#243049] dark:hover:bg-brand-blue dark:hover:text-white p-2 rounded-md active:scale-95 transition-all cursor-pointer shadow-2xs font-bold"
+            className="flex items-center justify-center bg-white text-[#001E62] border border-gray-200 hover:bg-gray-100 dark:bg-[#192238] dark:text-blue-400 dark:border-[#243049] dark:hover:bg-[#243049] p-2 rounded-md active:scale-95 transition-all cursor-pointer shadow-2xs font-bold"
             title="Resetar filtros e atualizar dados do banco"
           >
             <RefreshCw size={15} className="stroke-[2.5]" />
