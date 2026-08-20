@@ -60,6 +60,8 @@ export const Header = () => {
         return 'MÉTRICAS DAS ESTEIRAS';
       case '/history':
         return 'HISTÓRICO DE ERROS';
+      case '/salesforce':
+        return 'SALESFORCE / CASOS';
       case '/settings':
         return 'CONFIGURAÇÕES DO SISTEMA';
       case '/import_removed':
@@ -159,9 +161,9 @@ export const Header = () => {
   const showFilters = path !== '/import';
 
   // Specific visibility per page
-  const showPeriodFilter = path === '/' || path === '/operacao' || path === '/capacidade' || path === '/parametros' || path === '/analise' || path === '/analistas' || path === '/history';
+  const showPeriodFilter = path === '/' || path === '/operacao' || path === '/capacidade' || path === '/parametros' || path === '/analise' || path === '/analistas' || path === '/history' || path === '/salesforce';
   const showFormaFilter = path === '/' || path === '/analise' || path === '/history';
-  const showEsteiraFilter = path === '/' || path === '/operacao' || path === '/capacidade' || path === '/parametros' || path === '/analise' || path === '/analistas' || path === '/history';
+  const showEsteiraFilter = path === '/' || path === '/operacao' || path === '/capacidade' || path === '/parametros' || path === '/analise' || path === '/analistas' || path === '/history' || path === '/salesforce';
   const showSearchAnalyst = path === '/analistas' || path === '/history';
 
   const hasAnyFilter = showPeriodFilter || showFormaFilter || showEsteiraFilter || showSearchAnalyst;

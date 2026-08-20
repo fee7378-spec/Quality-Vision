@@ -13,6 +13,7 @@ import { OperacaoPage } from './pages/OperacaoPage';
 import { CapacidadePage } from './pages/CapacidadePage';
 import { HistoryPage } from './pages/HistoryPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { SalesforcePage } from './pages/SalesforcePage';
 import { useTokenStore } from './store/useTokenStore';
 import { useThemeStore } from './store/useThemeStore';
 import { AuthScreen } from './components/AuthScreen';
@@ -64,6 +65,7 @@ export default function App() {
           <Route path="/capacidade" element={<CapacidadePage />} />
           <Route path="/analise" element={<AnaliseEvolucaoPage />} />
           <Route path="/analistas" element={<AnalistasPage />} />
+          <Route path="/salesforce" element={<SalesforcePage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -51,39 +51,48 @@ export const ParametrosPage = () => {
   };
 
   return (
-    <div className="w-full p-4 sm:p-6 md:p-8 bg-gray-50 text-gray-900 space-y-6">
+    <div className="p-3 sm:p-4 space-y-4 bg-gray-50 dark:bg-[#0b0f19] text-gray-900 dark:text-white w-full max-w-full text-xs animate-in fade-in duration-200">
+      
+      {/* Title block */}
+      <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-4 rounded-lg shadow-2xs space-y-1">
+        <h3 className="text-xs font-bold text-[#001E62] dark:text-white uppercase tracking-wider">
+          PARÂMETROS DAS ESTEIRAS
+        </h3>
+        <p className="text-[10px] text-gray-400">Configure as metas operacionais, equipe disponível e TMO alvo para modelagem de capacidade produtiva</p>
+      </div>
+
       {/* Main Parameters Table */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-xl">
+      <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden shadow-2xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="bg-slate-900 text-gray-900 font-bold border-b border-gray-300">
-                <th className="py-3.5 px-4 font-extrabold uppercase tracking-wider">Esteiras</th>
-                <th className="py-3.5 px-4 font-extrabold uppercase tracking-wider text-center">
-                  <div className="flex items-center justify-center gap-1.5">
-                    <Users size={14} className="text-brand-blue" />
+              <tr className="bg-[#001E62] dark:bg-[#192238] text-white font-bold border-b border-gray-200 dark:border-gray-800 text-[10px] uppercase tracking-wider">
+                <th className="py-2.5 px-3 font-extrabold">Esteira Operacional</th>
+                <th className="py-2.5 px-3 font-extrabold text-center">
+                  <div className="flex items-center justify-center gap-1">
+                    <Users size={12} />
                     Contratados
                   </div>
                 </th>
-                <th className="py-3.5 px-4 font-extrabold uppercase tracking-wider text-center">
-                  <div className="flex items-center justify-center gap-1.5">
-                    <Clock size={14} className="text-brand-blue" />
+                <th className="py-2.5 px-3 font-extrabold text-center">
+                  <div className="flex items-center justify-center gap-1">
+                    <Clock size={12} />
                     TMO (HH:MM:SS)
                   </div>
                 </th>
-                <th className="py-3.5 px-4 font-extrabold uppercase tracking-wider text-center">Horas/Dia</th>
-                <th className="py-3.5 px-4 font-extrabold uppercase tracking-wider text-center">Meta Diária/Analista</th>
-                <th className="py-3.5 px-4 font-extrabold uppercase tracking-wider text-center">
-                  <div className="flex items-center justify-center gap-1.5">
-                    <Calendar size={14} className="text-brand-blue" />
+                <th className="py-2.5 px-3 font-extrabold text-center">Horas/Dia</th>
+                <th className="py-2.5 px-3 font-extrabold text-center">Meta Diária/Analista</th>
+                <th className="py-2.5 px-3 font-extrabold text-center">
+                  <div className="flex items-center justify-center gap-1">
+                    <Calendar size={12} />
                     Dias Úteis/Mês
                   </div>
                 </th>
-                <th className="py-3.5 px-4 font-extrabold uppercase tracking-wider text-right bg-white text-brand-blue">Capacidade Dia</th>
-                <th className="py-3.5 px-4 font-extrabold uppercase tracking-wider text-right bg-white text-emerald-600">Capacidade Mês</th>
+                <th className="py-2.5 px-3 font-extrabold text-right bg-[#001c5c] dark:bg-[#151c2e]">Capacidade Dia</th>
+                <th className="py-2.5 px-3 font-extrabold text-right bg-[#001547] dark:bg-[#111726]">Capacidade Mês</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800/80">
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-800 font-medium">
               {esteirasList.map((esteira, idx) => {
                 const param = esteiraParams[esteira] || {
                   esteira,
@@ -106,59 +115,59 @@ export const ParametrosPage = () => {
                 const capMes = capDia * diasUteis;
 
                 return (
-                  <tr key={esteira} className={idx % 2 === 0 ? 'bg-white/60 hover:bg-gray-100/50' : 'bg-gray-50/40 hover:bg-gray-100/50'}>
-                    <td className="py-3 px-4 font-bold text-gray-900 max-w-[200px] truncate">{esteira}</td>
-                    <td className="py-3 px-4 text-center">
+                  <tr key={esteira} className="hover:bg-gray-50 dark:hover:bg-[#192238]/40 transition-colors even:bg-gray-50/30 dark:even:bg-[#192238]/10">
+                    <td className="py-2 px-3 font-bold text-gray-900 dark:text-white max-w-[200px] truncate uppercase text-[11px]">{esteira}</td>
+                    <td className="py-2 px-3 text-center">
                       <input 
                         type="number"
                         min="0"
                         value={contratados}
                         onChange={(e) => handleContratadosChange(esteira, e.target.value)}
-                        className="w-20 bg-gray-50 border border-gray-300 rounded px-2 py-1 text-center font-bold text-gray-900 outline-none focus:border-brand-blue-dark"
+                        className="w-16 bg-gray-50 dark:bg-[#192238] border border-gray-300 dark:border-gray-700 rounded px-1.5 py-1 text-center font-bold text-gray-900 dark:text-white outline-none focus:border-[#001E62] dark:focus:border-blue-500 transition-colors text-xs"
                       />
                     </td>
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-2 px-3 text-center">
                       <input 
                         type="text"
                         placeholder="HH:MM:SS"
                         value={formatSecondsToHHMMSS(tmoSegs)}
                         onChange={(e) => handleTmoChange(esteira, e.target.value)}
-                        className="w-24 bg-gray-50 border border-gray-300 rounded px-2 py-1 text-center font-bold text-brand-blue outline-none focus:border-brand-blue-dark"
+                        className="w-20 bg-gray-50 dark:bg-[#192238] border border-gray-300 dark:border-gray-700 rounded px-1.5 py-1 text-center font-bold text-[#001E62] dark:text-blue-400 outline-none focus:border-[#001E62] dark:focus:border-blue-500 transition-colors text-xs"
                       />
                     </td>
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-2 px-3 text-center">
                       <input 
                         type="number"
                         min="1"
                         max="24"
                         value={horasDia}
                         onChange={(e) => handleHorasChange(esteira, e.target.value)}
-                        className="w-16 bg-gray-50 border border-gray-300 rounded px-2 py-1 text-center font-semibold text-gray-700 outline-none focus:border-brand-blue-dark"
+                        className="w-14 bg-gray-50 dark:bg-[#192238] border border-gray-300 dark:border-gray-700 rounded px-1.5 py-1 text-center font-semibold text-gray-700 dark:text-gray-300 outline-none focus:border-[#001E62] dark:focus:border-blue-500 transition-colors text-xs"
                       />
                     </td>
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-2 px-3 text-center">
                       <input 
                         type="number"
                         min="1"
                         value={metaDiaria}
                         onChange={(e) => handleMetaChange(esteira, e.target.value)}
-                        className="w-20 bg-gray-50 border border-gray-300 rounded px-2 py-1 text-center font-semibold text-gray-700 outline-none focus:border-brand-blue-dark"
+                        className="w-16 bg-gray-50 dark:bg-[#192238] border border-gray-300 dark:border-gray-700 rounded px-1.5 py-1 text-center font-semibold text-gray-700 dark:text-gray-300 outline-none focus:border-[#001E62] dark:focus:border-blue-500 transition-colors text-xs"
                       />
                     </td>
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-2 px-3 text-center">
                       <input 
                         type="number"
                         min="1"
                         max="31"
                         value={diasUteis}
                         onChange={(e) => handleDiasUteisChange(esteira, e.target.value)}
-                        className="w-16 bg-gray-50 border border-gray-300 rounded px-2 py-1 text-center font-semibold text-gray-700 outline-none focus:border-brand-blue-dark"
+                        className="w-14 bg-gray-50 dark:bg-[#192238] border border-gray-300 dark:border-gray-700 rounded px-1.5 py-1 text-center font-semibold text-gray-700 dark:text-gray-300 outline-none focus:border-[#001E62] dark:focus:border-blue-500 transition-colors text-xs"
                       />
                     </td>
-                    <td className="py-3 px-4 text-right font-extrabold text-brand-blue bg-white/80">
+                    <td className="py-2 px-3 text-right font-extrabold text-[#001E62] dark:text-blue-300 bg-gray-50/50 dark:bg-[#151c2e]/60 text-[11px]">
                       {capDia.toLocaleString('pt-BR')}
                     </td>
-                    <td className="py-3 px-4 text-right font-extrabold text-emerald-600 bg-white/80">
+                    <td className="py-2 px-3 text-right font-extrabold text-emerald-600 dark:text-emerald-400 bg-gray-50/50 dark:bg-[#111726]/60 text-[11px]">
                       {capMes.toLocaleString('pt-BR')}
                     </td>
                   </tr>

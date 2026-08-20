@@ -1202,47 +1202,47 @@ export const AnalistasPage = () => {
   }, [esteirasDispersalData]);
 
   return (
-    <div className="w-full bg-gray-50 dark:bg-transparent p-4 sm:p-6 md:p-8 space-y-8 text-gray-900 dark:text-white relative">
+    <div className="p-3 sm:p-4 space-y-4 bg-gray-50 dark:bg-[#0b0f19] text-gray-900 dark:text-white w-full max-w-full text-xs animate-in fade-in duration-200">
       {/* Navigation Tabs Switcher & Top-Right Active Analysts counter */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-200 dark:border-gray-800 pb-3">
         {/* Left: Tab Selector Switcher */}
-        <div className="flex items-center gap-2 bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-1.5 rounded-xl shrink-0 shadow-lg">
+        <div className="flex items-center gap-1 bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-1 rounded-lg shrink-0 shadow-2xs">
           <button
             onClick={() => setActiveTab('individual')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase transition-all flex items-center gap-1.5 cursor-pointer ${
               activeTab === 'individual' 
-                ? 'bg-brand-blue-dark dark:bg-blue-600 text-white shadow-md shadow-brand-blue/20' 
+                ? 'bg-[#001E62] text-white shadow-xs' 
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
-            <Users size={15} />
+            <Users size={14} />
             Análise Individual
           </button>
           <button
             onClick={() => setActiveTab('dispersao')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase transition-all flex items-center gap-1.5 cursor-pointer ${
               activeTab === 'dispersao' 
-                ? 'bg-brand-blue-dark dark:bg-blue-600 text-white shadow-md shadow-brand-blue/20' 
+                ? 'bg-[#001E62] text-white shadow-xs' 
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
-            <Activity size={15} />
+            <Activity size={14} />
             Diagrama de Dispersão
           </button>
         </div>
 
         {/* Right side: Active Analysts counter (placed on top right per prompt) */}
-        <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300 bg-white/80 dark:bg-[#192238] border border-gray-200 dark:border-gray-700/80 px-3.5 py-2 rounded-xl self-end sm:self-auto shadow-xs">
-          <Users size={14} className="text-brand-blue dark:text-blue-400" />
-          <span><strong className="text-gray-900 dark:text-white font-bold">{filteredAnalysts.length}</strong> analistas ativos nesta base</span>
+        <div className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-600 dark:text-gray-300 bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 px-3 py-1.5 rounded-lg self-end sm:self-auto shadow-2xs uppercase tracking-wider">
+          <Users size={12} className="text-[#001E62] dark:text-blue-400" />
+          <span><strong className="text-gray-900 dark:text-white font-bold">{filteredAnalysts.length}</strong> analistas ativos</span>
         </div>
       </div>
 
       {activeTab === 'dispersao' ? (
         /* TAB 2: DIAGRAMA DE DISPERSÃO (QUADRANTES Q1..Q4 & QUALIDADE RADIAL) */
-        <div className="space-y-8 animate-in fade-in duration-300">
+        <div className="space-y-4 animate-in fade-in duration-200">
           {/* Quadrant Summary KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* Q1 Positivo */}
             <div className="bg-white dark:bg-[#131b2e] border border-emerald-300 dark:border-emerald-800/80 p-4 rounded-xl space-y-2 relative overflow-hidden">
               <div className="flex items-center justify-between">
@@ -1332,8 +1332,7 @@ export const AnalistasPage = () => {
           <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-6 rounded-2xl space-y-6 shadow-xl">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-4">
               <div>
-                <h3 className="text-lg font-bold text-brand-blue dark:text-white flex items-center gap-2 uppercase">
-                  <Activity className="text-brand-blue dark:text-blue-400" size={20} />
+                <h3 className="text-lg font-bold text-brand-blue dark:text-white uppercase">
                   DIAGRAMA DE DISPERSÃO — {rankingCategory === 'esteira' ? 'ESTEIRAS DE ATENDIMENTO' : 'PRODUTIVIDADE X QUALIDADE'}
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -1877,7 +1876,7 @@ export const AnalistasPage = () => {
                       <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end shrink-0">
                         <div className="flex flex-col items-center md:items-end justify-center gap-1 text-center md:text-right">
                           <span className={`px-2.5 py-0.5 rounded-md text-xs font-bold border text-center ${analyst.prodQuadrantBg || 'bg-blue-50 text-brand-blue border-gray-300'}`}>
-                            Quadrante - {quadNum}
+                            Quadrante: {quadNum}
                           </span>
 
                           <span className={`px-2.5 py-0.5 rounded-md text-xs font-bold border text-center ${getQualityBadgeClass(analyst.qualidadePct)}`}>
@@ -1915,95 +1914,95 @@ export const AnalistasPage = () => {
         </div>
       ) : (
         /* TAB 1: ANÁLISE INDIVIDUAL (Matriz de Quadrantes & Fichas) */
-        <div className="space-y-8 animate-in fade-in duration-300">
+        <div className="space-y-4 animate-in fade-in duration-200">
 
       {/* Matriz Centralizada de Regras de Acompanhamento & Feedbacks */}
-      <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-5 rounded-2xl space-y-4">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-gray-50 dark:bg-[#192238] border border-gray-200 dark:border-gray-700 rounded-xl text-brand-blue dark:text-blue-400">
-            <Layers size={18} />
+      <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-4 rounded-lg shadow-2xs space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 bg-gray-50 dark:bg-[#192238] border border-gray-200 dark:border-gray-700 rounded-lg text-[#001E62] dark:text-blue-400">
+            <Layers size={14} />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-brand-blue dark:text-white uppercase">MATRIZ DE QUADRANTES</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Diretrizes de acompanhamento e medidas operacionais:</p>
+            <h3 className="text-xs font-bold text-[#001E62] dark:text-white uppercase tracking-wider">MATRIZ DE QUADRANTES</h3>
+            <p className="text-[10px] text-gray-400">Diretrizes corporativas de acompanhamento operacional e planos de desenvolvimento individual:</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {/* 0 Conforme */}
-          <div className="bg-gray-50 dark:bg-[#192238] border border-emerald-300 dark:border-emerald-700 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
+          <div className="bg-gray-50 dark:bg-[#192238]/60 border border-emerald-300 dark:border-emerald-900/60 p-3 rounded-lg flex flex-col justify-between items-center text-center h-full min-h-[120px]">
             <div className="flex flex-col items-center justify-center space-y-1 w-full flex-1">
               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-extrabold text-[10px] border border-emerald-300 dark:border-emerald-700 mb-0.5">0</span>
-              <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Conforme</h4>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">Monitorias sem erros</p>
+              <h4 className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">Conforme</h4>
+              <p className="text-[9px] text-gray-500 dark:text-gray-400 leading-tight">Monitorias sem erros</p>
             </div>
-            <div className="w-full border-t border-emerald-300 dark:border-emerald-700 my-2" />
-            <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+            <div className="w-full border-t border-emerald-200 dark:border-emerald-800 my-1.5" />
+            <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap uppercase">
               {quadrantStats[0].qty} analistas ({quadrantStats[0].pct})
             </p>
           </div>
 
           {/* 1º Quadrante */}
-          <div className="bg-gray-50 dark:bg-[#192238] border border-blue-300 dark:border-blue-700 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
+          <div className="bg-gray-50 dark:bg-[#192238]/60 border border-blue-300 dark:border-blue-900/60 p-3 rounded-lg flex flex-col justify-between items-center text-center h-full min-h-[120px]">
             <div className="flex flex-col items-center justify-center space-y-1 w-full flex-1">
               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-50 dark:bg-blue-950 text-brand-blue dark:text-blue-300 font-extrabold text-[10px] border border-gray-300/80 dark:border-blue-700 mb-0.5">1</span>
-              <h4 className="text-xs font-bold text-brand-blue dark:text-blue-400">1º Quadrante</h4>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">Feedback</p>
+              <h4 className="text-[11px] font-bold text-[#001E62] dark:text-blue-400 uppercase">1º Quadrante</h4>
+              <p className="text-[9px] text-gray-500 dark:text-gray-400 leading-tight">Plano de Feedback</p>
             </div>
-            <div className="w-full border-t border-blue-300 dark:border-blue-700 my-2" />
-            <p className="text-xs font-bold text-brand-blue dark:text-blue-300 whitespace-nowrap">
+            <div className="w-full border-t border-blue-200 dark:border-blue-800 my-1.5" />
+            <p className="text-[10px] font-bold text-[#001E62] dark:text-blue-300 whitespace-nowrap uppercase">
               {quadrantStats[1].qty} analistas ({quadrantStats[1].pct})
             </p>
           </div>
 
           {/* 2º Quadrante */}
-          <div className="bg-gray-50 dark:bg-[#192238] border border-blue-300 dark:border-blue-700 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
+          <div className="bg-gray-50 dark:bg-[#192238]/60 border border-blue-300 dark:border-blue-900/60 p-3 rounded-lg flex flex-col justify-between items-center text-center h-full min-h-[120px]">
             <div className="flex flex-col items-center justify-center space-y-1 w-full flex-1">
               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-50 dark:bg-blue-950 text-brand-blue dark:text-blue-300 font-extrabold text-[10px] border border-gray-300/80 dark:border-blue-700 mb-0.5">2</span>
-              <h4 className="text-xs font-bold text-brand-blue dark:text-blue-400">2º Quadrante</h4>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">Análise de reincidência + lado a lado</p>
+              <h4 className="text-[11px] font-bold text-[#001E62] dark:text-blue-400 uppercase">2º Quadrante</h4>
+              <p className="text-[9px] text-gray-500 dark:text-gray-400 leading-tight">Reincidência + Plano de Ação</p>
             </div>
-            <div className="w-full border-t border-blue-300 dark:border-blue-700 my-2" />
-            <p className="text-xs font-bold text-brand-blue dark:text-blue-300 whitespace-nowrap">
+            <div className="w-full border-t border-blue-200 dark:border-blue-800 my-1.5" />
+            <p className="text-[10px] font-bold text-[#001E62] dark:text-blue-300 whitespace-nowrap uppercase">
               {quadrantStats[2].qty} analistas ({quadrantStats[2].pct})
             </p>
           </div>
 
           {/* 3º Quadrante */}
-          <div className="bg-gray-50 dark:bg-[#192238] border border-orange-300 dark:border-orange-700 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
+          <div className="bg-gray-50 dark:bg-[#192238]/60 border border-orange-300 dark:border-orange-900/60 p-3 rounded-lg flex flex-col justify-between items-center text-center h-full min-h-[120px]">
             <div className="flex flex-col items-center justify-center space-y-1 w-full flex-1">
               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300 font-extrabold text-[10px] border border-orange-300 dark:border-orange-700 mb-0.5">3</span>
-              <h4 className="text-xs font-bold text-orange-600 dark:text-orange-400">3º Quadrante</h4>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">Feedback formal + Medida disciplinar</p>
+              <h4 className="text-[11px] font-bold text-orange-600 dark:text-orange-400 uppercase">3º Quadrante</h4>
+              <p className="text-[9px] text-gray-500 dark:text-gray-400 leading-tight">Feedback formal disciplinar</p>
             </div>
-            <div className="w-full border-t border-orange-300 dark:border-orange-700 my-2" />
-            <p className="text-xs font-bold text-orange-600 dark:text-orange-400 whitespace-nowrap">
+            <div className="w-full border-t border-orange-200 dark:border-orange-800 my-1.5" />
+            <p className="text-[10px] font-bold text-orange-600 dark:text-orange-400 whitespace-nowrap uppercase">
               {quadrantStats[3].qty} analistas ({quadrantStats[3].pct})
             </p>
           </div>
 
           {/* 4º Quadrante */}
-          <div className="bg-gray-50 dark:bg-[#192238] border border-red-300 dark:border-red-700 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
+          <div className="bg-gray-50 dark:bg-[#192238]/60 border border-red-300 dark:border-red-900/60 p-3 rounded-lg flex flex-col justify-between items-center text-center h-full min-h-[120px]">
             <div className="flex flex-col items-center justify-center space-y-1 w-full flex-1">
               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 font-extrabold text-[10px] border border-red-300 dark:border-red-700 mb-0.5">4</span>
-              <h4 className="text-xs font-bold text-red-600 dark:text-red-400">4º Quadrante</h4>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">Avaliação de gestão + Medidas adm.</p>
+              <h4 className="text-[11px] font-bold text-red-600 dark:text-red-400 uppercase">4º Quadrante</h4>
+              <p className="text-[9px] text-gray-500 dark:text-gray-400 leading-tight">Avaliação de gestão operacional</p>
             </div>
-            <div className="w-full border-t border-red-300 dark:border-red-700 my-2" />
-            <p className="text-xs font-bold text-red-600 dark:text-red-400 whitespace-nowrap">
+            <div className="w-full border-t border-red-200 dark:border-red-800 my-1.5" />
+            <p className="text-[10px] font-bold text-red-600 dark:text-red-400 whitespace-nowrap uppercase">
               {quadrantStats[4].qty} analistas ({quadrantStats[4].pct})
             </p>
           </div>
 
           {/* >4 Persistência */}
-          <div className="bg-gray-50 dark:bg-[#192238] border border-rose-300 dark:border-rose-700 p-3.5 rounded-xl flex flex-col justify-between items-center text-center h-full min-h-[140px]">
+          <div className="bg-gray-50 dark:bg-[#192238]/60 border border-rose-300 dark:border-rose-900/60 p-3 rounded-lg flex flex-col justify-between items-center text-center h-full min-h-[120px]">
             <div className="flex flex-col items-center justify-center space-y-1 w-full flex-1">
               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 font-extrabold text-[10px] border border-rose-300 dark:border-rose-700 mb-0.5">&gt;4</span>
-              <h4 className="text-xs font-extrabold text-rose-700 dark:text-rose-400">Persistência</h4>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">Avaliação da gestão</p>
+              <h4 className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase">Persistência</h4>
+              <p className="text-[9px] text-gray-500 dark:text-gray-400 leading-tight">Comitê operacional crítico</p>
             </div>
-            <div className="w-full border-t border-rose-300 dark:border-rose-700 my-2" />
-            <p className="text-xs font-bold text-rose-700 dark:text-rose-400 whitespace-nowrap">
+            <div className="w-full border-t border-rose-200 dark:border-rose-800 my-1.5" />
+            <p className="text-[10px] font-bold text-rose-700 dark:text-rose-400 whitespace-nowrap uppercase">
               {quadrantStats[5].qty} analistas ({quadrantStats[5].pct})
             </p>
           </div>
@@ -2055,56 +2054,38 @@ export const AnalistasPage = () => {
                 </div>
               </div>
 
-              {/* Middle: Metrics Bar */}
-              <div className="w-full xl:w-[480px] shrink-0 bg-gray-50 dark:bg-[#192238] border border-gray-200/80 dark:border-gray-700/80 px-3 py-2.5 rounded-sm grid grid-cols-6 gap-2 text-center">
-                <div>
-                  <p className="text-[10px] text-gray-400 uppercase font-semibold">Prod.</p>
-                  <p className="text-sm font-bold text-blue-500 dark:text-blue-400 mt-0.5">{analyst.totalProdutividade}</p>
+              {/* Middle: Metrics Bar (Centered perfectly with balanced outer blocks) */}
+              <div className="w-full xl:flex-1 flex justify-center">
+                <div className="w-full max-w-[480px] bg-gray-50 dark:bg-[#192238] border border-gray-200/80 dark:border-gray-700/80 px-3 py-2.5 rounded-sm grid grid-cols-6 gap-2 text-center">
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase font-semibold">Prod.</p>
+                    <p className="text-sm font-bold text-blue-500 dark:text-blue-400 mt-0.5">{analyst.totalProdutividade}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase font-semibold">Monit.</p>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white mt-0.5">{analyst.totalMonitorias}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase font-semibold">Quali.</p>
+                    <p className={`text-sm font-bold mt-0.5 ${getQualityColorClass(analyst.qualidadePct)}`}>{analyst.qualidadePct}%</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase font-semibold">Erros</p>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white mt-0.5">{analyst.totalErros}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase font-semibold">Reincid.</p>
+                    <p className="text-sm font-bold text-red-600 dark:text-red-400 mt-0.5">{analyst.reincidencias}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase font-semibold">TMO</p>
+                    <p className="text-sm font-bold text-gray-700 dark:text-gray-300 mt-0.5">{analyst.tmoMedio}m</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] text-gray-400 uppercase font-semibold">Monit.</p>
-                  <p className="text-sm font-bold text-gray-900 dark:text-white mt-0.5">{analyst.totalMonitorias}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-gray-400 uppercase font-semibold">Quali.</p>
-                  <p className={`text-sm font-bold mt-0.5 ${getQualityColorClass(analyst.qualidadePct)}`}>{analyst.qualidadePct}%</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-gray-400 uppercase font-semibold">Erros</p>
-                  <p className="text-sm font-bold text-gray-900 dark:text-white mt-0.5">{analyst.totalErros}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-gray-400 uppercase font-semibold">Reincid.</p>
-                  <p className="text-sm font-bold text-red-600 dark:text-red-400 mt-0.5">{analyst.reincidencias}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-gray-400 uppercase font-semibold">TMO</p>
-                  <p className="text-sm font-bold text-gray-700 dark:text-gray-300 mt-0.5">{analyst.tmoMedio}m</p>
-                </div>
-              </div>
-
-
-              {/* Botão de Reincidência e Nível de Criticidade */}
-              <div className="w-full xl:w-[170px] shrink-0 flex items-center justify-center">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPopupAnalyst(analyst);
-                  }}
-                  className={`w-[150px] h-9 rounded-xl text-xs font-bold border inline-flex items-center justify-center gap-2 transition-all duration-200 hover:scale-[1.02] active:scale-95 cursor-pointer shadow-lg shrink-0 ${analyst.maxQuadrante.colorClass}`}
-                >
-                  <span className="w-5.5 h-5.5 rounded-full bg-slate-900 text-white border border-slate-700 flex items-center justify-center text-[10px] font-black shrink-0 shadow-xs">
-                    {analyst.maxTagErrorCount}
-                  </span>
-                  <span className="font-extrabold text-xs">
-                    {analyst.maxTagErrorCount} {analyst.maxTagErrorCount === 1 ? 'erro' : 'erros'}
-                  </span>
-                  <Info size={13} className="shrink-0 opacity-80" />
-                </button>
               </div>
 
               {/* Right: Chevron */}
-              <div className="w-full xl:w-[170px] shrink-0 flex items-center justify-between xl:justify-end gap-3 border-t xl:border-t-0 border-gray-200/60 dark:border-gray-800 pt-3 xl:pt-0">
+              <div className="w-full xl:w-[350px] shrink-0 flex items-center justify-between xl:justify-end gap-3 border-t xl:border-t-0 border-gray-200/60 dark:border-gray-800 pt-3 xl:pt-0">
                 <span className="flex items-center gap-1 text-brand-blue dark:text-blue-400 font-semibold text-xs group-hover:translate-x-1 transition-transform bg-gray-50 dark:bg-[#192238] border border-gray-200 dark:border-gray-700 px-3 py-1.5 rounded-sm">
                   Detalhes <ChevronRight size={14} />
                 </span>
@@ -2251,8 +2232,7 @@ export const AnalistasPage = () => {
 
               {/* Dash Individual do Analista (Gráficos) */}
               <div className="space-y-6">
-                <h3 className="text-base font-bold text-brand-blue flex items-center gap-2 border-b border-gray-200 pb-3 uppercase">
-                  <BarChart2 size={20} className="text-brand-blue" />
+                <h3 className="text-base font-bold text-brand-blue border-b border-gray-200 pb-3 uppercase">
                   DASH INDIVIDUAL DO ANALISTA
                 </h3>
 
@@ -2264,9 +2244,9 @@ export const AnalistasPage = () => {
                         <span className="w-2 h-2 rounded-full bg-brand-blue-dark"></span>
                         Erros por TAG
                       </h4>
-                      <div className="flex items-center gap-2 bg-gray-50/70 border border-gray-200 px-3 py-1 rounded-md text-[10px] font-bold">
-                        <span className="w-2.5 h-2.5 rounded-full bg-brand-blue-dark inline-block" />
-                        <span className="text-brand-blue">Erros na TAG</span>
+                      <div className="flex items-center gap-2 bg-gray-50 dark:bg-[#192238] border border-gray-200 dark:border-gray-700 px-3 py-1 rounded-md text-[10px] font-bold">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#001E62] dark:bg-blue-400 inline-block" />
+                        <span className="text-[#001E62] dark:text-blue-400">Erros na TAG</span>
                       </div>
                     </div>
 
@@ -2322,7 +2302,7 @@ export const AnalistasPage = () => {
                             itemStyle={{ color: '#001E62', fontWeight: 'bold' }} 
                             labelStyle={{ color: '#001E62', fontWeight: 'bold' }} 
                           />
-                          <Legend wrapperStyle={{ fontSize: '11px', color: '#a1a1aa', paddingTop: '8px' }} />
+                          <Legend wrapperStyle={{ fontSize: '11px', color: '#001E62', paddingTop: '8px', fontWeight: 'bold' }} />
                         </PieChart>
                       </ResponsiveContainer>
                     ) : (
@@ -2411,9 +2391,9 @@ export const AnalistasPage = () => {
                   <BarChart2 size={16} className="text-brand-blue" />
                   Volume de Erros por TAG
                 </h4>
-                <div className="flex items-center gap-2 bg-gray-50/70 border border-gray-200 px-3 py-1 rounded-md text-[10px] font-bold">
-                  <span className="w-2.5 h-2.5 rounded-full bg-brand-blue-dark inline-block" />
-                  <span className="text-brand-blue">Erros na TAG</span>
+                <div className="flex items-center gap-2 bg-gray-50 dark:bg-[#192238] border border-gray-200 dark:border-gray-700 px-3 py-1 rounded-md text-[10px] font-bold">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#001E62] dark:bg-blue-400 inline-block" />
+                  <span className="text-[#001E62] dark:text-blue-400">Erros na TAG</span>
                 </div>
               </div>
 
@@ -2700,8 +2680,7 @@ export const AnalistasPage = () => {
               <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-6 shadow-sm">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-4">
                   <div>
-                    <h3 className="text-base font-bold text-brand-blue flex items-center gap-2 uppercase">
-                      <AlertTriangle size={18} className="text-red-500" />
+                    <h3 className="text-base font-bold text-brand-blue uppercase">
                       RANKING DOS PRINCIPAIS OFENSORES DA ESTEIRA ({selectedEsteiraModal.nome})
                     </h3>
                     <p className="text-xs text-gray-500 mt-0.5">
@@ -2813,7 +2792,7 @@ export const AnalistasPage = () => {
                           <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end shrink-0">
                             <div className="flex flex-col items-center md:items-end justify-center gap-1 text-center md:text-right">
                               <span className={`px-2.5 py-0.5 rounded-md text-xs font-bold border text-center ${analyst.prodQuadrantBg || 'bg-blue-50 text-brand-blue border-gray-300'}`}>
-                                Quadrante - {quadNum}
+                                Quadrante: {quadNum}
                               </span>
 
                               <span className={`px-2.5 py-0.5 rounded-md text-xs font-bold border text-center ${getQualityBadgeClass(analyst.qualidadePct)}`}>

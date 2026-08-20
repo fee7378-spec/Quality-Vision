@@ -1,7 +1,9 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Database, Users, LineChart, Layers, TrendingUp, Settings, History } from 'lucide-react';
+import { LayoutDashboard, Database, Users, LineChart, Layers, TrendingUp, Settings, History, Cloud } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+import { useTokenStore } from '../store/useTokenStore';
+import { useTabStore } from '../store/useTabStore';
 
 const menuItems = [
   { path: '/', label: 'Visão Geral', icon: LayoutDashboard },
@@ -9,6 +11,7 @@ const menuItems = [
   { path: '/capacidade', label: 'Capacidade', icon: TrendingUp },
   { path: '/analise', label: 'Qualidade', icon: LineChart },
   { path: '/analistas', label: 'Analistas', icon: Users },
+  { path: '/salesforce', label: 'Salesforce', icon: Cloud },
   { path: '/history', label: 'Histórico', icon: History },
 ];
 
@@ -17,6 +20,15 @@ const settingsItem = { path: '/settings', label: 'Configurações', icon: Settin
 export const Sidebar = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const { tokenRecord } = useTokenStore();
+  const { visibleTabs } = useTabStore();
+
+  const currentTipo = (tokenRecord?.tipo || 'visualizacao').toLowerCase();
+  const isAdmin = currentTipo === 'administracao';
+
+  // Filter menu items for non-admins based on admin selection
+  const filteredMenuItems = menuItems.filter(item => isAdmin || visibleTabs.includes(item.path));
 
   const handleMouseEnter = () => {
     timeoutRef.current = setTimeout(() => {
@@ -28,6 +40,7 @@ export const Sidebar = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setIsExpanded(false);
   };
+
 
   return (
     <motion.div
@@ -60,7 +73,7 @@ export const Sidebar = () => {
 
       {/* Navigation Items */}
       <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
-        {menuItems.map((item) => (
+        {filteredMenuItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}

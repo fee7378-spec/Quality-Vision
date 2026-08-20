@@ -559,18 +559,16 @@ export const AnaliseEvolucaoPage = () => {
   }, [monitoriaErros, startDate, endDate, selectedEsteira, filteredData]);
 
   return (
-    <div className="w-full bg-gray-50 dark:bg-transparent p-4 sm:p-6 md:p-8 space-y-8 text-gray-900 dark:text-white">
-
+    <div className="p-3 sm:p-4 space-y-4 bg-gray-50 dark:bg-[#0b0f19] text-gray-900 dark:text-white w-full max-w-full text-xs animate-in fade-in duration-200">
 
       {/* Section 1: Índice de Evolução e Tendência */}
-      <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-6 rounded-md space-y-4 w-full">
+      <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-4 rounded-lg shadow-2xs space-y-3 w-full">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-brand-blue dark:text-white font-bold text-base flex items-center gap-2 uppercase">
-              <TrendingUp size={20} className="text-brand-blue dark:text-blue-400" />
+            <h3 className="text-xs font-bold text-[#001E62] dark:text-white uppercase tracking-wider mb-1">
               ÍNDICE DE EVOLUÇÃO
             </h3>
-            <p className="text-[11px] text-gray-400 mt-0.5">Evolução do percentual de qualidade (%) ao longo do período</p>
+            <p className="text-[10px] text-gray-400">Evolução temporal ponderada do percentual de conformidade de qualidade (%)</p>
           </div>
         </div>
 
@@ -583,44 +581,46 @@ export const AnaliseEvolucaoPage = () => {
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-            <XAxis dataKey="label" stroke="#94a3b8" tick={{ fontSize: 11, fill: '#cbd5e1' }} padding={{ left: 35, right: 35 }} />
-            <YAxis stroke="#94a3b8" domain={[70, 100]} tick={{ fontSize: 11, fill: '#cbd5e1' }} unit="%" />
+            <XAxis dataKey="label" stroke="#94a3b8" tick={{ fontSize: 10, fill: '#cbd5e1' }} padding={{ left: 35, right: 35 }} />
+            <YAxis stroke="#94a3b8" domain={[70, 100]} tick={{ fontSize: 10, fill: '#cbd5e1' }} unit="%" />
             <Tooltip 
               cursor={{ stroke: '#38bdf8', strokeDasharray: '3 3' }}
-              contentStyle={{ backgroundColor: '#131b2e', borderColor: '#243049', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', color: '#ffffff', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)' }} 
-              itemStyle={{ color: '#ffffff', fontSize: '11px', fontWeight: 'bold' }} 
-              labelStyle={{ color: '#60a5fa', fontSize: '11px', fontWeight: 'bold' }} 
+              contentStyle={{ backgroundColor: '#131b2e', borderColor: '#243049', borderRadius: '6px', padding: '6px 10px', fontSize: '10px', color: '#ffffff', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)' }} 
+              itemStyle={{ color: '#ffffff', fontSize: '10px', fontWeight: 'bold' }} 
+              labelStyle={{ color: '#60a5fa', fontSize: '10px', fontWeight: 'bold' }} 
             />
             <Area type="monotone" dataKey="qualidade" name="Qualidade (%)" stroke="#38bdf8" strokeWidth={3} fillOpacity={1} fill="url(#qualidadeGrad)">
-              <LabelList dataKey="qualidade" position="top" offset={10} fill="#ffffff" fontSize={11} fontWeight="bold" formatter={(v: any) => `${v}%`} />
+              <LabelList dataKey="qualidade" position="top" offset={10} fill="#ffffff" fontSize={10} fontWeight="bold" formatter={(v: any) => `${v}%`} />
             </Area>
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
       {/* Grid: Erros por TAG & Motivo Macro */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Erros por TAG com rolagem horizontal e rótulos de dados */}
-        <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-6 rounded-md">
-          <h3 className="text-brand-blue dark:text-white font-bold text-base mb-4 flex items-center gap-2 uppercase">
-            <span className="w-2.5 h-2.5 rounded-sm bg-blue-500"></span>
-            ERROS POR TAG
-          </h3>
+        <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-4 rounded-lg shadow-2xs space-y-3">
+          <div>
+            <h3 className="text-xs font-bold text-[#001E62] dark:text-white uppercase tracking-wider mb-1">
+              ERROS POR TAG
+            </h3>
+            <p className="text-[10px] text-gray-400">Distribuição absoluta de erros e desvios operacionais mapeados por tipo de tag de monitoria</p>
+          </div>
           <div className="overflow-x-auto pb-2 custom-scrollbar">
             <div style={{ minWidth: Math.max(errorsByTagData.length * 130, 480) }}>
               <ResponsiveContainer width="100%" height={380}>
                 <BarChart data={errorsByTagData} margin={{ top: 20, right: 20, left: -10, bottom: 50 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                   <XAxis dataKey="tag" stroke="#94a3b8" interval={0} tick={<CustomXAxisTick />} height={65} />
-                  <YAxis stroke="#94a3b8" tick={{ fontSize: 11, fill: '#cbd5e1' }} />
+                  <YAxis stroke="#94a3b8" tick={{ fontSize: 10, fill: '#cbd5e1' }} />
                   <Tooltip 
                     cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
-                    contentStyle={{ backgroundColor: '#131b2e', borderColor: '#243049', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', color: '#ffffff', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)' }} 
-                    itemStyle={{ color: '#ffffff', fontSize: '11px', fontWeight: 'bold' }} 
-                    labelStyle={{ color: '#60a5fa', fontSize: '11px', fontWeight: 'bold' }} 
+                    contentStyle={{ backgroundColor: '#131b2e', borderColor: '#243049', borderRadius: '6px', padding: '6px 10px', fontSize: '10px', color: '#ffffff', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)' }} 
+                    itemStyle={{ color: '#ffffff', fontSize: '10px', fontWeight: 'bold' }} 
+                    labelStyle={{ color: '#60a5fa', fontSize: '10px', fontWeight: 'bold' }} 
                   />
                   <Bar dataKey="count" name="Quantidade de Erros" fill="#ffffff" radius={[4, 4, 0, 0]} barSize={36}>
-                    <LabelList dataKey="count" position="top" offset={6} fill="#ffffff" fontSize={11} fontWeight="bold" />
+                    <LabelList dataKey="count" position="top" offset={6} fill="#ffffff" fontSize={10} fontWeight="bold" />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -629,29 +629,28 @@ export const AnaliseEvolucaoPage = () => {
         </div>
 
         {/* Intuitive and Visual Erros por Motivo Macro */}
-        <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-6 rounded-md flex flex-col justify-between space-y-4">
-          <div>
-            <h3 className="text-brand-blue dark:text-white font-bold text-base flex items-center gap-2 uppercase">
-              <PieIcon size={18} className="text-brand-blue dark:text-blue-400" />
+        <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-4 rounded-lg shadow-2xs flex flex-col justify-between">
+          <div className="mb-2">
+            <h3 className="text-xs font-bold text-[#001E62] dark:text-white uppercase tracking-wider mb-1">
               ERROS POR MOTIVOS MACRO
             </h3>
-            <p className="text-[11px] text-gray-400 mt-0.5">Distribuição percentual e absoluta de falhas por motivo macro</p>
+            <p className="text-[10px] text-gray-400">Distribuição percentual e absoluta de falhas por motivo macro</p>
           </div>
 
-          <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1.5 custom-scrollbar">
+          <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1.5 custom-scrollbar flex-1">
             {errorsByMacroData.length > 0 ? (
               errorsByMacroData.map((item) => (
-                <div key={item.name} className="bg-gray-50 dark:bg-[#192238] border border-gray-200 dark:border-gray-700/60 p-3 rounded-md space-y-1.5">
+                <div key={item.name} className="bg-gray-50 dark:bg-[#192238] border border-gray-200 dark:border-gray-700/60 p-2.5 rounded-md space-y-1.5">
                   <div className="flex items-center justify-between text-xs font-semibold">
-                    <span className="text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span className="text-gray-900 dark:text-gray-100 flex items-center gap-2 text-[11px] uppercase">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                       {item.name}
                     </span>
                     <span className="text-blue-600 dark:text-blue-400 font-bold">
                       {item.value} erro(s) ({item.percent}%)
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden border border-gray-300 dark:border-gray-600">
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden border border-gray-300 dark:border-gray-600">
                     <div 
                       className="h-full rounded-full transition-all duration-500" 
                       style={{ width: `${item.percent}%`, backgroundColor: item.color }} 
@@ -660,25 +659,24 @@ export const AnaliseEvolucaoPage = () => {
                 </div>
               ))
             ) : (
-              <p className="text-xs text-gray-400 text-center py-8">Nenhum erro por motivo macro no período selecionado.</p>
+              <p className="text-[11px] text-gray-400 text-center py-8 italic">Nenhum erro por motivo macro no período selecionado.</p>
             )}
           </div>
         </div>
       </div>
 
       {/* Grid Section 2: Heatmap ocupando 100% da área horizontal com filtro por Esteira / Analista */}
-      <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-6 rounded-md space-y-4 w-full">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-4">
+      <div className="bg-white dark:bg-[#131b2e] border border-gray-200 dark:border-gray-800 p-4 rounded-lg shadow-2xs space-y-3 w-full">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-3">
           <div>
-            <h3 className="text-brand-blue dark:text-white font-bold text-base flex items-center gap-2 uppercase">
-              <Grid size={20} className="text-brand-blue dark:text-blue-400" />
+            <h3 className="text-xs font-bold text-[#001E62] dark:text-white uppercase tracking-wider mb-1">
               HEATMAP DE OCORRÊNCIAS
             </h3>
-            <p className="text-[11px] text-gray-400 mt-0.5">
+            <p className="text-[10px] text-gray-400">
               Matriz de calor de volume de erros {heatmapData.isEsteiraMode ? 'dividida por Esteira Operacional' : 'dividida por Analista'} no tempo
               {heatmapData.columns.length > 6 && (
-                <span className="ml-1.5 text-blue-600 dark:text-blue-400 font-semibold">
-                  (Exibindo 6 meses por visualização • Role para o lado para ver os demais)
+                <span className="ml-1.5 text-blue-600 dark:text-blue-400 font-semibold uppercase text-[9px]">
+                  (Role para o lado para ver os demais meses)
                 </span>
               )}
             </p>
@@ -688,9 +686,9 @@ export const AnaliseEvolucaoPage = () => {
           <div className="flex items-center gap-1 bg-gray-50 dark:bg-[#192238] p-1 rounded-md border border-gray-200 dark:border-gray-700">
             <button
               onClick={() => setHeatmapViewMode('esteira')}
-              className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase transition-all cursor-pointer ${
                 heatmapViewMode === 'esteira'
-                  ? 'bg-brand-blue-dark text-white shadow-sm'
+                  ? 'bg-[#001E62] text-white shadow-xs'
                   : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
               }`}
             >
@@ -698,9 +696,9 @@ export const AnaliseEvolucaoPage = () => {
             </button>
             <button
               onClick={() => setHeatmapViewMode('analista')}
-              className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase transition-all cursor-pointer ${
                 heatmapViewMode === 'analista'
-                  ? 'bg-brand-blue-dark text-white shadow-sm'
+                  ? 'bg-[#001E62] text-white shadow-xs'
                   : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
               }`}
             >
@@ -719,9 +717,9 @@ export const AnaliseEvolucaoPage = () => {
             }}
           >
             <thead className="sticky top-0 bg-white dark:bg-[#131b2e] z-20 shadow-xs">
-              <tr className="border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 font-semibold">
+              <tr className="border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 font-semibold text-[10px] uppercase">
                 <th 
-                  className="p-3 text-left bg-white dark:bg-[#131b2e] sticky top-0 left-0 z-30 border-b border-r border-gray-200 dark:border-gray-800"
+                  className="p-2.5 text-left bg-white dark:bg-[#131b2e] sticky top-0 left-0 z-30 border-b border-r border-gray-200 dark:border-gray-800"
                   style={{ width: '220px', minWidth: '220px', maxWidth: '220px' }}
                 >
                   {heatmapData.isEsteiraMode ? 'Esteira Operacional' : 'Analista'}
@@ -734,7 +732,7 @@ export const AnaliseEvolucaoPage = () => {
                   return (
                     <th 
                       key={c} 
-                      className="p-3 min-w-[110px] bg-white dark:bg-[#131b2e] border-b border-gray-200 dark:border-gray-800"
+                      className="p-2.5 min-w-[110px] bg-white dark:bg-[#131b2e] border-b border-gray-200 dark:border-gray-800"
                       style={{ width: heatmapData.columns.length > 6 ? 'calc((100% - 220px) / 6)' : 'auto' }}
                     >
                       {label}
@@ -748,7 +746,7 @@ export const AnaliseEvolucaoPage = () => {
                 heatmapData.categories.map(cat => (
                   <tr key={cat} className="group border-b border-gray-200/40 dark:border-gray-800/40 hover:bg-gray-50 dark:hover:bg-[#192238]/60 transition-colors">
                     <td 
-                      className={`p-3 text-left font-semibold text-gray-900 dark:text-gray-100 truncate bg-white dark:bg-[#131b2e] sticky left-0 z-10 border-r border-gray-200 dark:border-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-[#192238] transition-colors ${
+                      className={`p-2.5 text-left font-semibold text-gray-900 dark:text-gray-100 truncate bg-white dark:bg-[#131b2e] sticky left-0 z-10 border-r border-gray-200 dark:border-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-[#192238] transition-colors ${
                         !heatmapData.isEsteiraMode ? 'cursor-pointer text-blue-600 dark:text-blue-400 hover:underline' : ''
                       }`} 
                       style={{ width: '220px', minWidth: '220px', maxWidth: '220px' }}
@@ -766,10 +764,10 @@ export const AnaliseEvolucaoPage = () => {
                       return (
                         <td 
                           key={col} 
-                          className="p-2 min-w-[110px]"
+                          className="p-1.5 min-w-[110px]"
                           style={{ width: heatmapData.columns.length > 6 ? 'calc((100% - 220px) / 6)' : 'auto' }}
                         >
-                          <div className={`py-2 px-3 rounded-md border text-xs font-bold transition-transform hover:scale-105 ${getHeatmapColor(count)}`}>
+                          <div className={`py-1.5 px-2 rounded border text-[10px] font-bold transition-transform hover:scale-105 ${getHeatmapColor(count)}`}>
                             {count} erro(s)
                           </div>
                         </td>
@@ -779,7 +777,7 @@ export const AnaliseEvolucaoPage = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={heatmapData.columns.length + 1} className="p-8 text-center text-gray-400">
+                  <td colSpan={heatmapData.columns.length + 1} className="p-8 text-center text-gray-400 italic">
                     Nenhum dado encontrado para os filtros selecionados.
                   </td>
                 </tr>
@@ -788,11 +786,11 @@ export const AnaliseEvolucaoPage = () => {
           </table>
         </div>
 
-        <div className="flex items-center justify-end gap-4 text-[11px] text-gray-500 dark:text-gray-400 pt-3 border-t border-gray-200 dark:border-gray-800">
-          <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded-sm bg-white dark:bg-[#192238] border border-gray-200 dark:border-gray-700"></span> 0 Erros</span>
-          <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded-sm bg-blue-50/50 dark:bg-blue-950/40 border border-gray-300/80 dark:border-blue-900"></span> 1 Erro</span>
-          <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded-sm bg-blue-100/60 dark:bg-blue-900/60 border border-blue-300 dark:border-blue-700"></span> 2 Erros</span>
-          <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded-sm bg-blue-200/80 dark:bg-blue-700/60 border border-blue-500 dark:border-blue-400"></span> 3+ Erros</span>
+        <div className="flex items-center justify-end gap-3 text-[10px] text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-800 uppercase font-bold">
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-white dark:bg-[#192238] border border-gray-200 dark:border-gray-700"></span> 0 Erros</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-blue-50/50 dark:bg-blue-950/40 border border-gray-300/80 dark:border-blue-900"></span> 1 Erro</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-blue-100/60 dark:bg-blue-900/60 border border-blue-300 dark:border-blue-700"></span> 2 Erros</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-blue-200/80 dark:bg-blue-700/60 border border-blue-500 dark:border-blue-400"></span> 3+ Erros</span>
         </div>
       </div>
 
